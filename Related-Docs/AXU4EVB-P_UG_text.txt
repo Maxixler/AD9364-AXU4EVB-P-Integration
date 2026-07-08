@@ -1,0 +1,1403 @@
+
+=== PAGE 1 ===
+ZynqUltraScale+
+开发平台
+AXU4EVB-P开发板
+
+
+=== PAGE 2 ===
+AXU4EVB-P用户手册
+2/59 芯驿电子科技（上海）有限公司文档版本控制
+文档版本 修改内容记录
+REV1.0 创建文档
+REV1.1 修正核心板J29管脚定义错误
+REV1.2 修改eMMC信息，补充FMC管脚序号
+
+=== PAGE 3 ===
+AXU4EVB-P用户手册
+3/59 http://www.alinx.com目录
+文档版本控制......................................................................................................................................2
+一、 开发板简介.............................................................................................................................6
+二、 ACU4EV核心板....................................................................................................................9
+(一)简介..................................................................................................................................9
+(二)ZYNQ芯片...................................................................................................................10
+(三)DDR4DRAM..............................................................................................................11
+(四)QSPIFlash...................................................................................................................17
+(五)eMMCFlash...............................................................................................................18
+(六)时钟配置.......................................................................................................................20
+(七)LED灯...........................................................................................................................22
+(八)电源................................................................................................................................22
+(九)结构图............................................................................................................................24
+(十)连接器管脚定义...........................................................................................................24
+三、 扩展板...................................................................................................................................33
+(一)简介................................................................................................................................33
+(二)M.2接口.......................................................................................................................34
+(三)DP显示接口.................................................................................................................35
+(四)USB3.0接口.................................................................................................................36
+(五)千兆以太网接口...........................................................................................................37
+(六)USBUart接口............................................................................................................39
+(七)SD卡槽.........................................................................................................................40
+(八)HDMI输出接口...........................................................................................................41
+(九)HDMI输入接口...........................................................................................................42
+(十)光纤接口.......................................................................................................................44
+(十一)PCIe插槽......................................................................................................................45
+(十二)CAN通信接口.............................................................................................................46
+(十三)485通信接口...............................................................................................................47
+(十四)MIPI接口......................................................................................................................48
+(十五)FMC连接器.................................................................................................................49
+
+=== PAGE 4 ===
+AXU4EVB-P用户手册
+4/59 芯驿电子科技（上海）有限公司(十六)JTAG调试口.................................................................................................................53
+(十七)RTC实时时钟...............................................................................................................53
+(十八)EEPROM和温度传感器............................................................................................54
+(十九)LED灯...........................................................................................................................55
+(二十)按键................................................................................................................................55
+(二十一)拨码开关配置..........................................................................................................56
+(二十二)电源..........................................................................................................................57
+(二十三)风扇..........................................................................................................................57
+(二十四)结构尺寸图..............................................................................................................58
+
+=== PAGE 5 ===
+AXU4EVB-P用户手册
+5/59 http://www.alinx.com芯驿电子科技（上海）有限公司基于XILINXZynqUltraScale+MPSoCs开发平台的开
+发板（型号：AXU4EVB-P）2019款正式发布了，为了让您对此开发平台可以快速了解，我
+们编写了此用户手册。
+这款MPSoCs开发平台采用核心板加扩展板的模式，方便用户对核心板的二次开发利用。
+核心板使用XILINXZynqUltraScale+EV芯片ZU4EV的解决方案，它采用Processing
+System(PS)+ProgrammableLogic(PL)技术将四核ARMCortex-A53和FPGA可编程逻辑
+集成在一颗芯片上。另外核心板上PS端带有4片共4GB高速DDR4SDRAM芯片，1片32GB
+的eMMC存储芯片和1片256Mb的QSPIFLASH芯片；核心板上PL端带有1片1GB的
+DDR4SDRAM芯片。
+在底板设计上我们为用户扩展了丰富的外围接口，比如1个FMCLPC接口、1路M.2SSD
+固态硬盘接口、1路DP接口、1个PCIEx2接口、2路SFP+光纤接口、4个USB3.0接口、
+2路千兆以太网接口、1路HDMI输入接口，1路HDMI输出接口、2路UART接口、1路
+SD卡接口、2路CAN总线接口、2路RS485接口和1路MIPI摄像头接口等等。满足用户
+各种高速数据交换，数据存储，视频传输处理，深度学习，人工智能以及工业控制的要求，是
+一款"专业级“的ZYNQ开发平台。为高速数据传输和交换，数据处理的前期验证和后期应用
+提供了可能。相信这样的一款产品非常适合从事MPSoCs开发的学生、工程师等群体。
+
+
+=== PAGE 6 ===
+AXU4EVB-P用户手册
+6/59 芯驿电子科技（上海）有限公司一、开发板简介
+在这里，对这款AXU4EVB-PMPSoCs开发平台进行简单的功能介绍。
+开发板的整个结构，继承了我们一贯的核心板+扩展板的模式来设计的。核心板和扩展板
+之间使用高速板间连接器连接。
+核心板主要由ZU4EV+5个DDR4+eMMC+1个QSPIFLASH的最小系统构成。
+ZU4EV采用Xilinx公司的ZynqUltraScale+MPSoCsEV系列的芯片，型号为
+XCZU4EV-1SFVC784I。ZU4EV芯片可分成处理器系统部分ProcessorSystem（PS）和可
+编程逻辑部分ProgrammableLogic（PL）。在ZU4EV芯片的PS端和PL端分别挂了4片
+和1片DDR4，每片DDR4容量高达1G字节，使得ARM系统和FPGA系统能独立处理和存
+储的数据的功能。PS端的32GBeMMCFLASH存储芯片和1片256Mb的QSPIFLASH用
+来静态存储MPSoCs的操作系统、文件系统及用户数据。
+底板为核心板扩展了丰富的外围接口，其中包含1路M.2接口、1路DP输出接口、4路
+USB3.0接口、2路千兆以太网接口、1路PCIEx2接口、2路光纤接口、2路UART接口、1
+路SD卡接口、1路HDMI输出接口、1路HDMI输入接口、1路FMC接口、2路CAN总
+线接口，2路RS485接口，1路MIPI接口和一些按键LED。
+下图为整个开发系统的结构示意图：
+
+
+=== PAGE 7 ===
+AXU4EVB-P用户手册
+7/59 http://www.alinx.com通过这个示意图，我们可以看到，我们这个开发平台所能含有的接口和功能。
+ZU4EV核心板
+由ZU4EV+4GBDDR4（PS）+1GBDDR4（PL）+32GBeMMCFLASH+256MbQSPI
+FLASH组成，另外有2个晶振提供时钟，一个单端33.3333MHz晶振提供给PS系统，一个
+差分200MHz晶振提供给PL逻辑DDR参考时钟。
+M.2接口
+1路PCIEx1标准的M.2接口，用于连接M.2的SSD固态硬盘，通信速度高达6Gbps。
+DP输出接口
+1路标准的DisplayPort输出显示接口，用于视频图像的显示。最高支持4K@30Hz或
+者1080P@60Hz输出。
+USB3.0接口
+4路USB3.0HOST接口，USB接口类型为TYPEA。用于连接外部的USB外设，比如连
+接鼠标，键盘，U盘等外设。
+千兆以太网接口
+2路10/100M/1000M以太网RJ45接口，PS和PL各1路。用于和电脑或其它网络设
+备进行以太网数据交换。
+USBUart接口
+2路Uart转USB接口，PS和PL各1路。用于和电脑通信，方便用户调试。串口芯片采
+用SiliconLabsCP2102GM的USB-UAR芯片,USB接口采用MINIUSB接口。
+PCIex2接口
+支持PCIExpress3.0标准（兼容2.0），提供标准的PCIex2高速数据传输接口，单通
+道通信速率可高达8GBaud。
+2路SFP光纤接口
+GTH收发器的2路高速收发器连接到2个光模块的发送和接收，实现2路高速的光纤通
+信接口。每路的光纤数据通信接收和发送的速度高达12.5Gb/s。
+MicroSD卡座
+1路MicroSD卡座，用于存储操作系统镜像和文件系统。
+HDMI视频输出
+1路HDMI视频输出接口，我们选用了ANALOGDEVICE公司的ADV7511HDMI编码
+芯片，最高支持1080P@60Hz输出，支持3D输出。
+HDMI视频输入
+
+=== PAGE 8 ===
+AXU4EVB-P用户手册
+8/59 芯驿电子科技（上海）有限公司1路HDMI视频输入接口，我们选用了ANALOGDEVICE公司的ADV7611HDMI解码
+芯片，最高支持1080P@60Hz输入，支持不同格式的数据输入。
+FMC扩展口
+1个标准的FMCLPC的扩展口，可以外接XILINX或者我们黑金的各种FMC模块（HDMI
+输入输出模块，双目摄像头模块，高速AD模块等等）。
+CAN通信接口
+2路CAN总线接口，选用TI公司的SN65HVD232芯片，接口采用4Pin的绿色接线端
+子。
+485通信接口
+2路485通信接口，选用MAXIM公司的MAX3485芯片。接口采用6Pin的绿色接线端
+子。
+MIPI接口
+2个LANE的MIPI摄像头输入接口，用于连接MIPI摄像头模块（AN5641）。
+JTAG调试口
+1个10针2.54mm标准的JTAG口，用于FPGA程序的下载和调试，用户可以通过XILINX
+下载器对ZU4EV系统进行调试和下载。
+温湿度传感器
+板载1片温湿度传感器芯片LM75，用于检测板子周围环境的温度和湿度。
+EEPROM
+1片IIC接口的EEPROM24LC04;
+RTC实时时钟
+1路内置的RTC实时时钟；
+LED灯
+5个发光二极管LED,核心板上2个，底板上3个。核心板上1个电源指示灯和1个DONE
+配置指示灯,。底板上有1个电源指示灯，2个用户指示灯。
+按键
+3个按键，1个复位按键，2个用户按键。
+
+=== PAGE 9 ===
+AXU4EVB-P用户手册
+9/59 http://www.alinx.com二、ACU4EV核心板
+(一)简介
+ACU4EV(核心板型号，下同)核心板，ZYNQ芯片是基于XILINX公司的ZynqUltraScale+
+MPSoCsEV系列的XCZU4EV-1SFVC784I。
+这款核心板使用了5片Micron的DDR4芯片MT40A512M16GE,其中PS端挂载4片
+DDR4，组成64位数据总线带宽和4GB的容量。PL端挂载1片，为16位的数据总线宽度和
+1GB的容量。PS端的DDR4SDRAM的最高运行速度可达1200MHz(数据速率2400Mbps)，
+PL端的DDR4SDRAM的最高运行速度可达1066MHz(数据速率2132Mbps)。另外核心板
+上也集成了1片256MBit大小的QSPIFLASH和32GB大小的eMMCFLASH芯片，用于启
+动存储配置和系统文件。
+为了和底板连接，这款核心板的4个板对板连接器扩展出了PS端的USB2.0接口，千兆
+以太网接口，SD卡接口及其它剩余的MIO口；也扩展出了4对PSMGT高速收发器接口；
+以及PL端的4路GTH收发器和几乎所有IO口（HPI/O：96个，HDI/O：84个），XCZU4EV
+芯片到接口之间走线做了等长和差分处理，并且核心板尺寸仅为80*60（mm），对于二次开
+发来说，非常适合。
+ACU4EV核心板正面图
+
+=== PAGE 10 ===
+AXU4EVB-P用户手册
+10/59 芯驿电子科技（上海）有限公司(二)ZYNQ芯片
+开发板使用的是Xilinx公司的ZynqUltraScale+MPSoCsEV系列的系列的芯片，型号
+为XCZU4EV-1SFVC784I。ZU4EV芯片的PS系统集成了4个ARMCortex™-A53处理器，
+速度高达1.5Ghz，支持2级Cache;另外ZU4EV还包含2个Cortex-R5处理器（速度高达
+600Mhz）和1个视频编解码处理器。
+ZU4EV芯片支持32位或者64位的DDR4，LPDDR4，DDR3,DDR3L,LPDDR3存储芯
+片，在PS端带有丰富的高速接口如PCIEGen2,USB3.0,SATA3.1,DisplayPort；同时另外
+也支持USB2.0，千兆以太网，SD/SDIO，I2C，CAN，UART，GPIO等接口。PL端内部含
+有丰富的可编程逻辑单元，DSP和内部RAM。ZU4EV芯片的总体框图如图2-2-1所示
+图2-2-1ZYNQZU4EV芯片的总体框图
+其中PS系统部分的主要参数如下：
+-ARM四核Cortex™-A53处理器，速度高达1.5GHz，每个CPU32KB1级指令和数
+据缓存，1MB2级缓存2个CPU共享。
+-ARM双核Cortex-R5处理器，速度高达600MHz，每个CPU32KB1级指令和数据
+缓存，及128K紧耦合内存。
+-图像视频处理器Mali-400MP2,速度高达677MHz，64KB2级缓存。
+
+=== PAGE 11 ===
+AXU4EVB-P用户手册
+11/59 http://www.alinx.com-外部存储接口，支持32/64bitDDR4/3/3L、LPDDR4/3接口。
+-静态存储接口，支持NAND,2xQuad-SPIFLASH。
+-高速连接接口，支持PCIeGen2x4,2xUSB3.0,Sata3.1,DisplayPort,4xTri-mode
+GigabitEthernet。
+-普通连接接口：2xUSB2.0,2xSD/SDIO,2xUART,2xCAN2.0B,2xI2C,2xSPI,4x
+32bGPIO。
+-电源管理：支持Full/Low/PL/Battery四部分电源的划分。
+-加密算法：支持RSA,AES和SHA。
+-系统监控：10位1Mbps的AD采样，用于温度和电压的检测。
+其中PL逻辑部分的主要参数如下：
+-逻辑单元(SystemLogicCells)：192K；
+-触发器(CLBflip-flops):176K；
+-查找表(CLBLUTs):71K；
+-BlockRAM：20.6Mb；
+-时钟管理单元（CMTs）:4个
+-DSPSlices：728个
+-图像编解码单元（VCU）：1个
+-PCIE3.0:2个
+-GTH12.5Gb/s收发器：4个
+XCZU4EV-1SFVC784I芯片的速度等级为-1，工业级，封装为SFVC784。
+(三)DDR4DRAM
+ACU4EV核心板上配有5片Micron(美光）的1GB的DDR4芯片,型号为
+MT40A512M16LY-062E,其中PS端挂载4片DDR4，组成64位数据总线带宽和4GB的容量。
+PL端挂载1片，为16位的数据总线宽度和1GB的容量。PS端的DDR4SDRAM的最高运行速度
+可达1200MHz(数据速率2400Mbps)，4片DDR4存储系统直接连接到了PS的BANK504的存
+储器接口上。PL端的DDR4SDRAM的最高运行速度可达1066MHz(数据速率2132Mbps)，1
+片DDR4连接到了FPGA的BANK64的接口上。DDR4SDRAM的具体配置如下表2-3-1所示。
+位号 芯片型号 容量 厂家
+U12,U14,U15,U16MT40A512M16LY-062E 512Mx16bit Micron
+表2-3-1DDR4SDRAM配置
+DDR4的硬件设计需要严格考虑信号完整性，我们在电路设计和PCB设计的时候已经充
+
+=== PAGE 12 ===
+AXU4EVB-P用户手册
+12/59 芯驿电子科技（上海）有限公司分考虑了匹配电阻/终端电阻,走线阻抗控制，走线等长控制，保证DDR4的高速稳定的工作。
+PS端的DDR4的硬件连接方式如图2-3-1所示:
+图2-3-1PS端DDR4DRAM原理图部分
+PL端的DDR4DRAM的硬件连接方式如图2-3-2所示:
+图2-3-2PL端DDR4DRAM原理图部分
+PS端DDR4SDRAM引脚分配：
+信号名称 引脚名 引脚号
+PS_DDR4_DQS0_P PS_DDR_DQS_P0_504 AF21
+PS_DDR4_DQS0_N PS_DDR_DQS_N0_504 AG21
+PS_DDR4_DQS1_P PS_DDR_DQS_P1_504 AF23
+PS_DDR4_DQS1_N PS_DDR_DQS_N1_504 AG23
+
+=== PAGE 13 ===
+AXU4EVB-P用户手册
+13/59 http://www.alinx.comPS_DDR4_DQS2_P PS_DDR_DQS_P2_504 AF25
+PS_DDR4_DQS2_N PS_DDR_DQS_N2_504 AF26
+PS_DDR4_DQS3_P PS_DDR_DQS_P3_504 AE27
+PS_DDR4_DQS3_N PS_DDR_DQS_N3_504 AF27
+PS_DDR4_DQS4_P PS_DDR_DQS_P4_504 N23
+PS_DDR4_DQS4_N PS_DDR_DQS_N4_504 M23
+PS_DDR4_DQS5_P PS_DDR_DQS_P5_504 L23
+PS_DDR4_DQS5_N PS_DDR_DQS_N5_504 K23
+PS_DDR4_DQS6_P PS_DDR_DQS_P6_504 N26
+PS_DDR4_DQS6_N PS_DDR_DQS_N6_504 N27
+PS_DDR4_DQS7_P PS_DDR_DQS_P7_504 J26
+PS_DDR4_DQS7_N PS_DDR_DQS_N7_504 J27
+PS_DDR4_DQ0 PS_DDR_DQ0_504 AD21
+PS_DDR4_DQ1 PS_DDR_DQ1_504 AE20
+PS_DDR4_DQ2 PS_DDR_DQ2_504 AD20
+PS_DDR4_DQ3 PS_DDR_DQ3_504 AF20
+PS_DDR4_DQ4 PS_DDR_DQ4_504 AH21
+PS_DDR4_DQ5 PS_DDR_DQ5_504 AH20
+PS_DDR4_DQ6 PS_DDR_DQ6_504 AH19
+PS_DDR4_DQ7 PS_DDR_DQ7_504 AG19
+PS_DDR4_DQ8 PS_DDR_DQ8_504 AF22
+PS_DDR4_DQ9 PS_DDR_DQ9_504 AH22
+PS_DDR4_DQ10 PS_DDR_DQ10_504 AE22
+PS_DDR4_DQ11 PS_DDR_DQ11_504 AD22
+PS_DDR4_DQ12 PS_DDR_DQ12_504 AH23
+PS_DDR4_DQ13 PS_DDR_DQ13_504 AH24
+PS_DDR4_DQ14 PS_DDR_DQ14_504 AE24
+PS_DDR4_DQ15 PS_DDR_DQ15_504 AG24
+PS_DDR4_DQ16 PS_DDR_DQ16_504 AC26
+PS_DDR4_DQ17 PS_DDR_DQ17_504 AD26
+PS_DDR4_DQ18 PS_DDR_DQ18_504 AD25
+PS_DDR4_DQ19 PS_DDR_DQ19_504 AD24
+PS_DDR4_DQ20 PS_DDR_DQ20_504 AG26
+PS_DDR4_DQ21 PS_DDR_DQ21_504 AH25
+PS_DDR4_DQ22 PS_DDR_DQ22_504 AH26
+
+=== PAGE 14 ===
+AXU4EVB-P用户手册
+14/59 芯驿电子科技（上海）有限公司PS_DDR4_DQ23 PS_DDR_DQ23_504 AG25
+PS_DDR4_DQ24 PS_DDR_DQ24_504 AH27
+PS_DDR4_DQ25 PS_DDR_DQ25_504 AH28
+PS_DDR4_DQ26 PS_DDR_DQ26_504 AF28
+PS_DDR4_DQ27 PS_DDR_DQ27_504 AG28
+PS_DDR4_DQ28 PS_DDR_DQ28_504 AC27
+PS_DDR4_DQ29 PS_DDR_DQ29_504 AD27
+PS_DDR4_DQ30 PS_DDR_DQ30_504 AD28
+PS_DDR4_DQ31 PS_DDR_DQ31_504 AC28
+PS_DDR4_DQ32 PS_DDR_DQ32_504 T22
+PS_DDR4_DQ33 PS_DDR_DQ33_504 R22
+PS_DDR4_DQ34 PS_DDR_DQ34_504 P22
+PS_DDR4_DQ35 PS_DDR_DQ35_504 N22
+PS_DDR4_DQ36 PS_DDR_DQ36_504 T23
+PS_DDR4_DQ37 PS_DDR_DQ37_504 P24
+PS_DDR4_DQ38 PS_DDR_DQ38_504 R24
+PS_DDR4_DQ39 PS_DDR_DQ39_504 N24
+PS_DDR4_DQ40 PS_DDR_DQ40_504 H24
+PS_DDR4_DQ41 PS_DDR_DQ41_504 J24
+PS_DDR4_DQ42 PS_DDR_DQ42_504 M24
+PS_DDR4_DQ43 PS_DDR_DQ43_504 K24
+PS_DDR4_DQ44 PS_DDR_DQ44_504 J22
+PS_DDR4_DQ45 PS_DDR_DQ45_504 H22
+PS_DDR4_DQ46 PS_DDR_DQ46_504 K22
+PS_DDR4_DQ47 PS_DDR_DQ47_504 L22
+PS_DDR4_DQ48 PS_DDR_DQ48_504 M25
+PS_DDR4_DQ49 PS_DDR_DQ49_504 M26
+PS_DDR4_DQ50 PS_DDR_DQ50_504 L25
+PS_DDR4_DQ51 PS_DDR_DQ51_504 L26
+PS_DDR4_DQ52 PS_DDR_DQ52_504 K28
+PS_DDR4_DQ53 PS_DDR_DQ53_504 L28
+PS_DDR4_DQ54 PS_DDR_DQ54_504 M28
+PS_DDR4_DQ55 PS_DDR_DQ55_504 N28
+PS_DDR4_DQ56 PS_DDR_DQ56_504 J28
+PS_DDR4_DQ57 PS_DDR_DQ57_504 K27
+
+=== PAGE 15 ===
+AXU4EVB-P用户手册
+15/59 http://www.alinx.comPS_DDR4_DQ58 PS_DDR_DQ58_504 H28
+PS_DDR4_DQ59 PS_DDR_DQ59_504 H27
+PS_DDR4_DQ60 PS_DDR_DQ60_504 G26
+PS_DDR4_DQ61 PS_DDR_DQ61_504 G25
+PS_DDR4_DQ62 PS_DDR_DQ62_504 K25
+PS_DDR4_DQ63 PS_DDR_DQ63_504 J25
+PS_DDR4_DM0 PS_DDR_DM0_504 AG20
+PS_DDR4_DM1 PS_DDR_DM1_504 AE23
+PS_DDR4_DM2 PS_DDR_DM2_504 AE25
+PS_DDR4_DM3 PS_DDR_DM3_504 AE28
+PS_DDR4_DM4 PS_DDR_DM4_504 R23
+PS_DDR4_DM5 PS_DDR_DM5_504 H23
+PS_DDR4_DM6 PS_DDR_DM6_504 L27
+PS_DDR4_DM7 PS_DDR_DM7_504 H26
+PS_DDR4_A0 PS_DDR_A0_504 W28
+PS_DDR4_A1 PS_DDR_A1_504 Y28
+PS_DDR4_A2 PS_DDR_A2_504 AB28
+PS_DDR4_A3 PS_DDR_A3_504 AA28
+PS_DDR4_A4 PS_DDR_A4_504 Y27
+PS_DDR4_A5 PS_DDR_A5_504 AA27
+PS_DDR4_A6 PS_DDR_A6_504 Y22
+PS_DDR4_A7 PS_DDR_A7_504 AA23
+PS_DDR4_A8 PS_DDR_A8_504 AA22
+PS_DDR4_A9 PS_DDR_A9_504 AB23
+PS_DDR4_A10 PS_DDR_A10_504 AA25
+PS_DDR4_A11 PS_DDR_A11_504 AA26
+PS_DDR4_A12 PS_DDR_A12_504 AB25
+PS_DDR4_A13 PS_DDR_A13_504 AB26
+PS_DDR4_WE_B PS_DDR_A14_504 AB24
+PS_DDR4_CAS_B PS_DDR_A15_504 AC24
+PS_DDR4_RAS_B PS_DDR_A16_504 AC23
+PS_DDR4_ACT_B PS_DDR_ACT_N_504 Y23
+PS_DDR4_ALERT_B PS_DDR_ALERT_N_504 U25
+PS_DDR4_BA0 PS_DDR_BA0_504 V23
+PS_DDR4_BA1 PS_DDR_BA1_504 W22
+
+=== PAGE 16 ===
+AXU4EVB-P用户手册
+16/59 芯驿电子科技（上海）有限公司PS_DDR4_BG0 PS_DDR_BG0_504 W24
+PS_DDR4_CS0_B PS_DDR_CS_N0_504 W27
+PS_DDR4_ODT0 PS_DDR_ODT0_504 U28
+PS_DDR4_PARITY PS_DDR_PARITY_504 V24
+PS_DDR4_RESET_B PS_DDR_RST_N_504 U23
+PS_DDR4_CLK0_P PS_DDR_CK0_P_504 W25
+PS_DDR4_CLK0_N PS_DDR_CK0_N_504 W26
+PS_DDR4_CKE0 PS_DDR_CKE0_504 V28
+PL端DDR4SDRAM引脚分配：
+信号名称 引脚名 引脚号
+PL_DDR4_DQS0_P IO_L22P_T3U_N6_DBC_AD0P_64 AE2
+PL_DDR4_DQS0_N IO_L22N_T3U_N7_DBC_AD0N_64 AF2
+PL_DDR4_DQS1_P IO_L16P_T2U_N6_QBC_AD3P_64 AD2
+PL_DDR4_DQS1_N IO_L16N_T2U_N7_QBC_AD3N_64 AD1
+PL_DDR4_DQ0 IO_L24N_T3U_N11_64 AG1
+PL_DDR4_DQ1 IO_L24P_T3U_N10_64 AF1
+PL_DDR4_DQ2 IO_L23N_T3U_N9_64 AH1
+PL_DDR4_DQ3 IO_L23P_T3U_N8_64 AH2
+PL_DDR4_DQ4 IO_L21N_T3L_N5_AD8N_64 AF3
+PL_DDR4_DQ5 IO_L21P_T3L_N4_AD8P_64 AE3
+PL_DDR4_DQ6 IO_L20N_T3L_N3_AD1N_64 AH3
+PL_DDR4_DQ7 IO_L20P_T3L_N2_AD1P_64 AG3
+PL_DDR4_DQ8 IO_L18N_T2U_N11_AD2N_64 AC1
+PL_DDR4_DQ9 IO_L18P_T2U_N10_AD2P_64 AB1
+PL_DDR4_DQ10 IO_L17N_T2U_N9_AD10N_64 AC2
+PL_DDR4_DQ11 IO_L17P_T2U_N8_AD10P_64 AB2
+PL_DDR4_DQ12 IO_L15N_T2L_N5_AD11N_64 AB3
+PL_DDR4_DQ13 IO_L15P_T2L_N4_AD11P_64 AB4
+PL_DDR4_DQ14 IO_L14N_T2L_N3_GC_64 AC3
+PL_DDR4_DQ15 IO_L14P_T2L_N2_GC_64 AC4
+PL_DDR4_DM0 IO_L19P_T3L_N0_DBC_AD9P_64 AG4
+PL_DDR4_DM1 IO_L13P_T2L_N0_GC_QBC_64 AD5
+PL_DDR4_A0 IO_L8N_T1L_N3_AD5N_64 AG8
+
+=== PAGE 17 ===
+AXU4EVB-P用户手册
+17/59 http://www.alinx.comPL_DDR4_A1 IO_L3P_T0L_N4_AD15P_64 AB8
+PL_DDR4_A2 IO_L8P_T1L_N2_AD5P_64 AF8
+PL_DDR4_A3 IO_L3N_T0L_N5_AD15N_64 AC8
+PL_DDR4_A4 IO_L11P_T1U_N8_GC_64 AF7
+PL_DDR4_A5 IO_L4P_T0U_N6_DBC_AD7P_64 AD7
+PL_DDR4_A6 IO_L9N_T1L_N5_AD12N_64 AH7
+PL_DDR4_A7 IO_L2P_T0L_N2_64 AE9
+PL_DDR4_A8 IO_L9P_T1L_N4_AD12P_64 AH8
+PL_DDR4_A9 IO_L1P_T0L_N0_DBC_64 AC9
+PL_DDR4_A10 IO_L4N_T0U_N7_DBC_AD7N_64 AE7
+PL_DDR4_A11 IO_L7N_T1L_N1_QBC_AD13N_64 AH9
+PL_DDR4_A12 IO_L6N_T0U_N11_AD6N_64 AC6
+PL_DDR4_A13 IO_L1N_T0L_N1_DBC_64 AD9
+PL_DDR4_BA0 IO_T1U_N12_64 AH6
+PL_DDR4_BA1 IO_L5N_T0U_N9_AD14N_64 AC7
+PL_DDR4_RAS_B IO_T2U_N12_64 AB5
+PL_DDR4_CAS_B IO_L5P_T0U_N8_AD14P_64 AB7
+PL_DDR4_WE_B IO_L11N_T1U_N9_GC_64 AF6
+PL_DDR4_ACT_B IO_L13N_T2L_N1_GC_QBC_64 AD4
+PL_DDR4_CS_B IO_L6P_T0U_N10_AD6P_64 AB6
+PL_DDR4_BG0 IO_L2N_T0L_N3_64 AE8
+PL_DDR4_RST IO_L7P_T1L_N0_QBC_AD13P_64 AG9
+PL_DDR4_CLK_N IO_L10N_T1U_N7_QBC_AD4N_64 AG5
+PL_DDR4_CLK_P IO_L10P_T1U_N6_QBC_AD4P_64 AG6
+PL_DDR4_CKE IO_T3U_N12_64 AE4
+PL_DDR4_OTD IO_L19N_T3L_N1_DBC_AD9N_64 AH4
+(四)QSPIFlash
+ACU4EV核心板配有1片256MBit大小的Quad-SPIFLASH芯片组成8位带宽数据总
+线，FLASH型号为MT25QU256ABA1EW9，它使用1.8VCMOS电压标准。由于QSPIFLASH
+的非易失特性，在使用中，它可以作为系统的启动设备来存储系统的启动镜像。这些镜像主
+要包括FPGA的bit文件、ARM的应用程序代码以及其它的用户数据文件。QSPIFLASH的
+具体型号和相关参数见表2-4-1。
+
+=== PAGE 18 ===
+AXU4EVB-P用户手册
+18/59 芯驿电子科技（上海）有限公司位号 芯片类型 容量 厂家
+U5 MT25QU256ABA1EW9 256Mbit Winbond
+表2-4-1QSPIFlash的型号和参数
+QSPIFLASH连接到ZYNQ芯片的PS部分BANK500的GPIO口上，在系统设计中需要
+配置这些PS端的GPIO口功能为QSPIFLASH接口。为图4-1为QSPIFlash在原理图中的
+部分。
+图2-4-1QSPIFlash连接示意图
+配置芯片引脚分配：
+信号名称 引脚名 引脚号
+MIO0_QSPI0_SCLK PS_MIO0_500 AG15
+MIO1_QSPI0_IO1 PS_MIO1_500 AG16
+MIO2_QSPI0_IO2 PS_MIO2_500 AF15
+MIO3_QSPI0_IO3 PS_MIO3_500 AH15
+MIO4_QSPI0_IO0 PS_MIO4_500 AH16
+MIO5_QSPI0_SS_B PS_MIO5_500 AD16
+(五)eMMCFlash
+ACU4EV核心板配有一片大容量的32GB大小的eMMCFLASH芯片，型号为
+MTFC32GAKAJCN-4M，它支持JEDECe-MMCV5.0标准的HS-MMC接口，电平支持1.8V
+
+=== PAGE 19 ===
+AXU4EVB-P用户手册
+19/59 http://www.alinx.com或者3.3V。eMMCFLASH和ZYNQ连接的数据宽度为8bit。由于eMMCFLASH的大容量
+和非易失特性，在ZYNQ系统使用中，它可以作为系统大容量的存储设备，比如存储ARM的
+应用程序、系统文件以及其它的用户数据文件。eMMCFLASH的具体型号和相关参数见表
+2-5-1。
+位号 芯片类型 容量 厂家
+U19 MTFC32GAKAJCN-4M 32GByte Micron
+表2-5-1eMMCFlash的型号和参数
+eMMCFLASH连接到ZYNQUltraScale+的PS部分BANK500的GPIO口上，在系统
+设计中需要配置这些PS端的GPIO口功能为EMMC接口。为图2-5-1为eMMCFlash在原
+理图中的部分。
+图2-5-1eMMCFlash连接示意图
+配置芯片引脚分配：
+信号名称 引脚名 引脚号
+MMC_DAT0 PS_MIO13_500 AH18
+MMC_DAT1 PS_MIO14_500 AG18
+MMC_DAT2 PS_MIO15_500 AE18
+MMC_DAT3 PS_MIO16_500 AF18
+MMC_DAT4 PS_MIO17_500 AC18
+MMC_DAT5 PS_MIO18_500 AC19
+MMC_DAT6 PS_MIO19_500 AE19
+MMC_DAT7 PS_MIO20_500 AD19
+MMC_CMD PS_MIO21_500 AC21
+MMC_CCLK PS_MIO22_500 AB20
+
+=== PAGE 20 ===
+AXU4EVB-P用户手册
+20/59 芯驿电子科技（上海）有限公司MMC_RSTN PS_MIO23_500 AB18
+(六)时钟配置
+核心板上分别为PS系统,PL逻辑部分提供了参考时钟和RTC实时时钟，使PS系统和PL
+逻辑可以单独工作。时钟电路设计的示意图如下图2-6-1所示：
+图2-6-1核心板时钟源
+PS系统RTC实时时钟
+核心板上的无源晶体Y2为PS系统的提供32.768KHz的实时时钟源。晶体连接到ZYNQ
+芯片的BANK503的PS_PADI_503和PS_PADO_503的管脚上。其原理图如图2-6-2所示：
+图2-6-2RTC的无源晶振
+时钟引脚分配：
+信号名称 引脚
+PS_PADI_503 N17
+PS_PADO_503 N18
+PS系统时钟源
+核心板上的X1晶振为PS部分提供33.333MHz的时钟输入。时钟的输入连接到ZYNQ
+
+=== PAGE 21 ===
+AXU4EVB-P用户手册
+21/59 http://www.alinx.com芯片的BANK503的PS_REF_CLK_503的管脚上。其原理图如图2-6-3所示：
+图2-6-3PS部分的有源晶振
+时钟引脚分配：
+信号名称 引脚
+PS_CLK R16
+PL系统时钟源
+板上提供了一个差分200MHz的PL系统时钟源，用于DDR4控制器的参考时钟。晶振
+输出连接到PLBANK64的全局时钟(MRCC)，这个全局时钟可以用来驱动FPGA内的DDR4
+控制器和用户逻辑电路。该时钟源的原理图如图2-6-4所示
+图2-6-4PL系统时钟源
+PL时钟引脚分配：
+信号名称 引脚
+PL_CLK0_P AE5
+PL_CLK0_N AF5
+
+=== PAGE 22 ===
+AXU4EVB-P用户手册
+22/59 芯驿电子科技（上海）有限公司(七)LED灯
+ACU4EV核心板上有1个红色电源指示灯(PWR)，1个是配置LED灯(DONE)。当核心板
+供电后，电源指示灯会亮起；当FPGA配置程序后，配置LED灯会亮起。LED灯硬件连接的
+示意图如图2-7-1所示：
+图2-7-1核心板LED灯硬件连接示意图
+(八)电源
+ACU4EV核心板供电电压为+12V，通过连接底板给核心板供电。核心板上通过一个PMIC
+芯片TPS6508641产生XCZU4EV芯片所需要的所有电源，TPS6508641电源设计请参考电
+源芯片手册，设计框图如下：
+
+=== PAGE 23 ===
+AXU4EVB-P用户手册
+23/59 http://www.alinx.com
+另外XCZU4EV芯片的BANK65，BANK66的VCCIO电源是由底板提供，方便用户修改，
+但供电最高不能超过1.8V。
+
+=== PAGE 24 ===
+AXU4EVB-P用户手册
+24/59 芯驿电子科技（上海）有限公司(九)结构图
+正面图（TopView）
+(十)连接器管脚定义
+核心板一共扩展出4个高速扩展口，使用4个120Pin的板间连接器（J29~J32）和底板
+连接，连接器使用松下的AXK5A2137YG，对应底板的连接器型号为AXK6A2337YG。其中
+J29连接BANK65,BANK66的IO，J30连接BANK25,BANK26，BANK66的IO和BANK505
+MGT的收发器信号,J31连接BANK24,BANK44的IO，J32连接PS的MIO，VCCO_65，
+VCCO_66和+12V电源。
+其中BANK43~46的IO的电平标准为3.3V，BANK65,66的电平标准由底板的
+VCCO_65，VCCO_66电源决定，但不能超过+1.8V；MIO的电平标准也为1.8V。
+J29连接器的引脚分配
+J29管脚 信号名称 引脚号 J29管脚 信号名称 引脚号
+1 B65_L2_N V9 2 B65_L22_P K8
+3 B65_L2_P U9 4 B65_L22_N K7
+5 GND - 6 GND -
+7 B65_L4_N T8 8 B65_L20_P J6
+
+=== PAGE 25 ===
+AXU4EVB-P用户手册
+25/59 http://www.alinx.com9 B65_L4_P R8 10 B65_L20_N H6
+11 GND - 12 GND -
+13 B65_L1_N Y8 14 B65_L6_N T6
+15 B65_L1_P W8 16 B65_L6_P R6
+17 GND - 18 GND -
+19 B65_L7_P L1 20 B65_L17_P N9
+21 B65_L7_N K1 22 B65_L17_N N8
+23 GND - 24 GND -
+25 B65_L15_P N7 26 B65_L9_P K2
+27 B65_L15_N N6 28 B65_L9_N J2
+29 GND - 30 GND -
+31 B65_L16_P P7 32 B65_L3_N V8
+33 B65_L16_N P6 34 B65_L3_P U8
+35 GND - 36 GND -
+37 B65_L14_P M6 38 B65_L19_P J5
+39 B65_L14_N L5 40 B65_L19_N J4
+41 GND - 42 GND -
+43 B65_L5_N T7 44 B65_L18_P M8
+45 B65_L5_P R7 46 B65_L18_N L8
+47 GND - 48 GND -
+49 B65_L11_N K3 50 B65_L8_P J1
+51 B65_L11_P K4 52 B65_L8_N H1
+53 GND - 54 GND -
+55 B65_L10_N H3 56 B65_L24_N H8
+57 B65_L10_P H4 58 B65_L24_P H9
+59 GND - 60 GND -
+61 B66_L3_P F2 62 B65_L12_P L3
+63 B66_L3_N E2 64 B65_L12_N L2
+65 GND - 66 GND -
+67 B66_L1_P G1 68 B65_L13_N L6
+69 B66_L1_N F1 70 B65_L13_P L7
+71 GND - 72 GND -
+
+=== PAGE 26 ===
+AXU4EVB-P用户手册
+26/59 芯驿电子科技（上海）有限公司73 B66_L6_P G5 74 B65_L21_P J7
+75 B66_L6_N F5 76 B65_L21_N H7
+77 GND - 78 GND -
+79 B66_L16_P G8 80 B65_L23_P K9
+81 B66_L16_N F7 82 B65_L23_N J9
+83 GND - 84 GND -
+85 B66_L15_P G6 86 B66_L5_N E3
+87 B66_L15_N F6 88 B66_L5_P E4
+89 GND - 90 GND -
+91 B66_L4_P G3 92 B66_L2_P E1
+93 B66_L4_N F3 94 B66_L2_N D1
+95 GND - 96 GND -
+97 B66_L11_P D4 98 B66_L20_P C6
+99 B66_L11_N C4 100 B66_L20_N B6
+101 GND - 102 GND -
+103 B66_L12_P C3 104 B66_L7_P C1
+105 B66_L12_N C2 106 B66_L7_N B1
+107 GND - 108 GND -
+109 B66_L13_N D6 110 B66_L10_P B4
+111 B66_L13_P D7 112 B66_L10_N A4
+113 GND - 114 GND -
+115 B66_L8_N A1 116 B66_L9_P B3
+117 B66_L8_P A2 118 B66_L9_N A3
+119 GND - 120 GND -
+J30连接器的引脚分配
+J30管
+脚信号名称 引脚号 J30管脚 信号名称 引脚号
+1 B66_L14_P E5 2 FPGA_TDI R18
+3 B66_L14_N D5 4 FPGA_TCK R19
+5 GND - 6 GND -
+7 B66_L22_P C8 8 FPGA_TDO T21
+
+=== PAGE 27 ===
+AXU4EVB-P用户手册
+27/59 http://www.alinx.com9 B66_L22_N B8 10 FPGA_TMS N21
+11 GND - 12 GND -
+13 B66_L19_N A5 14 B66_L21_N A6
+15 B66_L19_P B5 16 B66_L21_P A7
+17 GND - 18 GND -
+19 B66_L24_P C9 20 B66_L17_P F8
+21 B66_L24_N B9 22 B66_L17_N E8
+23 GND - 24 GND -
+25 B66_L23_N A8 26 B45_L9_P C11
+27 B66_L23_P A9 28 B45_L9_N B10
+29 GND - 30 GND -
+31 B45_L5_N F10 32 B45_L10_P B11
+33 B45_L5_P G11 34 B45_L10_N A10
+35 GND - 36 GND -
+37 B66_L18_N D9 38 B45_L12_P D12
+39 B66_L18_P E9 40 B45_L12_N C12
+41 GND - 42 GND -
+43 B45_L4_N H12 44 B45_L11_P A12
+45 B45_L4_P J12 46 B45_L11_N A11
+47 GND - 48 GND -
+49 B46_L11_P K14 50 B45_L6_N F11
+51 B46_L11_N J14 52 B45_L6_P F12
+53 GND - 54 GND -
+55 B46_L10_N H13 56 B46_L6_N E13
+57 B46_L10_P H14 58 B46_L6_P E14
+59 GND - 60 GND -
+61 B46_L7_N F13 62 B46_L3_N A13
+63 B46_L7_P G13 64 B46_L3_P B13
+65 GND - 66 GND -
+67 B46_L9_N G14 68 B46_L2_N A14
+69 B46_L9_P G15 70 B46_L2_P B14
+71 GND - 72 GND -
+
+=== PAGE 28 ===
+AXU4EVB-P用户手册
+28/59 芯驿电子科技（上海）有限公司73 B46_L5_N D14 74 B46_L4_N C13
+79 B46_L5_P D15 76 B46_L4_P C14
+77 GND - 78 GND -
+79 B46_L1_P B15 80 B46_L12_P L14
+81 B46_L1_N A15 82 B46_L12_N L13
+83 GND - 84 GND -
+85 505_CLK2_P C21 86 505_CLK1_P E21
+87 505_CLK2_N C22 88 505_CLK1_N E22
+89 GND - 90 GND -
+91 505_CLK0_P F23 92 505_CLK3_P A21
+93 505_CLK0_N F24 94 505_CLK3_N A22
+95 GND - 96 GND -
+97 505_TX0_P E25 98 505_TX3_P B23
+99 505_TX0_N E26 100 505_TX3_N B24
+101 GND - 102 GND -
+103 505_RX0_P F27 104 505_RX3_P A25
+105 505_RX0_N F28 106 505_RX3_N A26
+107 GND - 108 GND -
+109 505_TX1_P D23 110 505_TX2_P C25
+111 505_TX1_N D24 112 505_TX2_N C26
+113 GND - 114 GND -
+115 505_RX1_P D27 116 505_RX2_P B27
+117 505_RX1_N D28 118 505_RX2_N B28
+119 GND - 120 GND -
+J31连接器的引脚分配
+J31管脚 信号名称 引脚号 J31管脚 信号名称 引脚号
+1 B44_L10_P Y14 2 B44_L7_P AA13
+3 B44_L10_N Y13 4 B44_L7_N AB13
+5 GND - 6 GND -
+7 B44_L6_P AC14 8 B43_L6_P AC12
+9 B44_L6_N AC13 10 B43_L6_N AD12
+
+=== PAGE 29 ===
+AXU4EVB-P用户手册
+29/59 http://www.alinx.com11 GND - 12 GND -
+13 B44_L5_P AD15 14 B43_L7_P AD11
+15 B44_L5_N AD14 16 B43_L7_N AD10
+17 GND - 18 GND -
+19 B44_L1_P AE15 20 B43_L8_N AC11
+21 B44_L1_N AE14 22 B43_L8_P AB11
+23 GND - 24 GND -
+25 B44_L12_P Y12 26 B44_L2_P AG14
+27 B44_L12_N AA12 28 B44_L2_N AH14
+29 GND - 30 GND -
+31 B44_L3_P AG13 32 - -
+33 B44_L3_N AH13 34 - -
+35 GND - 36 GND -
+37 B43_L12_N AB9 38 B43_L9_P AA11
+39 B43_L12_P AB10 40 B43_L9_N AA10
+41 GND - 42 GND -
+43 B43_L10_N Y10 44 B43_L3_P AH12
+45 B43_L10_P W10 46 B43_L3_N AH11
+47 GND - 48 GND -
+49 B44_L11_N W11 50 B43_L1_N AH10
+51 B44_L11_P W12 52 B43_L1_P AG10
+53 GND - 54 GND -
+55 B44_L9_N W13 56 B44_L4_P AE13
+57 B44_L9_P W14 58 B44_L4_N AF13
+59 GND - 60 GND -
+61 B44_L8_P AB15 62 B43_L5_P AE12
+63 B44_L8_N AB14 64 B43_L5_N AF12
+65 GND - 66 GND -
+67 B43_L2_N AG11 68 B43_L4_P AE10
+69 B43_L2_P AF11 70 B43_L4_N AF10
+71 GND - 72 GND -
+73 VBAT_IN - 74 B43_L11_P Y9
+
+=== PAGE 30 ===
+AXU4EVB-P用户手册
+30/59 芯驿电子科技（上海）有限公司75 MR - 76 B43_L11_N AA8
+77 GND - 78 GND -
+79 - - 80 PS_POR_B P16
+81 - - 82 - -
+83 GND - 84 GND -
+86 - - 86 - -
+87 - 88 - -
+89 GND - 90 GND -
+91 224_CLK0_P Y6 92 224_CLK1_P V6
+93 224_CLK0_N Y5 94 224_CLK1_N V5
+95 GND - 96 GND -
+97 224_TX3_N N3 98 224_RX3_N P1
+99 224_TX3_P N4 100 224_RX3_P P2
+101 GND - 102 GND
+103 224_TX2_N R3 104 224_RX2_N T1
+105 224_TX2_P R4 106 224_RX2_P T2
+107 GND 108 GND
+109 224_TX1_N U3 110 224_RX1_N V1
+111 224_TX1_P U4 112 224_RX1_P V2
+113 GND - 114 GND -
+115 224_TX0_N W3 116 224_RX0_N Y1
+117 224_TX0_P W4 118 224_RX0_P Y2
+119 GND - 120 GND -
+J32连接器的引脚分配
+J32管脚 信号名称 引脚号 J32管脚 信号名称 引脚号
+1 PS_MIO35 H17 2 PS_MIO30 F16
+3 PS_MIO29 G16 4 PS_MIO31 H16
+5 GND - - GND -
+7 - - 8 PS_MIO58 F18
+9 - - 10 PS_MIO53 D16
+11 GND - 12 GND -
+
+=== PAGE 31 ===
+AXU4EVB-P用户手册
+31/59 http://www.alinx.com13 PS_MODE0 P19 14 PS_MIO52 G18
+15 PS_MODE1 P20 16 PS_MIO55 B16
+17 GND - 18 GND -
+19 PS_MODE2 R20 20 PS_MIO56 C16
+21 PS_MODE3 T20 22 PS_MIO57 A16
+23 GND - 24 GND -
+25 PS_MIO36 K17 26 PS_MIO54 F17
+27 PS_MIO37 J17 28 PS_MIO27 J15
+29 GND - 30 GND -
+31 - - 32 PS_MIO28 K15
+33 PS_MIO77 F20 34 PS_MIO59 E17
+35 GND - 36 GND -
+37 PS_MIO76 B20 38 PS_MIO60 C17
+39 - - 40 PS_MIO61 D17
+41 GND - 42 GND -
+43 PS_MIO39 H19 44 PS_MIO62 A17
+45 PS_MIO38 H18 46 PS_MIO63 E18
+47 GND - 48 GND -
+49 - - 50 PS_MIO65 A18
+51 PS_MIO40 K18 52 PS_MIO66 G19
+53 GND - 54 GND -
+55 PS_MIO44 J20 56 PS_MIO67 B18
+57 PS_MIO45 K20 58 PS_MIO68 C18
+59 GND - 60 GND -
+61 PS_MIO47 H21 62 PS_MIO64 E19
+63 PS_MIO48 J21 64 PS_MIO69 D19
+65 GND - 66 GND -
+67 PS_MIO41 J19 68 PS_MIO74 D20
+69 PS_MIO32 J16 70 PS_MIO73 G21
+71 GND - 72 GND -
+73 PS_MIO46 L20 74 PS_MIO72 G20
+75 PS_MIO50 M19 76 PS_MIO71 B19
+
+=== PAGE 32 ===
+AXU4EVB-P用户手册
+32/59 芯驿电子科技（上海）有限公司77 GND - 78 GND -
+79 PS_MIO49 M18 80 PS_MIO75 A19
+81 PS_MIO34 L17 82 PS_MIO70 C19
+83 GND - 84 GND -
+85 PS_MIO26 L15 86 PS_MIO43 K19
+87 PS_MIO24 AB19 88 PS_MIO51 L21
+89 GND - 90 GND -
+91 PS_MIO25 AB21 92 PS_MIO42 L18
+93 - - 94 PS_MIO33 L16
+95 GND - 96 GND -
+97 - - 98 - -
+99 VCCO_65 - 100 VCCO_66 -
+101 VCCO_65 - 102 VCCO_66 -
+103 VCCO_65 - 104 VCCO_66 -
+105 GND - 106 GND -
+107 +12V - 108 +12V -
+109 +12V - 110 +12V -
+111 +12V - 112 +12V -
+113 +12V - 114 +12V -
+115 +12V - 116 +12V -
+117 +12V - 118 +12V -
+119 +12V - 120 +12V -
+
+=== PAGE 33 ===
+AXU4EVB-P用户手册
+33/59 http://www.alinx.com三、扩展板
+(一)简介
+通过前面的功能简介，我们可以了解到扩展板部分的功能
+1路M.2接口
+1路DP输出接口
+4路USB3.0接口
+2路千兆以太网接口
+2路USBUart接口
+1路MicroSD卡座
+1路MIPI摄像头接口
+1路HDMI视频输出接口
+1路HDMI视频输入接口
+1路FMC扩展口
+2路CAN通信接口
+2路485通信接口
+JTAG调试口
+1路温度传感器
+1路EEPROM
+1路RTC实时时钟；
+3个LED灯
+3个按键
+
+=== PAGE 34 ===
+AXU4EVB-P用户手册
+34/59 芯驿电子科技（上海）有限公司(二)M.2接口
+AXU4EVB-P开发板配备了一个PCIEx1标准的M.2接口，用于连接M.2的SSD固态硬
+盘，通信速度高达6Gbps。M.2接口使用Mkey插槽，只支持PCI-E,不支持SATA，用户选
+择SSD固态硬盘的时候需要选择PCIE类型的SSD固态硬盘。
+PCIE信号直接跟ZU4EV的BANK505PSMGT收发器相连接，1路TX信号和RX信号
+都是以差分信号方式连接到MGT的LANE0。PCIE的时钟有Si5332芯片提供，频率为100Mhz,
+M.2电路设计的示意图如下图3-2-1所示:
+3-2-1M.2接口设计示意图
+M.2接口ZYNQ引脚分配如下：
+信号名称 引脚名 引脚号 备注
+PCIE_TX_P 505_TX0_P E25 PCIE数据发送正
+PCIE_TX_N 505_TX0_N E26 PCIE数据发送负
+PCIE_RX_P 505_RX0_P F27 PCIE数据接收正
+PCIE_RX_N 505_RX0_N F28 PCIE数据接收负
+505_PCIE_REFCLK_P 505_CLK0_P F23 PCIE参考时钟正
+505_PCIE_REFCLK_N 505_CLK0_N F24 PCIE参考时钟负
+PCIE_RSTn_MIO37 PS_MIO37_501 J17 PCIE复位信号
+
+=== PAGE 35 ===
+AXU4EVB-P用户手册
+35/59 http://www.alinx.com(三)DP显示接口
+AXU4EVB-P开发板带有1路标准的DisplayPort输出显示接口，用于视频图像的显示。
+接口支持VESADisplayPortV1.2a输出标准，最高支持4Kx2K@30Fps输出，支持Y-only,
+YCbCr444,YCbCr422,YCbCr420和RGB视频格式，每种颜色支持6,8,10,或者12位。
+DisplayPort数据传输通道直接用ZU4EV的BANK505PSMGT驱动输出，MGT的
+LANE2和LANE3TX信号以差分信号方式连接到DP连接器。DisplayPort辅助通道连接到
+PS的MIO管脚上。DP输出接口设计的示意图如下图3-3-1所示:
+3-3-1DP接口设计示意图
+DisplayPort接口ZYNQ引脚分配如下：
+信号名称 ZYNQ引脚名 ZYNQ引脚号 备注
+GT0_DP_TX_P 505_TX3_P B23 DP数据低位发送正
+GT0_DP_TX_N 505_TX3_N B24 DP数据低位发送负
+GT1_DP_TX_P 505_TX2_P C25 DP数据高位发送正
+GT1_DP_TX_N 505_TX2_N C26 DP数据高位发送负
+505_CLK1_P 505_CLK2_P C21 DP参考时钟正
+505_CLK1_N 505_CLK2_N C22 DP参考时钟负
+DP_AUX_OUT PS_MIO27 J15 DP辅助数据输出
+DP_AUX_IN PS_MIO30 F16 DP辅助数据输入
+DP_OE PS_MIO29 G16 DP辅助数据输出使能
+
+=== PAGE 36 ===
+AXU4EVB-P用户手册
+36/59 芯驿电子科技（上海）有限公司DP_HPD PS_MIO28 K15 DP插入信号检测
+(四)USB3.0接口
+AXU4EVB-P扩展板上有4个USB3.0接口，支持HOST工作模式，数据传输速度高达
+5.0Gb/s。USB3.0通过PIPE3接口连接，USB2.0通过ULPI接口连接外部的USB3320C芯
+片，实现高速的USB3.0和USB2.0的数据通信。
+USB接口为扁型USB接口(USBTypeA)，方便用户同时连接不同的USBSlave外设(比
+如USB鼠标，键盘或U盘）。USB3.0连接的示意图如3-4-1所示：
+3-4-1USB3.0接口示意图
+USB接口引脚分配：
+信号名称 引脚名 引脚号 备注
+USB_SSTXP 505_TX1_P D23 USB3.0数据发送正
+USB_SSTXN 505_TX1_N D24 USB3.0数据发送负
+USB_SSRXP 505_RX1_P D27 USB3.0数据接收正
+USB_SSRXN 505_RX1_N D28 USB3.0数据接收负
+USB_DATA0 PS_MIO56 C16 USB2.0数据Bit0
+USB_DATA1 PS_MIO57 A16 USB2.0数据Bit1
+USB_DATA2 PS_MIO54 F17 USB2.0数据Bit2
+USB_DATA3 PS_MIO59 E17 USB2.0数据Bit3
+
+=== PAGE 37 ===
+AXU4EVB-P用户手册
+37/59 http://www.alinx.comUSB_DATA4 PS_MIO60 C17 USB2.0数据Bit4
+USB_DATA5 PS_MIO61 D17 USB2.0数据Bit5
+USB_DATA6 PS_MIO62 A17 USB2.0数据Bit6
+USB_DATA7 PS_MIO63 E18 USB2.0数据Bit7
+USB_STP PS_MIO58 F18 USB2.0停止信号
+USB_DIR PS_MIO53 D16 USB2.0数据方向信号
+USB_CLK PS_MIO52 G18 USB2.0时钟信号
+USB_NXT PS_MIO55 B16 USB2.0下一数据信号
+USB_RESET_N PS_MIO31 H16 USB2.0复位信号
+(五)千兆以太网接口
+AXU4EVB-P扩展板上有2路千兆以太网接口，1路连接到PS端，另1路连接到PL端。
+以太网芯片采用景略半导体的工业级以太网GPHY芯片（JL2121-N040I）为用户提供网络通
+信服务。JL2121芯片支持10/100/1000Mbps网络传输速率，通过RGMII接口跟ZU4EV
+系统的MAC层进行数据通信。JL2121支持ＭDI/MDX自适应，各种速度自适应，
+Master/Slave自适应，支持MDIO总线进行PHY的寄存器管理。
+JL2121上电会检测一些特定的IO的电平状态，从而确定自己的工作模式。表3-5-1描
+述了GPHY芯片上电之后的默认设定信息。
+配置Pin脚 说明 配置值
+RXD3_ADR0
+RXC_ADR1
+RXCTL_ADR2MDIO/MDC模式的PHY地址 PHYAddress为001
+RXD1_TXDLY TX时钟2ns延时 延时
+RXD0_RXDLY RX时钟2ns延时 延时
+表3-5-1GPHY芯片默认配置值
+当网络连接到千兆以太网时，ZYNQ和PHY芯片JL2121的数据传输时通过RGMII总线
+通信，传输时钟为125Mhz，数据在时钟的上升沿和下降样采样。
+当网络连接到百兆以太网时，ZYNQ和PHY芯片JL2121的数据传输时通过RMII总线通
+信，传输时钟为25Mhz。数据在时钟的上升沿和下降样采样。
+图3-5-1为ZYNQ以太网PHY芯片连接示意图:
+
+=== PAGE 38 ===
+AXU4EVB-P用户手册
+38/59 芯驿电子科技（上海）有限公司
+图3-6-1ZYNQ与GPHY连接示意图
+千兆以太网引脚分配如下：
+信号名称 引脚名 引脚号 备注
+PHY1_TXCK PS_MIO64 E19 以太网1RGMII发送时钟
+PHY1_TXD0 PS_MIO65 A18 以太网1发送数据bit０
+PHY1_TXD1 PS_MIO66 G19 以太网1发送数据bit1
+PHY1_TXD2 PS_MIO67 B18 以太网1发送数据bit2
+PHY1_TXD3 PS_MIO68 C18 以太网1发送数据bit3
+PHY1_TXCTL PS_MIO69 D19 以太网1发送使能信号
+PHY1_RXCK PS_MIO70 C19 以太网1RGMII接收时钟
+PHY1_RXD0 PS_MIO71 B19 以太网1接收数据Bit0
+PHY1_RXD1 PS_MIO72 G20 以太网1接收数据Bit1
+PHY1_RXD2 PS_MIO73 G21 以太网1接收数据Bit2
+PHY1_RXD3 PS_MIO74 D20 以太网1接收数据Bit3
+PHY1_RXCTL PS_MIO75 A19 以太网1接收数据有效信号
+PHY1_MDC PS_MIO76 B20 以太网1MDIO管理时钟
+PHY1_MDIO PS_MIO77 F20 以太网1MDIO管理数据
+PHY2_TXCK B66_L21_P A7 以太网2RGMII发送时钟
+PHY2_TXD0 B66_L18_P E9 以太网2发送数据bit０
+PHY2_TXD1 B66_L18_N D9 以太网2发送数据bit1
+
+=== PAGE 39 ===
+AXU4EVB-P用户手册
+39/59 http://www.alinx.comPHY2_TXD2 B66_L23_P A9 以太网2发送数据bit2
+PHY2_TXD3 B66_L23_N A8 以太网2发送数据bit3
+PHY2_TXCTL B66_L24_N B9 以太网2发送使能信号
+PHY2_RXCK B66_L14_P E5 以太网2RGMII接收时钟
+PHY2_RXD0 B66_L19_N A5 以太网2接收数据Bit0
+PHY2_RXD1 B66_L19_P B5 以太网2接收数据Bit1
+PHY2_RXD2 B66_L17_P F8 以太网2接收数据Bit2
+PHY2_RXD3 B66_L24_P C9 以太网2接收数据Bit3
+PHY2_RXCTL B66_L22_N B8 以太网2接收数据有效信号
+PHY2_MDC B66_L21_N A6 以太网2MDIO管理时钟
+PHY2_MDIO B66_L22_P C8 以太网2MDIO管理数据
+PHY2_RESET B66_L14_N D5 以太网2复位信号
+(六)USBUart接口
+AXU4EVB-P扩展板上配备了2个Uart转USB接口，1个连接到PS端，一个连接到PL
+端。转换芯片采用SiliconLabsCP2102GM的USB-UAR芯片,USB接口采用MINIUSB接
+口，可以用USB线将它连接到上PC的USB口进行串口数据通信。USBUart电路设计的示
+意图如下图所示:
+3-6-1USB转串口示意图
+
+=== PAGE 40 ===
+AXU4EVB-P用户手册
+40/59 芯驿电子科技（上海）有限公司USB转串口的ZYNQ引脚分配：
+信号名称 引脚名 引脚号 备注
+PS_UART0_TX PS_MIO43 K19 PSUart数据输出
+PS_UART0_RX PS_MIO42 L18 PSUart数据输入
+PL_UART_TX B43_L9_P AA11 PLUart数据输出
+PL_UART_RX B43_L9_N AA10 PLUart数据输入
+(七)SD卡槽
+AXU4EVB-P扩展板包含了一个Micro型的SD卡接口，以提供用户访问SD卡存储器，用于
+存储ZU4EV芯片的BOOT程序，Linux操作系统内核,文件系统以及其它的用户数据文件。
+SDIO信号与ZU4EV的PSBANK501的IO信号相连，因为501的VCCIO设置为1.8V，但SD
+卡的数据电平为3.3V,我们这里通过TXS02612电平转换器来连接。ZU4EVPS和SD卡连接器
+的原理图如图3-7-1所示。
+图3-7-1SD卡连接示意图
+SD卡槽引脚分配
+信号名称 引脚名 引脚号 备注
+SD_CLK PS_MIO51 l21 SD时钟信号
+SD_CMD PS_MIO50 M19 SD命令信号
+SD_D0 PS_MIO46 L20 SD数据Data0
+SD_D1 PS_MIO47 H21 SD数据Data1
+SD_D2 PS_MIO48 J21 SD数据Data2
+SD_D3 PS_MIO49 M18 SD数据Data3
+SD_CD PS_MIO45 K20 SD卡检测信号
+
+=== PAGE 41 ===
+AXU4EVB-P用户手册
+41/59 http://www.alinx.com(八)HDMI输出接口
+HDMI输出接口的实现，是选用ANALOGDEVICE公司的ADV7511HDMI（DVI）编
+码芯片，最高支持1080P@60Hz输出，支持3D输出。
+其中，ADV7511的视频数字接口，音频数字接口和I2C配置接口和ZU4EVPL部分的
+BANK45,46IO相连，ZYNQUltraScale+系统通过I2C管脚来对ADV7511进行初始化和控
+制操作。ADV7511芯片和ZYNQUltraScale+的硬件连接示意图如下图3-8-1所示：
+图3-8-1HDMI输出接口设计原理图
+ZYNQ的引脚分配：
+信号名称 ZYNQ引脚名 ZYNQ
+引脚号备注
+HDMI_CLK B35_L4_N H14 HDMI视频信号时钟
+HDMI_HSYNC B35_L2_P J13 HDMI视频信号行同步
+HDMI_VSYNC B35_L2_N H13 HDMI视频信号列同步
+HDMI_DE B35_L9_P G12 HDMI视频信号有效
+HDMI_D0 B35_L9_N F12 HDMI视频信号数据0
+HDMI_D1 B35_L22_N B11 HDMI视频信号数据1
+HDMI_D2 B35_L22_P C11 HDMI视频信号数据2
+HDMI_D3 B35_L20_N B12 HDMI视频信号数据3
+HDMI_D4 B35_L20_P C12 HDMI视频信号数据4
+
+=== PAGE 42 ===
+AXU4EVB-P用户手册
+42/59 芯驿电子科技（上海）有限公司HDMI_D5 B35_L19_N C13 HDMI视频信号数据5
+HDMI_D6 B35_L19_P C14 HDMI视频信号数据6
+HDMI_D7 B35_L24_N A12 HDMI视频信号数据7
+HDMI_D8 B35_L24_P A13 HDMI视频信号数据8
+HDMI_D9 B35_L4_P J14 HDMI视频信号数据9
+HDMI_D10 B35_L1_N L14 HDMI视频信号数据10
+HDMI_D11 B35_L1_P L15 HDMI视频信号数据11
+HDMI_D12 B35_L16_N C16 HDMI视频信号数据12
+HDMI_D13 B35_L16_P D16 HDMI视频信号数据13
+HDMI_D14 B35_L18_N A17 HDMI视频信号数据14
+HDMI_D15 B35_L18_P B17 HDMI视频信号数据15
+HDMI_D16 B35_L15_N E17 HDMI视频信号数据16
+HDMI_D17 B35_L15_P F17 HDMI视频信号数据17
+HDMI_D18 B35_L7_N G16 HDMI视频信号数据18
+HDMI_D19 B35_L7_P G17 HDMI视频信号数据19
+HDMI_D20 B35_L6_N H16 HDMI视频信号数据20
+HDMI_D21 B35_L6_P J16 HDMI视频信号数据21
+HDMI_D22 B35_L17_P C17 HDMI视频信号数据22
+HDMI_D23 B35_L17_N B16 HDMI视频信号数据23
+HDMI_SCL B35_L13_N E15 HDMIIIC控制时钟
+HDMI_SDA B35_L13_P E16 HDMIIIC控制数据
+(九)HDMI输入接口
+HDMI输入接口我们采用了ANALOGDEVICE公司的ADV7611解码芯片，最高支持
+1080P@60Hz输入，支持不同格式的数据输出。；
+其中，ADV7611的IIC配置接口也与ZU4EVPL的IO相连，ZYNQ通过I2C总线的编
+程来对ADV7611进行初始化和控制操作，HDMI输入接口的硬件连接如图3-9-1所示。
+
+=== PAGE 43 ===
+AXU4EVB-P用户手册
+43/59 http://www.alinx.com
+图3-9-1HDMI输入原理图
+ZYNQ的引脚分配：
+信号名称 ZYNQ引脚名 ZYNQ引脚号 备注
+9013_nRESET B11_L19_P AB21 HDMI复位信号
+HDMI_RX_RSTN B43_L7_N AD10 HDMI输入视频信号时钟
+HDMI_IN_CLK B43_L8_P AB11 HDMI输入视频信号行同步
+HDMI_IN_HS B44_L12_N AA12 HDMI输入视频信号列同步
+HDMI_IN_VS B44_L12_P Y12 HDMI输入视频信号有效
+HDMI_IN_DE B44_L7_P AA13 HDMI输入视频信号数据0
+HDMI_IN_D0 B44_L10_P Y14 HDMI输入视频信号数据1
+HDMI_IN_D1 B44_L10_N Y13 HDMI输入视频信号数据2
+HDMI_IN_D2 B44_L7_N AB13 HDMI输入视频信号数据3
+HDMI_IN_D3 B43_L6_P AC12 HDMI输入视频信号数据4
+HDMI_IN_D4 B44_L6_P AC14 HDMI输入视频信号数据5
+HDMI_IN_D5 B44_L6_N AC13 HDMI输入视频信号数据6
+HDMI_IN_D6 B43_L6_N AD12 HDMI输入视频信号数据7
+HDMI_IN_D7 B43_L7_P AD11 HDMI输入视频信号数据8
+HDMI_IN_D8 B44_L5_P AD15 HDMI输入视频信号数据9
+HDMI_IN_D9 B44_L5_N AD14 HDMI输入视频信号数据10
+HDMI_IN_D10 B44_L3_P AG13 HDMI输入视频信号数据11
+HDMI_IN_D11 B44_L3_N AH13 HDMI输入视频信号数据12
+
+=== PAGE 44 ===
+AXU4EVB-P用户手册
+44/59 芯驿电子科技（上海）有限公司HDMI_IN_D12 B43_L12_N AB9 HDMI输入视频信号数据13
+HDMI_IN_D13 B43_L12_P AB10 HDMI输入视频信号数据14
+HDMI_IN_D14 B43_L10_N Y10 HDMI输入视频信号数据15
+HDMI_IN_D15 B43_L10_P W10 HDMI输入视频信号数据16
+HDMI_IN_D16 B44_L11_N W11 HDMI输入视频信号数据17
+HDMI_IN_D17 B44_L11_P W12 HDMI输入视频信号数据18
+HDMI_IN_D18 B44_L9_N W13 HDMI输入视频信号数据19
+HDMI_IN_D19 B44_L9_P W14 HDMI输入视频信号数据20
+HDMI_IN_D20 B44_L8_P AB15 HDMI输入视频信号数据21
+HDMI_IN_D21 B44_L8_N AB14 HDMI输入视频信号数据22
+HDMI_IN_D22 B43_L2_N AG11 HDMI输入视频信号数据23
+HDMI_IN_SDA B43_L5_P AE12 ADV7611IIC控制时钟
+HDMI_IN_SCL B43_L5_N AF12 ADV7611IIC控制数据
+HDMI_DSCL B45_L5_N F10 EDID读IIC时钟
+HDMI_DSDA B45_L5_P G11 EDID读IIC数据
+(十)光纤接口
+AXU4EVB-P扩展板上有2路光纤接口，用户可以购买SFP光模块(市场上1.25G，2.5G，
+10G光模块）插入到这2个光纤接口中进行光纤数据通信。2路光纤接口分别跟ZYNQ的
+BANK224的GTH收发器的2路RX/TX相连接，每路TX发送和RX接收数据速率高达
+12.5Gb/s。GTH收发器的参考时钟由底板的125M差分时钟（G1）提供。
+ZYNQUltrascale+和光纤设计示意图如下图3-10-1所示:
+图3-10-1光纤设计示意图
+
+=== PAGE 45 ===
+AXU4EVB-P用户手册
+45/59 http://www.alinx.com2路光纤接口ZYNQ引脚分配如下：
+信号名称 ZYNQ引脚名 ZYNQ引脚号 备注
+SFP1_TX_N 224_TX0_N W3 光模块1数据发送负
+SFP1_TX_P 224_TX0_P W4 光模块1数据发送正
+SFP1_RX_N 224_RX0_N Y1 光模块1数据接收负
+SFP1_RX_P 224_RX0_P Y2 光模块1数据接收正
+SFP2_TX_N 224_TX1_N U3 光模块2数据发送负
+SFP2_TX_P 224_TX1_P U4 光模块2数据发送正
+SFP2_RX_N 224_RX1_N V1 光模块2数据接收负
+SFP2_RX_P 224_RX1_P V2 光模块2数据接收正
+SFP_TX_DIS B45_L12_P D12 光模块光发射禁止，高有效
+SFP1_LOSS B45_L9_N B10 光模块1接收LOSS检测信号
+SFP2_LOSS B45_L9_P C11 光模块2接收LOSS检测信号
+(十一)PCIe插槽
+AXU4EVB-P扩展板上有一个PCIex2的接口，2对收发器连接到PCIEx2的金手指上，
+能实现PCIE3.0（兼容2.0）的数据通信。
+PCIe接口的收发信号直接跟ZYNQBANK224的GTH收发器相连接，单通道通信速率
+可高达8Gbit带宽。
+开发板的PCIe接口的设计示意图如下图3-11-1所示,其中TX发送信号用AC耦合模式
+连接。
+
+=== PAGE 46 ===
+AXU4EVB-P用户手册
+46/59 芯驿电子科技（上海）有限公司
+图3-11-1PCIe插槽设计示意图
+PCIex2接口ZYNQ引脚分配如下：
+信号名称 ZYNQ引脚名 ZYNQ引脚号 备注
+PCIE_RX0_N 224_RX2_N T1 PCIE通道0数据接收负
+PCIE_RX0_P 224_RX2_P T2 PCIE通道0数据接收正
+PCIE_RX1_N 224_RX3_N P1 PCIE通道1数据接收负
+PCIE_RX1_P 224_RX3_P P2 PCIE通道1数据接收正
+PCIE_TX0_N 224_TX2_N R3 PCIE通道0数据发送负
+PCIE_TX0_P 224_TX2_P R4 PCIE通道0数据发送正
+PCIE_TX1_N 224_TX3_N N3 PCIE通道1数据发送负
+PCIE_TX1_P 224_TX3_P N4 PCIE通道1数据发送正
+PCIE_CLK_N 224_CLK0_N Y5 PCIE参考时钟负
+PCIE_CLK_P 224_CLK0_P Y6 PCIE参考时钟正
+PCIE_PERST B43_L8_N AC11 PCIE板卡的复位信号
+(十二)CAN通信接口
+AXU4EVB-P扩展板上有2路CAN通信接口，连接在PS系统端BANK501的MIO接
+口上。CAN收发芯片选用了TI公司的SN65HVD232C芯片为用户CAN通信服务。
+
+=== PAGE 47 ===
+AXU4EVB-P用户手册
+47/59 http://www.alinx.com图3-12-1为PS端CAN收发芯片的连接示意图
+图3-12-1PS端CAN收发芯片的连接示意图
+CAN通信引脚分配如下：
+信号名称 引脚名 引脚号 备注
+PS_CAN1_TX PS_MIO32 J16 CAN1发送端
+PS_CAN1_RX PS_MIO33 L16 CAN1接收端
+PS_CAN2_TX PS_MIO39 H19 CAN2发送端
+PS_CAN2_RX PS_MIO38 H18 CAN2接收端
+(十三)485通信接口
+AXU4EVB-P扩展板上有2路485通信接口，485通信端口连接在PL端BANK43,45
+的IO接口上。485收发芯片选用MAXIM公司的MAX3485芯片为用户485通信服务。
+图3-13-1为PL端485收发芯片的连接示意图
+
+=== PAGE 48 ===
+AXU4EVB-P用户手册
+48/59 芯驿电子科技（上海）有限公司
+图3-13-1PL端485通信的连接示意图
+RS485通信引脚分配如下：
+信号名称 引脚名 引脚号 备注
+PL_485_TXD1 B43_L1_P AG10 第一路485发送端
+PL_485_RXD1 B43_L1_N AH10 第一路485接收端
+PL_485_DE1 B45_L10_N A10 第一路485发送使能
+PL_485_TXD2 B43_L3_N AH11 第二路485发送端
+PL_485_RXD2 B43_L3_P AH12 第二路485接收端
+PL_485_DE2 B45_L10_P B11 第二路485发送使能
+(十四)MIPI接口
+扩展板上包含了一个MIPI摄像头接口，可以用来接我们的MIPIOV5640像头模块
+（AN5641）。MIPI接口15PIN的FPC连接器，为2个LANE的数据和1对时钟，连接到
+BANK65的差分IO管脚上，电平标准为1.2V（J43的跳帽需要连接到PIN2和PIN3管脚）；
+其它的控制信号连接到BANK43的IO上，电平标准为3.3V。
+
+=== PAGE 49 ===
+AXU4EVB-P用户手册
+49/59 http://www.alinx.com
+图3-14-1MIPI接口设计原理图
+MIPI接口引脚分配
+信号名称 ZYNQ引脚名 ZYNQ引脚号 备注
+MIPI_CLK_P B65_L1_P W8 MIPI输入时钟正
+MIPI_CLK_N B65_L1_N Y8 MIPI输入时钟负
+MIPI_LAN0_P B65_L2_P U9 MIPI输入的数据LANE0正
+MIPI_LAN0_N B65_L2_N V9 MIPI输入的数据LANE0负
+MIPI_LAN1_P B65_L3_P U8 MIPI输入的数据LANE1正
+MIPI_LAN1_N B65_L3_N V8 MIPI输入的数据LANE1负
+CAM_GPIO B43_L4_P AE10 摄像头的GPIO控制
+CAM_CLK B43_L4_N AF10 摄像头的时钟输入
+CAM_SCL B43_L11_P Y9 摄像头的I2C时钟
+CAM_SDA B43_L11_N AA8 摄像头的I2C数据
+(十五)FMC连接器
+AXU4EVB-P扩展板带有一个标准的FMCLPC的扩展口，可以外接XILINX或者我们黑
+金的各种FMC模块（HDMI输入输出模块，双目摄像头模块，高速AD模块等等）。FMC
+扩展口包含36对差分IO信号。
+
+=== PAGE 50 ===
+AXU4EVB-P用户手册
+50/59 芯驿电子科技（上海）有限公司FMC扩展口的36对差分信号连接到ZYNQUltrascale+芯片的BANK65,66的IO上，
+电平标准为1.8V，差分信号支持LVDS数据通信。ZYNQUltrascale+和FMC连接器的原理
+图如图3-15-1所示。
+图3-15-1FMC连接器连接示意图
+FMC连接器引脚分配
+FMC
+管脚号信号名称 ZYNQ引脚名 ZYNQ引
+脚号备注
+H4 FMC_CLK0_P B65_L11_P K4 FMC参考第1路参考时钟P
+H5 FMC_CLK0_N B65_L11_N K3 FMC参考第1路参考时钟N
+G2 FMC_CLK1_P B65_L14_P M6 FMC参考第2路参考时钟P
+G3 FMC_CLK1_N B65_L14_N L5 FMC参考第2路参考时钟N
+G6 FMC_LA00_CC_P B65_L12_P L3 FMC参考第0路数据（时钟）P
+G7 FMC_LA00_CC_N B65_L12_N L2 FMC参考第0路数据（时钟）N
+D8 FMC_LA01_CC_P B65_L13_P L7 FMC参考第1路数据（时钟）P
+D9 FMC_LA01_CC_N B65_L13_N L6 FMC参考第1路数据（时钟）N
+H7 FMC_LA02_P B65_L10_P H4 FMC参考第2路数据P
+H8 FMC_LA02_N B65_L10_N H3 FMC参考第2路数据N
+G9 FMC_LA03_P B65_L4_P R8 FMC参考第3路数据P
+G10FMC_LA03_N B65_L4_N T8 FMC参考第3路数据N
+H10FMC_LA04_P B65_L7_P L1 FMC参考第4路数据P
+H11FMC_LA04_N B65_L7_N K1 FMC参考第4路数据N
+
+=== PAGE 51 ===
+AXU4EVB-P用户手册
+51/59 http://www.alinx.comD11FMC_LA05_P B65_L20_P J6 FMC参考第5路数据P
+D12FMC_LA05_N B65_L20_N H6 FMC参考第5路数据N
+C10FMC_LA06_P B65_L22_P K8 FMC参考第6路数据P
+C11FMC_LA06_N B65_L22_N K7 FMC参考第6路数据N
+H13FMC_LA07_P B65_L16_P P7 FMC参考第7路数据P
+H14FMC_LA07_N B65_L16_N P6 FMC参考第7路数据N
+G12FMC_LA08_P B65_L15_P N7 FMC参考第8路数据P
+G13FMC_LA08_N B65_L15_N N6 FMC参考第8路数据N
+D14FMC_LA09_P B65_L17_P N9 FMC参考第9路数据P
+D15FMC_LA09_N B65_L17_N N8 FMC参考第9路数据N
+C14FMC_LA10_P B65_L6_P R6 FMC参考第10路数据P
+C15FMC_LA10_N B65_L6_N T6 FMC参考第10路数据N
+H16FMC_LA11_P B65_L5_P R7 FMC参考第11路数据P
+H17FMC_LA11_N B65_L5_N T7 FMC参考第11路数据N
+G15FMC_LA12_P B65_L9_P K2 FMC参考第12路数据P
+G16FMC_LA12_N B65_L9_N J2 FMC参考第12路数据N
+D17FMC_LA13_P B65_L21_P J7 FMC参考第13路数据P
+D18FMC_LA13_N B65_L21_N H7 FMC参考第13路数据N
+C18FMC_LA14_P B65_L19_P J5 FMC参考第14路数据P
+C19FMC_LA14_N B65_L19_N J4 FMC参考第14路数据N
+H19FMC_LA15_P B65_L18_P M8 FMC参考第15路数据P
+H20FMC_LA15_N B65_L18_N L8 FMC参考第15路数据N
+G18FMC_LA16_P B65_L23_P K9 FMC参考第16路数据P
+G19FMC_LA16_N B65_L23_N J9 FMC参考第16路数据N
+D20FMC_LA17_CC_P B66_L11_P D4 FMC参考第17路数据（时钟）P
+D21FMC_LA17_CC_N B66_L11_N C4 FMC参考第17路数据（时钟）N
+C22FMC_LA18_CC_P B66_L12_P C3 FMC参考第18路数据（时钟）P
+C23FMC_LA18_CC_N B66_L12_N C2 FMC参考第18路数据（时钟）N
+H22FMC_LA19_P B66_L3_P F2 FMC参考第19路数据P
+H23FMC_LA19_N B66_L3_N E2 FMC参考第19路数据N
+G21FMC_LA20_P B66_L2_P E1 FMC参考第20路数据P
+G22FMC_LA20_N B66_L2_N D1 FMC参考第20路数据N
+
+=== PAGE 52 ===
+AXU4EVB-P用户手册
+52/59 芯驿电子科技（上海）有限公司H25FMC_LA21_P B66_L15_P G6 FMC参考第21路数据P
+H26FMC_LA21_N B66_L15_N F6 FMC参考第21路数据N
+G24FMC_LA22_P B66_L1_P G1 FMC参考第22路数据P
+G25FMC_LA22_N B66_L1_N F1 FMC参考第22路数据N
+D23FMC_LA23_P B66_L5_P E4 FMC参考第23路数据P
+D24FMC_LA23_N B66_L5_N E3 FMC参考第23路数据N
+H28FMC_LA24_P B66_L20_P C6 FMC参考第24路数据P
+H29FMC_LA24_N B66_L20_N B6 FMC参考第24路数据N
+G27FMC_LA25_P B66_L4_P G3 FMC参考第25路数据P
+G28FMC_LA25_N B66_L4_N F3 FMC参考第25路数据N
+D26FMC_LA26_P B66_L16_P G8 FMC参考第26路数据P
+D27FMC_LA26_N B66_L16_N F7 FMC参考第26路数据N
+C26FMC_LA27_P B66_L6_P G5 FMC参考第27路数据P
+C27FMC_LA27_N B66_L6_N F5 FMC参考第27路数据N
+H31FMC_LA28_P B66_L10_P B4 FMC参考第28路数据P
+H32FMC_LA28_N B66_L10_N A4 FMC参考第28路数据N
+G30FMC_LA29_P B66_L7_P C1 FMC参考第29路数据P
+G31FMC_LA29_N B66_L7_N B1 FMC参考第29路数据N
+H34FMC_LA30_P B66_L13_P D7 FMC参考第30路数据P
+H35FMC_LA30_N B66_L13_N D6 FMC参考第30路数据N
+G33FMC_LA31_P B66_L9_P B3 FMC参考第31路数据P
+G34FMC_LA31_N B66_L9_N A3 FMC参考第31路数据N
+H37FMC_LA32_P B65_L24_P H9 FMC参考第32路数据P
+H38FMC_LA32_N B65_L24_N H8 FMC参考第32路数据N
+G36FMC_LA33_P B66_L8_P A2 FMC参考第33路数据P
+G37FMC_LA33_N B66_L8_N A1 FMC参考第33路数据N
+H2 FMC_PRSNT B45_L12_N C12 FMC模块存在信号
+D1 PWRGD B44_L2_N AH14 FMCPowerGood信号
+
+=== PAGE 53 ===
+AXU4EVB-P用户手册
+53/59 http://www.alinx.com(十六)JTAG调试口
+在AXU4EVB-P扩展板上预留了一个JTAG接口，用于下载ZYNQUltraScale+程序或者
+固化程序到FLASH。为了带电插拔造成对ZYNQUltraScale+芯片的损坏，我们在JTAG信
+号上添加了保护二极管来保证信号的电压在FPGA接受的范围，避免ZYNQUltraScale+芯片
+的损坏。
+图3-16-1原理图中JTAG接口部分
+(十七)RTC实时时钟
+ZU4EV芯片内部带有RTC实时时钟的功能，有年月日时分秒还有星期计时功能。外部需
+要接一个32.768KHz的无源时钟，提供精确的时钟源给内部时钟电路，这样才能让RTC可以
+准确的提供时钟信息。同时为了产品掉电以后，实时时钟还可以正常运行，一般需要另外配一
+个电池给时钟芯片供电。开发板上的BT1为1.5V的纽扣电池（型号LR41，电压为1.5V），
+当系统掉电池，纽扣电池还可以给RTC系统供电，可以提供持续不断的时间信息。图3-12-1
+为RTC实时时钟原理图
+
+=== PAGE 54 ===
+AXU4EVB-P用户手册
+54/59 芯驿电子科技（上海）有限公司
+图3-17-1为RTC实时时钟原理图
+(十八)EEPROM和温度传感器
+AXU4EVB-P开发板板载了一片EEPROM，型号为24LC04,容量为：4Kbit（2*256*8bit），
+通过IIC总线连接到PS端进行通信。另外板上还带有一个高精度、低功耗、数字温度传感器芯
+片，型号为ONSemiconductor公司的LM75，LM75芯片的温度精度为0.5度。EEPROM和温
+度传感器通过I2C总线挂载到ZYNQUltraScale+的Bank500MIO上。图3-18-1为EEPROM和
+温度传感器的原理图
+图3-18-1EEPROM和传感器的原理图
+EEPROM通信引脚分配如下：
+信号名称 引脚名 引脚号 备注
+PS_IIC1_SCL PS_MIO24 AB19 I2C时钟信号
+PS_IIC1_SDA PS_MIO25 AB21 I2C数据信号
+
+=== PAGE 55 ===
+AXU4EVB-P用户手册
+55/59 http://www.alinx.com(十九)LED灯
+AXU4EVB-P扩展板上有3个发光二极管LED。包含1个电源指示灯，1个PS控制指
+示灯，1个PL控制指示灯。用户可以通过程序来控制亮和灭，当连接用户LED灯的IO电压
+为低时，用户LED灯熄灭，当连接IO电压为高时，用户LED会被点亮。用户LED灯硬件连
+接的示意图如图3-19-1所示：
+图3-19-1用户LED灯硬件连接示意图
+用户LED灯的引脚分配
+信号名称 引脚名 管脚号 备注
+PS_LED1 PS_MIO40 K18 用户PSLED灯
+PL_LED1 B44_L1_P AE15 用户PLLED灯
+(二十)按键
+AXU4EVB-P扩展板上有1个复位按键RESET和2个用户按键。复位信号连接到核心板
+的复位芯片输入，用户可以使用这个复位按键来复位ZYNQ系统。用户按键1个连接到PS
+的MIO上，1个是连接到PL的IO上。复位按键和用户按键都是低电平有效，用户按键的连
+接示意图如图3-20-1所示：
+
+=== PAGE 56 ===
+AXU4EVB-P用户手册
+56/59 芯驿电子科技（上海）有限公司
+图3-20-1复位按键连接示意图
+按键的ZYNQ管脚分配
+信号名称 引脚名 引脚号 备注
+PS_KEY1 PS_MIO26 L15 PS按键1输入
+PL_KEY1 B44_L1_N AE14 PL按键1输入
+(二十一)拨码开关配置
+开发板上有一个4位的拨码开关SW1用来配置ZYNQ系统的启动模式。AXU4EVB-P系
+统开发平台支持4种启动模式。这4种启动模式分别是JTAG调试模式,QSPIFLASH,EMMC
+和SD2.0卡启动模式。ZU4EV芯片上电后会检测（PS_MODE0~3）的电平来决定那种启动
+模式。用户可以通过扩展板上的拨码开关SW1来选择不同的启动模式。SW1启动模式配置
+如下表3-17-1所示。
+SW1 拨码位置（1，2，3,4） MODE[3:0] 启动模式
+ON，ON，ON，ON 0000 PSJTAG
+ON，ON，OFF,ON 0010 QSPIFLASH
+ON，OFF，ON，OFF 0101 SD卡
+ON，OFF，OFF，ON 0110 EMMC
+
+=== PAGE 57 ===
+AXU4EVB-P用户手册
+57/59 http://www.alinx.com表3-21-1SW1启动模式配置
+(二十二)电源
+AXU4EVB-P开发板的电源输入电压为DC12V。底板上通过1路DC/DC电源芯片
+ETA1471和2路DC/DC电源芯片ETA8156转换成+5V，+3.3V，+1.8V。另外底板通过LDO
+产生+1.2V给核心板BANK65供电（BANK65的电源通过跳线帽来选择，当调试MIPI摄像
+头的时候，选择1.2V供电，当使用FMC连接器时，使用1.8V供电），BANK66的供电为
++1.8V。板上的电源设计示意图如下图3-18-1所示:
+图3-22-1原理图中电源接口部分
+各个电源分配的功能如下表所示：
+电源 功能
++5.0V USB供电电源
++1.8V 以太网，USB2.0，核心板BANK66
++3.3V 以太网，USB2.0，SD，DP，CAN，RS485
++1.2V 核心板BANK65
+(二十三)风扇
+因为ZU4EV正常工作时会产生大量的热量，我们在板上为芯片增加了一个散热片和风扇，
+防止芯片过热。风扇的控制由ZYNQ芯片来控制，控制管脚连接到BANK44的IO上（AG14），
+
+=== PAGE 58 ===
+AXU4EVB-P用户手册
+58/59 芯驿电子科技（上海）有限公司如果IO电平输出为低，MOSFET管导通，风扇工作，如果IO电平输出为高，风扇停止。板
+上的风扇设计图如下图3-23-1所示:
+图3-23-1开发板原理图中风扇设计
+风扇出厂前已经用螺丝固定在开发板上，风扇的电源连接到了J42的插座上，红色的为正
+极，黑色的为负极。
+(二十四)结构尺寸图
+
+
+=== PAGE 59 ===
+AXU4EVB-P用户手册
+59/59 http://www.alinx.com图3-24-1正面图（TopView）
