@@ -51,7 +51,7 @@ ad_ip_parameter spi_clkgen CONFIG.VCO_MUL 8
 ad_connect $sys_cpu_clk spi_clkgen/clk
 ad_connect spi_clk spi_clkgen/clk_0
 
-ad_ip_instance ilvector_logic cnv_gate
+ad_ip_instance util_vector_logic cnv_gate
 ad_ip_parameter cnv_gate CONFIG.C_SIZE 1
 ad_ip_parameter cnv_gate CONFIG.C_OPERATION {and}
 

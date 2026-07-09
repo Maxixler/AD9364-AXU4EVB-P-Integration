@@ -121,7 +121,7 @@ proc ad_connect_int_get_const {name width} {
   set cell [get_bd_cells -quiet $cell_name]
   if {$cell eq ""} {
     # Create new constant source
-    ad_ip_instance ilconstant $cell_name
+    ad_ip_instance xlconstant $cell_name
     set cell [get_bd_cells -quiet $cell_name]
     set_property CONFIG.CONST_WIDTH $width $cell
     set_property CONFIG.CONST_VAL $value $cell

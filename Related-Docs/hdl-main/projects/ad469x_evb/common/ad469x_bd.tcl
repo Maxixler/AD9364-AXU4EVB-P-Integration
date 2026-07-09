@@ -97,7 +97,7 @@ ad_connect axi_ad469x_dma/s_axis $hier_spi_engine/M_AXIS_SAMPLE
 # PWM_OFFLOAD 2 (manual mode): trigger = PWM & DMA_xfer_req, no CNV gating
 
 if {$PWM_OFFLOAD == 2} {
-  ad_ip_instance ilvector_logic trigger_gate
+  ad_ip_instance util_vector_logic trigger_gate
   ad_ip_parameter trigger_gate CONFIG.C_SIZE 1
   ad_ip_parameter trigger_gate CONFIG.C_OPERATION {and}
 
@@ -114,15 +114,15 @@ if {$PWM_OFFLOAD == 0} {
 
   # CNV = ((DMA_xfer_req & PWM) & BUSY) | gpio_cnv
 
-  ad_ip_instance ilvector_logic cnv_gate
+  ad_ip_instance util_vector_logic cnv_gate
   ad_ip_parameter cnv_gate CONFIG.C_SIZE 1
   ad_ip_parameter cnv_gate CONFIG.C_OPERATION {and}
 
-  ad_ip_instance ilvector_logic cnv_gate_busy
+  ad_ip_instance util_vector_logic cnv_gate_busy
   ad_ip_parameter cnv_gate_busy CONFIG.C_SIZE 1
   ad_ip_parameter cnv_gate_busy CONFIG.C_OPERATION {and}
 
-  ad_ip_instance ilvector_logic cnv_gate_gpio
+  ad_ip_instance util_vector_logic cnv_gate_gpio
   ad_ip_parameter cnv_gate_gpio CONFIG.C_SIZE 1
   ad_ip_parameter cnv_gate_gpio CONFIG.C_OPERATION {or}
 
@@ -140,11 +140,11 @@ if {$PWM_OFFLOAD == 0} {
 
   # PWM_OFFLOAD 1 (register mode): CNV = (PWM & BUSY) | gpio_cnv
 
-  ad_ip_instance ilvector_logic cnv_gate_busy
+  ad_ip_instance util_vector_logic cnv_gate_busy
   ad_ip_parameter cnv_gate_busy CONFIG.C_SIZE 1
   ad_ip_parameter cnv_gate_busy CONFIG.C_OPERATION {and}
 
-  ad_ip_instance ilvector_logic cnv_gate_gpio
+  ad_ip_instance util_vector_logic cnv_gate_gpio
   ad_ip_parameter cnv_gate_gpio CONFIG.C_SIZE 1
   ad_ip_parameter cnv_gate_gpio CONFIG.C_OPERATION {or}
 

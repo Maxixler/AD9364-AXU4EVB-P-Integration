@@ -203,11 +203,11 @@ ad_connect  axi_ad9680_jesd/rx_data_tvalid axi_ad9680_tpl_core/link_valid
 ad_connect  axi_ad9680_tpl_core/adc_valid_0 axi_ad9680_cpack/fifo_wr_en
 ad_connect  axi_ad9680_cpack/fifo_wr_overflow axi_ad9680_tpl_core/adc_dovf
 
-ad_ip_instance ilconcat cpack_reset_sources
+ad_ip_instance xlconcat cpack_reset_sources
 ad_ip_parameter cpack_reset_sources config.num_ports {1}
 ad_connect axi_ad9680_jesd_rstgen/peripheral_reset cpack_reset_sources/in0
 
-ad_ip_instance ilreduced_logic cpack_rst_logic
+ad_ip_instance util_reduced_logic cpack_rst_logic
 ad_ip_parameter cpack_rst_logic config.c_operation {or}
 ad_ip_parameter cpack_rst_logic config.c_size {1}
 
@@ -226,7 +226,7 @@ if {$sys_zynq == 0 || $sys_zynq == 1} {
     ad_connect  $adc_offload_name/m_axis axi_ad9680_dma/s_axis
     ad_connect  $adc_offload_name/init_req axi_ad9680_dma/s_axis_xfer_req
 
-    ad_ip_instance ilvector_logic rx_do_rstout_logic
+    ad_ip_instance util_vector_logic rx_do_rstout_logic
     ad_ip_parameter rx_do_rstout_logic config.c_operation {not}
     ad_ip_parameter rx_do_rstout_logic config.c_size {1}
 

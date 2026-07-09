@@ -435,7 +435,7 @@ proc ad_gth_generator { {lane_rate_l {}} {pll_type {}}  {ref_clk_l {}} } {
 ## It generates a PHY configuration with GT wizard, that is parsed afterwards.
 ## That results in a list of parameters that are specific to the configuration, but different from the default one.
 ## This output should then overwrite the existing instance in the system_bd.tcl.
-## The output products can be found at <project_name>.gen/sources_1/ip (*_cfng.txt)
+## The output products can be found at <project_name>.srcs/sources_1/ip (*_cfng.txt)
 ## It must be called inside a Ultrascale or Ultrascale+ project.
 ## GitHub documentation: https://analogdevicesinc.github.io/hdl/library/jesd204/xgt_wizard/index.html
 ##
@@ -492,7 +492,7 @@ proc get_diff_params { {lane_rate_l {}} {pll_type {}}  {ref_clk_l {}} {keep_ip "
   ad_gth_generator $lane_rate_l $pll_type $ref_clk_l
 
   ## Call parser script gtwiz_parser.pl
-  cd $project_name\.gen/sources_1/ip
+  cd $project_name\.srcs/sources_1/ip
   # exec $::env(ADI_HDL_DIR)/projects/scripts/gtwiz_parser.pl $gt_type
   # exec ../../../../../scripts/gtwiz_parser.pl $gt_type
   # catch exception for the next line. If it catches something, come back to $current_dir
@@ -514,7 +514,7 @@ proc get_diff_params { {lane_rate_l {}} {pll_type {}}  {ref_clk_l {}} {keep_ip "
 
             ## Get the paths to generated IP so that it can be removed
             set src_path $current_dir/$project_name\.srcs/sources_1/ip
-            set gen_path $current_dir/$project_name\.gen/sources_1/ip
+            set gen_path $current_dir/$project_name\.srcs/sources_1/ip
             set ip_name [eval exec ls $src_path | grep $gt_type\_$pll_type\_$lane_rate_txt\_$ref_clk_txt]
             set ip_path_src $src_path\/$ip_name
             set ip_path_gen $gen_path\/$ip_name
@@ -528,11 +528,11 @@ proc get_diff_params { {lane_rate_l {}} {pll_type {}}  {ref_clk_l {}} {keep_ip "
           }
         }
       } else {
-      puts "\ngenerated files can be find at $project_name\.gen/sources_1/ip"
+      puts "\ngenerated files can be find at $project_name\.srcs/sources_1/ip"
       }
 
 
-      puts "\nconfiguration file for the tranciever is $project_name\.gen/sources_1/ip/$gt_type\_cfng.txt"
+      puts "\nconfiguration file for the tranciever is $project_name\.srcs/sources_1/ip/$gt_type\_cfng.txt"
     }
   } else {
     puts "For running the parser script you should be in ip directory"

@@ -136,7 +136,7 @@ if {$NO_REORDER == 0} {
 ad_ip_parameter axi_ad463x_dma CONFIG.DMA_DATA_WIDTH_DEST 64
 
 # or logic for CNV generation
-ad_ip_instance ilvector_logic or_logic_cnv
+ad_ip_instance util_vector_logic or_logic_cnv
 ad_ip_parameter or_logic_cnv CONFIG.C_SIZE 1
 ad_ip_parameter or_logic_cnv CONFIG.C_OPERATION or
 

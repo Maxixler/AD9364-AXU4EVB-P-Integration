@@ -49,7 +49,7 @@ ad_ip_parameter sys_ps7 CONFIG.PCW_USE_FABRIC_INTERRUPT 1
 ad_ip_parameter sys_ps7 CONFIG.PCW_IRQ_F2P_INTR 1
 ad_ip_parameter sys_ps7 CONFIG.PCW_IRQ_F2P_MODE REVERSE
 
-ad_ip_instance ilconcat sys_concat_intc
+ad_ip_instance xlconcat sys_concat_intc
 ad_ip_parameter sys_concat_intc CONFIG.NUM_PORTS 16
 
 ad_ip_instance proc_sys_reset sys_rstgen
@@ -93,7 +93,7 @@ ad_connect  fixed_io      sys_ps7/FIXED_IO
 
 # spi connections
 
-ad_ip_instance ilconcat spi0_csn_sources
+ad_ip_instance xlconcat spi0_csn_sources
 ad_ip_parameter spi0_csn_sources config.num_ports {3}
 ad_connect  spi0_csn_sources/dout spi0_csn
 
@@ -107,7 +107,7 @@ ad_connect  spi0_sdo_i sys_ps7/SPI0_MOSI_I
 ad_connect  spi0_sdo_o sys_ps7/SPI0_MOSI_O
 ad_connect  spi0_sdi_i sys_ps7/SPI0_MISO_I
 
-ad_ip_instance ilconcat spi1_csn_sources
+ad_ip_instance xlconcat spi1_csn_sources
 ad_ip_parameter spi1_csn_sources config.num_ports {3}
 ad_connect  spi1_csn_sources/dout spi1_csn
 

@@ -108,7 +108,7 @@ ad_ip_parameter axi_pwm_gen CONFIG.PULSE_3_WIDTH 1
 
 # constant 1
 
-create_bd_cell -type inline_hdl -vlnv xilinx.com:inline_hdl:ilconstant const_vcc_1
+create_bd_cell -type inline_hdl -vlnv xilinx.com:inline_hdl:xlconstant const_vcc_1
 
 # sys_rstgen
 

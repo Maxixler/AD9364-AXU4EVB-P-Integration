@@ -502,7 +502,7 @@ proc adi_init_bd_tcl {} {
   add_files -norecurse -scan_for_includes -fileset $proj_fileset "bd/bd.tcl"
 
   set local_mk [open "temporary_case_dependencies.mk" w]
-  seek $local_mk 0 start
+  # seek $local_mk 0 start
   puts $local_mk "CLEAN_TARGET += bd"
   puts $local_mk "CLEAN_TARGET += temporary_case_dependencies.mk"
   close $local_mk

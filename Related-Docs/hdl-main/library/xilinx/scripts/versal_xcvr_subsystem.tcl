@@ -307,7 +307,7 @@ proc xcvr_connect_lcpll_resets {ip_name xcvr no_lanes reset_pin} {
 
   set num_quads [expr {int(ceil($no_lanes / double($LANES_PER_QUAD)))}]
 
-  ad_ip_instance ilconcat ${ip_name}/${xcvr}_lcplllock_concat
+  ad_ip_instance xlconcat ${ip_name}/${xcvr}_lcplllock_concat
   ad_ip_parameter ${ip_name}/${xcvr}_lcplllock_concat CONFIG.NUM_PORTS [expr {2 * $num_quads}]
 
   for {set i 0} {$i < $num_quads} {incr i} {
@@ -328,13 +328,13 @@ proc xcvr_connect_lcpll_resets {ip_name xcvr no_lanes reset_pin} {
     }
   }
 
-  ad_ip_instance ilreduced_logic ${ip_name}/${xcvr}_lcplllock_and
+  ad_ip_instance util_reduced_logic ${ip_name}/${xcvr}_lcplllock_and
   ad_ip_parameter ${ip_name}/${xcvr}_lcplllock_and CONFIG.C_SIZE [expr {2 * $num_quads}]
   ad_ip_parameter ${ip_name}/${xcvr}_lcplllock_and CONFIG.C_OPERATION {and}
 
   ad_connect ${ip_name}/${xcvr}_lcplllock_concat/dout ${ip_name}/${xcvr}_lcplllock_and/Op1
 
-  ad_ip_instance ilvector_logic ${ip_name}/${xcvr}_lcplllock_not
+  ad_ip_instance util_vector_logic ${ip_name}/${xcvr}_lcplllock_not
   ad_ip_parameter ${ip_name}/${xcvr}_lcplllock_not CONFIG.C_SIZE {1}
   ad_ip_parameter ${ip_name}/${xcvr}_lcplllock_not CONFIG.C_OPERATION {not}
 
@@ -368,7 +368,7 @@ proc xcvr_connect_reset_signals {ip_name xcvr_list intf dir} {
 #   intf : Interface number
 #   dir : Direction (rx or tx)
 proc xcvr_create_resetdone_logic {ip_name xcvr_list intf dir} {
-  ad_ip_instance ilconcat ${ip_name}/${dir}_resetdone_concat
+  ad_ip_instance xlconcat ${ip_name}/${dir}_resetdone_concat
   ad_ip_parameter ${ip_name}/${dir}_resetdone_concat CONFIG.NUM_PORTS [llength $xcvr_list]
 
   set port_idx 0
@@ -377,7 +377,7 @@ proc xcvr_create_resetdone_logic {ip_name xcvr_list intf dir} {
     incr port_idx
   }
 
-  ad_ip_instance ilreduced_logic ${ip_name}/${dir}_resetdone_and
+  ad_ip_instance util_reduced_logic ${ip_name}/${dir}_resetdone_and
   ad_ip_parameter ${ip_name}/${dir}_resetdone_and CONFIG.C_SIZE [llength $xcvr_list]
   ad_ip_parameter ${ip_name}/${dir}_resetdone_and CONFIG.C_OPERATION {and}
   ad_connect ${ip_name}/${dir}_resetdone_concat/dout ${ip_name}/${dir}_resetdone_and/Op1
@@ -626,7 +626,7 @@ proc create_versal_jesd_xcvr_subsystem {
   }
 
   # Power good signal
-  ad_ip_instance ilconcat ${ip_name}/gtpowergood_concat
+  ad_ip_instance xlconcat ${ip_name}/gtpowergood_concat
   ad_ip_parameter ${ip_name}/gtpowergood_concat CONFIG.NUM_PORTS [llength $xcvr_list]
   set port_idx 0
   foreach xcvr $xcvr_list {
@@ -634,7 +634,7 @@ proc create_versal_jesd_xcvr_subsystem {
     incr port_idx
   }
 
-  ad_ip_instance ilreduced_logic ${ip_name}/gtpowergood_and
+  ad_ip_instance util_reduced_logic ${ip_name}/gtpowergood_and
   ad_ip_parameter ${ip_name}/gtpowergood_and CONFIG.C_SIZE [llength $xcvr_list]
   ad_ip_parameter ${ip_name}/gtpowergood_and CONFIG.C_OPERATION {and}
   ad_connect ${ip_name}/gtpowergood_concat/dout ${ip_name}/gtpowergood_and/Op1

@@ -24,6 +24,7 @@ if {[info exists ::env(REQUIRED_VIVADO_VERSION)]} {
   set required_vivado_version $REQUIRED_VIVADO_VERSION
 }
 
+set env(ADI_IGNORE_VERSION_CHECK) 1
 # Define the ADI_IGNORE_VERSION_CHECK environment variable to skip version check
 if {[info exists ::env(ADI_IGNORE_VERSION_CHECK)]} {
   set IGNORE_VERSION_CHECK 1

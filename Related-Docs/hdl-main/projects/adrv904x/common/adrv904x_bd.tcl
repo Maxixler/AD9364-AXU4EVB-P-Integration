@@ -509,7 +509,7 @@ create_bd_port -dir I ext_sync_in
 ad_ip_parameter rx_adrv904x_tpl_core/adc_tpl_core CONFIG.EXT_SYNC 1
 ad_connect ext_sync_in rx_adrv904x_tpl_core/adc_tpl_core/adc_sync_in
 
-ad_ip_instance ilvector_logic manual_sync_or [list \
+ad_ip_instance util_vector_logic manual_sync_or [list \
     C_SIZE 1 \
     C_OPERATION {or} \
 ]

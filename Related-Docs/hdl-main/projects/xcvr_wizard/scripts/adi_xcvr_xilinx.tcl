@@ -88,17 +88,17 @@ proc adi_xcvr_project {parameters_for_make {carrier_name ""}} {
     append file_local_param "_common.v"
   }
 
-  eval exec $make_command
+  # eval exec $make_command
   cd $current_dir
 
   if {$adi_dir_env ne ""} {
       if {$gt_xcvr_file eq ""} {
-        append adi_project_dir_path "/${::env(ADI_PROJECT_DIR)}${project_name}_${carrier_name}.gen/sources_1/ip/${xcvr_type}_cfng.txt"
+        append adi_project_dir_path "/${::env(ADI_PROJECT_DIR)}${project_name}_${carrier_name}.srcs/sources_1/ip/${xcvr_type}_cfng.txt"
       } else {
-        append adi_project_dir_path "/$gt_xcvr_file\_$::env(ADI_PROJECT_DIR)${project_name}_${carrier_name}.gen/sources_1/ip/${xcvr_type}_cfng.txt"
+        append adi_project_dir_path "/$gt_xcvr_file\_$::env(ADI_PROJECT_DIR)${project_name}_${carrier_name}.srcs/sources_1/ip/${xcvr_type}_cfng.txt"
       }
   } else {
-      append adi_project_dir_path "/$gt_xcvr_file/${project_name}_${carrier_name}.gen/sources_1/ip/${xcvr_type}_cfng.txt"
+      append adi_project_dir_path "/$gt_xcvr_file/${project_name}_${carrier_name}.srcs/sources_1/ip/${xcvr_type}_cfng.txt"
   }
 
   set config_dir_path [file dirname $adi_project_dir_path]

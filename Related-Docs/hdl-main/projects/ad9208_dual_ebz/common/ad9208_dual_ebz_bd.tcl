@@ -87,11 +87,11 @@ ad_data_offload_create $adc_offload_name \
 ad_ip_parameter $adc_offload_name/i_data_offload CONFIG.SYNC_EXT_ADD_INTERNAL_CDC 0
 ad_connect $adc_offload_name/sync_ext GND
 
-ad_ip_instance ilvector_logic rx_do_rstout_logic
+ad_ip_instance util_vector_logic rx_do_rstout_logic
 ad_ip_parameter rx_do_rstout_logic config.c_operation {not}
 ad_ip_parameter rx_do_rstout_logic config.c_size {1}
 
-ad_ip_instance ilvector_logic cpack_reset_logic
+ad_ip_instance util_vector_logic cpack_reset_logic
 ad_ip_parameter cpack_reset_logic config.c_operation {or}
 ad_ip_parameter cpack_reset_logic config.c_size {1}
 

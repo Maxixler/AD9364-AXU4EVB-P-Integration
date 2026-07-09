@@ -180,7 +180,7 @@ proc ad_add_interpolation_filter {name filter_rate n_chan parallel_paths \
     create_bd_pin -dir I -from [expr 16*$parallel_paths-1] -to 0 $name/data_in_$i
     create_bd_pin -dir O -from [expr 16*$parallel_paths-1] -to 0 $name/data_out_$i
 
-    ad_ip_instance ilvector_logic $name/logic_and_$i [list \
+    ad_ip_instance util_vector_logic $name/logic_and_$i [list \
       C_SIZE 1]
 
     create_bd_cell -type module -reference ad_bus_mux $name/out_mux_$i
