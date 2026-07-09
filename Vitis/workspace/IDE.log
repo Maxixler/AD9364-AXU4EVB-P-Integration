@@ -1,0 +1,53 @@
+23:05:16 INFO  : Registering command handlers for Vitis TCF services
+23:05:18 INFO  : plnx-install-location is set to ''
+23:05:23 INFO  : Platform repository initialization has completed.
+23:05:28 INFO  : Result from executing command 'getProjects': fmcomms2_axu4ev_hw
+23:05:28 INFO  : Result from executing command 'getPlatforms': 
+23:08:16 INFO  : Result from executing command 'getProjects': fmcomms2_axu4ev_hw
+23:08:16 INFO  : Result from executing command 'getPlatforms': fmcomms2_axu4ev_hw|C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/export/fmcomms2_axu4ev_hw/fmcomms2_axu4ev_hw.xpfm
+23:08:16 INFO  : Result from executing command 'reportPlatform': {fmcomms2_axu4ev_hw={standalone_domain={Os=standalone, DomainName=standalone_domain, CpuType=cortex-a53, CpuInstance=psu_cortexa53_0}}}
+23:08:16 INFO  : Result from executing command 'reportPlatform': {fmcomms2_axu4ev_hw={standalone_domain={Os=standalone, DomainName=standalone_domain, CpuType=cortex-a53, CpuInstance=psu_cortexa53_0}}}
+23:08:16 INFO  : Result from executing command 'reportPlatform': {fmcomms2_axu4ev_hw={standalone_domain={Os=standalone, DomainName=standalone_domain, CpuType=cortex-a53, CpuInstance=psu_cortexa53_0}}}
+23:08:16 ERROR : xsct server communication channel has closed unexpectedly.
+java.net.SocketException: Connection reset
+	at java.base/java.net.SocketInputStream.read(Unknown Source)
+	at java.base/java.net.SocketInputStream.read(Unknown Source)
+	at java.base/java.io.BufferedInputStream.read1(Unknown Source)
+	at java.base/java.io.BufferedInputStream.read(Unknown Source)
+	at java.base/java.io.FilterInputStream.read(Unknown Source)
+	at org.eclipse.tcf.core.ChannelTCP.get(ChannelTCP.java:186)
+	at org.eclipse.tcf.core.StreamChannel.read(StreamChannel.java:85)
+	at org.eclipse.tcf.core.AbstractChannel$1.run(AbstractChannel.java:329)
+23:09:06 INFO  : Registering command handlers for Vitis TCF services
+23:09:09 INFO  : Platform repository initialization has completed.
+23:09:09 INFO  : Result from executing command 'reportPlatform': {fmcomms2_axu4ev_hw={standalone_domain={Os=standalone, DomainName=standalone_domain, CpuType=cortex-a53, CpuInstance=psu_cortexa53_0}}}
+23:09:09 INFO  : Result from executing command 'reportPlatform': {fmcomms2_axu4ev_hw={standalone_domain={Os=standalone, DomainName=standalone_domain, CpuType=cortex-a53, CpuInstance=psu_cortexa53_0}}}
+23:09:09 INFO  : Result from executing command 'reportPlatform': {fmcomms2_axu4ev_hw={standalone_domain={Os=standalone, DomainName=standalone_domain, CpuType=cortex-a53, CpuInstance=psu_cortexa53_0}}}
+23:09:09 ERROR : Error from executing command 'createAppFromPlatform': The Domain given "standalone_psu_cortexa53_0"is not valid for the platform "C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/export/fmcomms2_axu4ev_hw/fmcomms2_axu4ev_hw.xpfm"and system configuration "fmcomms2_axu4ev_hw"
+23:09:09 ERROR : xsct server communication channel has closed unexpectedly.
+java.net.SocketException: Connection reset
+	at java.base/java.net.SocketInputStream.read(Unknown Source)
+	at java.base/java.net.SocketInputStream.read(Unknown Source)
+	at java.base/java.io.BufferedInputStream.read1(Unknown Source)
+	at java.base/java.io.BufferedInputStream.read(Unknown Source)
+	at java.base/java.io.FilterInputStream.read(Unknown Source)
+	at org.eclipse.tcf.core.ChannelTCP.get(ChannelTCP.java:186)
+	at org.eclipse.tcf.core.StreamChannel.read(StreamChannel.java:85)
+	at org.eclipse.tcf.core.AbstractChannel$1.run(AbstractChannel.java:329)
+23:09:36 INFO  : Registering command handlers for Vitis TCF services
+23:09:39 INFO  : Platform repository initialization has completed.
+23:09:39 INFO  : Result from executing command 'reportPlatform': {fmcomms2_axu4ev_hw={standalone_domain={Os=standalone, DomainName=standalone_domain, CpuType=cortex-a53, CpuInstance=psu_cortexa53_0}}}
+23:09:39 INFO  : Result from executing command 'reportPlatform': {fmcomms2_axu4ev_hw={standalone_domain={Os=standalone, DomainName=standalone_domain, CpuType=cortex-a53, CpuInstance=psu_cortexa53_0}}}
+23:09:39 INFO  : Result from executing command 'reportPlatform': {fmcomms2_axu4ev_hw={standalone_domain={Os=standalone, DomainName=standalone_domain, CpuType=cortex-a53, CpuInstance=psu_cortexa53_0}}}
+23:09:53 INFO  : plnx-install-location is set to ''
+23:09:54 INFO  : Successfully done query RDI_DATADIR 
+23:09:57 ERROR : xsct server communication channel has closed unexpectedly.
+java.net.SocketException: Connection reset
+	at java.base/java.net.SocketInputStream.read(Unknown Source)
+	at java.base/java.net.SocketInputStream.read(Unknown Source)
+	at java.base/java.io.BufferedInputStream.read1(Unknown Source)
+	at java.base/java.io.BufferedInputStream.read(Unknown Source)
+	at java.base/java.io.FilterInputStream.read(Unknown Source)
+	at org.eclipse.tcf.core.ChannelTCP.get(ChannelTCP.java:186)
+	at org.eclipse.tcf.core.StreamChannel.read(StreamChannel.java:85)
+	at org.eclipse.tcf.core.AbstractChannel$1.run(AbstractChannel.java:329)

@@ -1,0 +1,4 @@
+timestamp=[2026-07-09 23:05:23], mode=PLATFORM_REPOSITORY_INIT, duration=0:00:06.541, duration_ms=6541, data={}
+timestamp=[2026-07-09 23:09:09], mode=PLATFORM_REPOSITORY_INIT, duration=0:00:03.202, duration_ms=3202, data={}
+timestamp=[2026-07-09 23:09:39], mode=PLATFORM_REPOSITORY_INIT, duration=0:00:02.938, duration_ms=2938, data={}
+timestamp=[2026-07-09 23:09:57], mode=APP_CREATION, duration=0:00:04.801, duration_ms=4801, data={name=fmcomms2_app, project_type=sdk, os=standalone, processor=cortex-a53, runtime=C/C++, platform=fmcomms2_axu4ev_hw, application_type=application}
