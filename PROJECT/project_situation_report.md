@@ -4,18 +4,21 @@
 This report tracks the progress of the Software Defined Radio (SDR) project using the ADRV9008 transceiver on the ALINX AXU4EVB-P development board, as per the meeting notes dated 07.07.2026.
 Goal: Digitize RF signals and output a spectrum analysis result.
 
+## Pivot: ADRV9009 to FMCOMMS4
+- Due to the ALINX AXU4EVB-P FMC LPC connector lacking GTH transceivers, the project has been pivoted.
+- We are replacing the ADRV9009 (JESD204B) target with the AD9364/FMCOMMS4 (LVDS) target, which is fully compatible with the ALINX board's physical FMC connector.
+
 ## Completed Tasks
-- [x] Created Vivado project for AXU4EVB-P (XCZU4EV-1SFVC784I) with block design (sdr.bd).
-- [x] Configured Zynq MPSoC (I/O, clocks, DDR, etc.) as per instructions.
-- [x] Set default platform clock (pl_clk0) and enabled AXI master interface (M_AXI_HPM0_LPD) to resolve platform generation errors.
-- [x] Successfully generated hardware platform (XSA file): `SDR_Real/sdr_wrapper.xsa`.
-- [x] Exported XSA for use in Vitis and PetaLinux.
+- [x] Initial Vivado project created and Zynq MPSoC configured for AXU4EVB-P.
+- [x] Evaluated and verified hardware incompatibility of JESD204B with the ALINX FMC LPC connector.
+- [x] Confirmed with team to pivot to FMCOMMS2/3/4 (AD9364).
 
 ## In Progress
-- [ ] Adapting the reference design (Related-Docs\hdl-main\projects\adrv9009) to the AXU4EVB-P FMC interface.
-- [ ] Integrating JESD204B transmitter/receiver IP for high-speed serial data between FPGA and ADRV9008/9.
-- [ ] Configuring SPI interface for ADRV9008/9 control (via PS or FMC I/O).
-- [ ] Setting up PetaLinux OS (kernel, device tree, boot) using the exported XSA.
+- [ ] Create a new Vivado project (`fmcomms_sdr_axu4ev`).
+- [ ] Construct the Block Design using `axi_ad9361` and `axi_dmac`.
+- [ ] Identify the exact pin mapping from AD9361 FMC signals to ALINX AXU4EVB-P BANK 65/66.
+- [ ] Write the `axu4ev_fmcomms.xdc` constraint file.
+- [ ] Generate Bitstream and Export XSA.
 - [ ] Developing Vitis application for RF signal processing and spectrum analysis.
 
 ## Upcoming Tasks
