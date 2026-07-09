@@ -1,0 +1,382 @@
+TRACE::2026-07-09.23:03:45::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:03:45::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:03:45::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:03:48::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:03:48::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:03:48::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:03:48::SCWPlatform::Do not have an existing db opened. 
+TRACE::2026-07-09.23:04:06::SCWPlatform::Opened new HwDB with name system_top
+TRACE::2026-07-09.23:04:06::SCWWriter::formatted JSON is {
+	"platformName":	"fmcomms2_axu4ev_hw",
+	"sprVersion":	"2.0",
+	"mode":	"cmd",
+	"dsaType":	"Fixed",
+	"platformDesc":	"fmcomms2_axu4ev_hw",
+	"platHandOff":	"C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Related-Docs/hdl-main/projects/fmcomms2/axu4ev/fmcomms2_axu4ev.sdk/system_top.xsa",
+	"platIntHandOff":	"<platformDir>/hw/system_top.xsa",
+	"deviceType":	"zynqMP",
+	"platIsPrebuiltAutogen":	"false",
+	"platIsNoBootBsp":	"false",
+	"hasFsblMakeHasChanges":	"false",
+	"hasPmufwMakeHasChanges":	"false",
+	"platPreBuiltFlag":	false,
+	"platformSamplesDir":	""
+}
+TRACE::2026-07-09.23:04:06::SCWWriter::formatted JSON is {
+	"platformName":	"fmcomms2_axu4ev_hw",
+	"sprVersion":	"2.0",
+	"mode":	"cmd",
+	"dsaType":	"Fixed",
+	"platformDesc":	"fmcomms2_axu4ev_hw",
+	"platHandOff":	"C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Related-Docs/hdl-main/projects/fmcomms2/axu4ev/fmcomms2_axu4ev.sdk/system_top.xsa",
+	"platIntHandOff":	"<platformDir>/hw/system_top.xsa",
+	"deviceType":	"zynqMP",
+	"platIsPrebuiltAutogen":	"false",
+	"platIsNoBootBsp":	"false",
+	"hasFsblMakeHasChanges":	"false",
+	"hasPmufwMakeHasChanges":	"false",
+	"platPreBuiltFlag":	false,
+	"platformSamplesDir":	"",
+	"platActiveSys":	"fmcomms2_axu4ev_hw",
+	"systems":	[{
+			"systemName":	"fmcomms2_axu4ev_hw",
+			"systemDesc":	"fmcomms2_axu4ev_hw",
+			"sysIsBootAutoGen":	"true",
+			"systemDispName":	"fmcomms2_axu4ev_hw"
+		}]
+}
+TRACE::2026-07-09.23:04:07::SCWPlatform::Boot application domains not present, creating them
+TRACE::2026-07-09.23:04:07::SCWDomain::checking for install qemu data   : 
+TRACE::2026-07-09.23:04:07::SCWDomain:: Using the QEMU Data from install at  : C:/Xilinx/Vitis/2020.1/data/emulation/platforms/zynqmp/qemu/
+TRACE::2026-07-09.23:04:07::SCWDomain:: Using the QEMU args  from install at  : C:/Xilinx/Vitis/2020.1/data/emulation/platforms/zynqmp/qemu/qemu_args.txt
+TRACE::2026-07-09.23:04:07::SCWDomain:: Using the PMUQEMU args from install at  : C:/Xilinx/Vitis/2020.1/data/emulation/platforms/zynqmp/qemu/pmu_args.txt
+TRACE::2026-07-09.23:04:07::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:07::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:07::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:07::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:07::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:07::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:07::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:07::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:07::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:07::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:07::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:07::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:07::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:07::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:07::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:07::SCWPlatform::Boot application domain added for zynqmp_fsbl
+TRACE::2026-07-09.23:04:07::SCWPlatform::Generating the sources  .
+TRACE::2026-07-09.23:04:07::SCWBDomain::Generating boot domain sources.
+TRACE::2026-07-09.23:04:07::SCWBDomain:: Generating the zynqmp_fsbl Application.
+TRACE::2026-07-09.23:04:07::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:07::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:07::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:07::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:07::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:07::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:07::SCWMssOS::Checking the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:07::SCWMssOS::DEBUG:  swdes dump  
+TRACE::2026-07-09.23:04:07::SCWMssOS::No sw design opened at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:07::SCWMssOS::mss does not exists at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:07::SCWMssOS::Creating sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:07::SCWMssOS::Adding the swdes entry, created swdb C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss with des name C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:07::SCWMssOS::updating the scw layer changes to swdes at   C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:07::SCWMssOS::Writing mss at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:07::SCWMssOS::Completed writing the mss file at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp
+TRACE::2026-07-09.23:04:07::SCWMssOS::Picking up changes from newly written mss file into SCW Layer. 
+TRACE::2026-07-09.23:04:07::SCWMssOS::Updated the changes from newly written mss file into SCW Layer. 
+TRACE::2026-07-09.23:04:07::SCWBDomain::Completed writing the mss file at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp
+TRACE::2026-07-09.23:04:14::SCWPlatform::Generating sources Done.
+TRACE::2026-07-09.23:04:14::SCWDomain::checking for install qemu data   : 
+TRACE::2026-07-09.23:04:14::SCWDomain:: Using the QEMU Data from install at  : C:/Xilinx/Vitis/2020.1/data/emulation/platforms/zynqmp/qemu/
+TRACE::2026-07-09.23:04:14::SCWDomain:: Using the QEMU args  from install at  : C:/Xilinx/Vitis/2020.1/data/emulation/platforms/zynqmp/qemu/qemu_args.txt
+TRACE::2026-07-09.23:04:14::SCWDomain:: Using the PMUQEMU args from install at  : C:/Xilinx/Vitis/2020.1/data/emulation/platforms/zynqmp/qemu/pmu_args.txt
+TRACE::2026-07-09.23:04:14::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:14::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:14::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:14::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:14::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:14::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:14::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:14::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:14::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:14::SCWPlatform::Boot application domain added for zynqmp_pmufw
+TRACE::2026-07-09.23:04:14::SCWPlatform::Generating the sources  .
+TRACE::2026-07-09.23:04:14::SCWBDomain::Generating boot domain sources.
+TRACE::2026-07-09.23:04:14::SCWBDomain:: Generating the zynqmp_pmufw Application.
+TRACE::2026-07-09.23:04:14::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:14::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:14::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:14::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:14::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:14::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:14::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:14::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:14::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:14::SCWMssOS::Checking the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:14::SCWMssOS::DEBUG:  swdes dump  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss|C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss||
+
+TRACE::2026-07-09.23:04:14::SCWMssOS::No sw design opened at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:14::SCWMssOS::mss does not exists at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:14::SCWMssOS::Creating sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:14::SCWMssOS::Adding the swdes entry, created swdb C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss with des name C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:14::SCWMssOS::updating the scw layer changes to swdes at   C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:14::SCWMssOS::Writing mss at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:14::SCWMssOS::Completed writing the mss file at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp
+TRACE::2026-07-09.23:04:14::SCWMssOS::Picking up changes from newly written mss file into SCW Layer. 
+TRACE::2026-07-09.23:04:14::SCWMssOS::Updated the changes from newly written mss file into SCW Layer. 
+TRACE::2026-07-09.23:04:14::SCWBDomain::Completed writing the mss file at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp
+TRACE::2026-07-09.23:04:17::SCWPlatform::Generating sources Done.
+TRACE::2026-07-09.23:04:17::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:17::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:17::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:17::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:17::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:17::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:17::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:17::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:17::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:17::SCWMssOS::Checking the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:17::SCWMssOS::DEBUG:  swdes dump  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss|C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss||
+C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss|C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss||
+
+KEYINFO::2026-07-09.23:04:17::SCWMssOS::Could not open the swdb for C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+KEYINFO::2026-07-09.23:04:17::SCWMssOS::Could not open the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+ERROR: [Hsi 55-1558] Software Design C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss is not found
+
+TRACE::2026-07-09.23:04:17::SCWMssOS::Cleared the swdb table entry
+KEYINFO::2026-07-09.23:04:17::SCWMssOS::Could not open the swdb for C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+KEYINFO::2026-07-09.23:04:17::SCWMssOS::Could not open the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+ERROR: [Hsi 55-1558] Software Design C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss is not found
+
+TRACE::2026-07-09.23:04:17::SCWMssOS::Cleared the swdb table entry
+TRACE::2026-07-09.23:04:17::SCWMssOS::No sw design opened at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:17::SCWMssOS::mss exists loading the mss file  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:17::SCWMssOS::Opened the sw design from mss  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:17::SCWMssOS::Adding the swdes entry C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss with des name system
+TRACE::2026-07-09.23:04:17::SCWMssOS::updating the scw layer about changes
+TRACE::2026-07-09.23:04:18::SCWMssOS::Opened the sw design.  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:18::SCWMssOS::Checking the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::DEBUG:  swdes dump  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss|system||
+
+TRACE::2026-07-09.23:04:18::SCWMssOS::No sw design opened at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::mss exists loading the mss file  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::Opened the sw design from mss  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::Adding the swdes entry C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss with des name system_0
+TRACE::2026-07-09.23:04:18::SCWMssOS::updating the scw layer about changes
+TRACE::2026-07-09.23:04:18::SCWMssOS::Opened the sw design.  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::Saving the mss changes C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::Found a swdesign opened with the mssfile.
+TRACE::2026-07-09.23:04:18::SCWMssOS::Completed writemss as part of save.
+TRACE::2026-07-09.23:04:18::SCWMssOS::Commit changes completed.
+TRACE::2026-07-09.23:04:18::SCWMssOS::Saving the mss changes C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::Found a swdesign opened with the mssfile.
+TRACE::2026-07-09.23:04:18::SCWMssOS::Completed writemss as part of save.
+TRACE::2026-07-09.23:04:18::SCWMssOS::Commit changes completed.
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:18::SCWMssOS::Checking the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::DEBUG:  swdes dump  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss|system||
+C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss|system_0||
+
+TRACE::2026-07-09.23:04:18::SCWMssOS::Sw design exists and opened at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:18::SCWMssOS::Checking the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::DEBUG:  swdes dump  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss|system||
+C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss|system_0||
+
+TRACE::2026-07-09.23:04:18::SCWMssOS::Sw design exists and opened at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:18::SCWMssOS::Checking the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::DEBUG:  swdes dump  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss|system||
+C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss|system_0||
+
+TRACE::2026-07-09.23:04:18::SCWMssOS::Sw design exists and opened at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:18::SCWMssOS::Checking the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::DEBUG:  swdes dump  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss|system||
+C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss|system_0||
+
+TRACE::2026-07-09.23:04:18::SCWMssOS::Sw design exists and opened at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:18::SCWMssOS::Checking the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::DEBUG:  swdes dump  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss|system||
+C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss|system_0||
+
+TRACE::2026-07-09.23:04:18::SCWMssOS::Sw design exists and opened at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to open the hw design at C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA given C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA absoulate path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform::DSA directory C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Platform Path C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/hw/system_top.xsa
+TRACE::2026-07-09.23:04:18::SCWPlatform:: Unique name xilinx:::0.0
+TRACE::2026-07-09.23:04:18::SCWPlatform::Trying to set the existing hwdb with name system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Opened existing hwdb system_top
+TRACE::2026-07-09.23:04:18::SCWPlatform::Found the Hw Db part of the input DSA
+TRACE::2026-07-09.23:04:18::SCWMssOS::Checking the sw design at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWMssOS::DEBUG:  swdes dump  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_fsbl/zynqmp_fsbl_bsp/system.mss|system||
+C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss|system_0||
+
+TRACE::2026-07-09.23:04:18::SCWMssOS::Sw design exists and opened at  C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/zynqmp_pmufw/zynqmp_pmufw_bsp/system.mss
+TRACE::2026-07-09.23:04:18::SCWWriter::formatted JSON is {
+	"platformName":	"fmcomms2_axu4ev_hw",
+	"sprVersion":	"2.0",
+	"mode":	"cmd",
+	"dsaType":	"Fixed",
+	"platformDesc":	"fmcomms2_axu4ev_hw",
+	"platHandOff":	"C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Related-Docs/hdl-main/projects/fmcomms2/axu4ev/fmcomms2_axu4ev.sdk/system_top.xsa",
+	"platIntHandOff":	"<platformDir>/hw/system_top.xsa",
+	"deviceType":	"zynqMP",
+	"platIsPrebuiltAutogen":	"false",
+	"platIsNoBootBsp":	"false",
+	"platFsblTarget":	"psu_cortexa53_0",
+	"hasFsblMakeHasChanges":	"false",
+	"hasPmufwMakeHasChanges":	"false",
+	"fsblExtraCompilerFlags":	"-MMD -MP      -Wall -fmessage-length=0 -DARMA53_64 -Os -flto -ffat-lto-objects  ",
+	"pmufwExtraCompilerFlags":	"-MMD -MP      -mlittle-endian -mxl-barrel-shift -mxl-pattern-compare -mcpu=v9.2 -mxl-soft-mul -Os -flto -ffat-lto-objects  ",
+	"platPreBuiltFlag":	false,
+	"platformSamplesDir":	"",
+	"platActiveSys":	"fmcomms2_axu4ev_hw",
+	"systems":	[{
+			"systemName":	"fmcomms2_axu4ev_hw",
+			"systemDesc":	"fmcomms2_axu4ev_hw",
+			"sysIsBootAutoGen":	"true",
+			"systemDispName":	"fmcomms2_axu4ev_hw",
+			"sysActiveDom":	"zynqmp_pmufw",
+			"sysDefaultDom":	"",
+			"domains":	[{
+					"domainName":	"zynqmp_fsbl",
+					"domainDispName":	"zynqmp_fsbl",
+					"domainDesc":	"FSBL Application BSP - Auto Generated.",
+					"processors":	"psu_cortexa53_0",
+					"os":	"standalone",
+					"sdxOs":	"standalone",
+					"debugEnable":	"",
+					"domRuntimes":	["cpp"],
+					"swRepo":	"",
+					"mssOsVer":	"7.2",
+					"mssFile":	"",
+					"md5Digest":	"ae848c5bd8af27444324c306f6af1418",
+					"compatibleApp":	"zynqmp_fsbl",
+					"domType":	"bootDomain",
+					"arch":	"64-bit",
+					"appSettings":	{
+						"appCompilerFlags":	"",
+						"appLinkerFlags":	""
+					},
+					"addedLibs":	["xilffs:4.3", "xilsecure:4.2", "xilpm:3.1"],
+					"libOptions":	{
+						"standalone":	{
+							"zynqmp_fsbl_bsp":	"true",
+							"libOptionNames":	["zynqmp_fsbl_bsp"]
+						},
+						"xilffs":	{
+							"read_only":	"true",
+							"use_mkfs":	"false",
+							"libOptionNames":	["read_only", "use_mkfs"]
+						},
+						"libsContainingOptions":	["standalone", "xilffs"]
+					},
+					"prebuiltLibs":	{
+						"prebuiltIncPath":	[],
+						"prebuiltLibPath":	[]
+					},
+					"isolation":	{
+					}
+				}, {
+					"domainName":	"zynqmp_pmufw",
+					"domainDispName":	"zynqmp_pmufw",
+					"domainDesc":	"PMUFW Application BSP - Auto Generated.",
+					"processors":	"psu_pmu_0",
+					"os":	"standalone",
+					"sdxOs":	"standalone",
+					"debugEnable":	"",
+					"domRuntimes":	["cpp"],
+					"swRepo":	"",
+					"mssOsVer":	"7.2",
+					"mssFile":	"",
+					"md5Digest":	"e7a6e956a60f80a14214d0da0cc6b4e1",
+					"compatibleApp":	"zynqmp_pmufw",
+					"domType":	"bootDomain",
+					"arch":	"64-bit",
+					"appSettings":	{
+						"appCompilerFlags":	"",
+						"appLinkerFlags":	""
+					},
+					"addedLibs":	["xilfpga:5.2", "xilsecure:4.2", "xilskey:6.9"],
+					"libOptions":	{
+						"libsContainingOptions":	[]
+					},
+					"prebuiltLibs":	{
+						"prebuiltIncPath":	[],
+						"prebuiltLibPath":	[]
+					},
+					"isolation":	{
+					}
+				}]
+		}]
+}
