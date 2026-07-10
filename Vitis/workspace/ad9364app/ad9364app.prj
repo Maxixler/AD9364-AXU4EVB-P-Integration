@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="ASCII"?>
+<sdkproject:SdkProject xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sdkproject="http://www.xilinx.com/sdkproject" name="ad9364app" location="C:/Users/DELL/workspace/ad9364app" platform="C:/Users/DELL/workspace/sdr_wrapper/export/sdr_wrapper/sdr_wrapper.xpfm" platformUID="Alinx:axu4ev:axu4_sdr_base:1.0(custom)" systemProject="ad9364app_system" sysConfig="sdr_wrapper" runtime="cpp" cpu="domain_psu_cortexa53_0" cpuInstance="psu_cortexa53_0" os="standalone" mssSignature="0471f8dc56daf911569df332c84d05a8">
+  <configuration name="Debug" id="xilinx.gnu.arm.a53.exe.debug.1382497982">
+    <configBuildOptions xsi:type="sdkproject:SdkOptions"/>
+    <lastBuildOptions xsi:type="sdkproject:SdkOptions"/>
+  </configuration>
+  <configuration name="Release" id="xilinx.gnu.arm.a53.exe.release.1888632984" dirty="true">
+    <configBuildOptions xsi:type="sdkproject:SdkOptions"/>
+  </configuration>
+  <template appTemplateName="empty_application"/>
+</sdkproject:SdkProject>
