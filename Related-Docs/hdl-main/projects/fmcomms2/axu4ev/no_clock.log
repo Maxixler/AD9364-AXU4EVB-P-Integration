@@ -1,0 +1,26 @@
+Copyright 1986-2020 Xilinx, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------
+| Tool Version      : Vivado v.2020.1 (win64) Build 2902540 Wed May 27 19:54:49 MDT 2020
+| Date              : Thu Jul  9 18:02:48 2026
+| Host              : DESKTOP-3PR7CHN running 64-bit major release  (build 9200)
+| Command           : check_timing -override_defaults no_clock -verbose -file no_clock.log
+| Design            : system_top
+| Device            : xczu4ev-sfvc784
+| Speed File        : -1  PRODUCTION 1.27 02-28-2020
+| Temperature Grade : I
+-------------------------------------------------------------------------------------------
+
+
+check_timing report
+
+Table of Contents
+-----------------
+1. checking no_clock (1)
+
+1. checking no_clock (1)
+------------------------
+ There is 1 register/latch pin with no clock (HIGH)
+
+i_system_wrapper/system_i/sys_ps8/inst/PS8_i/EMIOSPI0SCLKO
+
+
