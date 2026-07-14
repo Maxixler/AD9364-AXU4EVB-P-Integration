@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="ASCII"?>
-<systemproject:SystemProject xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:systemproject="http://www.xilinx.com/systemproject" name="ad9364app_system" platform="C:/Users/DELL/workspace/sdr_wrapper/export/sdr_wrapper/sdr_wrapper.xpfm" platformUID="Alinx:axu4ev:axu4_sdr_base:1.0(custom)" sysConfig="sdr_wrapper" runtime="cpp" rootFSLocation="" linuxImage="" sysroot="">
-  <configuration name="Emulation-SW">
+<systemproject:SystemProject xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:systemproject="http://www.xilinx.com/systemproject" name="ad9364app_system" platform="C:/Users/DELL/Desktop/Yazilim/FPGA-Profen/Vitis/workspace/fmcomms2_axu4ev_hw/export/fmcomms2_axu4ev_hw/fmcomms2_axu4ev_hw.xpfm" platformUID="xilinx:::0.0(custom)" sysConfig="fmcomms2_axu4ev_hw" runtime="C/C++">
+  <configuration name="Emulation-SW" id="com.xilinx.sdx.system.managedbuilder.swemu.configuration.1574275461">
     <configBuildOptions xsi:type="systemproject:SystemOptions">
-      <applications name="ad9364app" domainName="domain_psu_cortexa53_0" domainPrettyName="domain_psu_cortexa53_0" appBuildConfig="Debug"/>
+      <applications name="ad9364app" domainName="standalone_domain" domainPrettyName="standalone on psu_cortexa53_0" appBuildConfig="Debug"/>
     </configBuildOptions>
     <lastBuildOptions xsi:type="systemproject:SystemOptions">
-      <applications name="ad9364app" domainName="domain_psu_cortexa53_0" domainPrettyName="domain_psu_cortexa53_0" appBuildConfig="Debug"/>
+      <applications name="ad9364app" domainName="standalone_domain" domainPrettyName="standalone on psu_cortexa53_0" appBuildConfig="Debug"/>
     </lastBuildOptions>
   </configuration>
-  <configuration name="Emulation-HW">
-    <configBuildOptions xsi:type="systemproject:SystemOptions" target="hw_emu">
-      <applications name="ad9364app" domainName="domain_psu_cortexa53_0" domainPrettyName="domain_psu_cortexa53_0" appBuildConfig="Debug"/>
+  <configuration name="Emulation-HW" id="com.xilinx.sdx.system.managedbuilder.hwemu.configuration.1728121478">
+    <configBuildOptions xsi:type="systemproject:SystemOptions">
+      <applications name="ad9364app" domainName="standalone_domain" domainPrettyName="standalone on psu_cortexa53_0" appBuildConfig="Debug"/>
     </configBuildOptions>
   </configuration>
-  <configuration name="Hardware">
-    <configBuildOptions xsi:type="systemproject:SystemOptions" target="hw">
-      <applications name="ad9364app" domainName="domain_psu_cortexa53_0" domainPrettyName="domain_psu_cortexa53_0" appBuildConfig="Debug"/>
+  <configuration name="Hardware" id="com.xilinx.sdx.system.managedbuilder.hw.configuration.1735679344">
+    <configBuildOptions xsi:type="systemproject:SystemOptions">
+      <applications name="ad9364app" domainName="standalone_domain" domainPrettyName="standalone on psu_cortexa53_0" appBuildConfig="Debug"/>
     </configBuildOptions>
   </configuration>
 </systemproject:SystemProject>
