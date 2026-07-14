@@ -91,7 +91,7 @@ Uygulama ve BSP için `-ffunction-sections -fdata-sections` etkinleştirildikten
 
 SHA-256:
 
-`58E9464EA159616839573139B6DB5755FA397EF7D482248507A5C769DD620367`
+`C8EC16594420C96D0EDC5B64036BA9653C338C33BBD23C59AEC168F09470AC21`
 
 FSBL'nin çalışma alanı ve dışa aktarılan kopyalarının hash eşitliği doğrulandı.
 
@@ -157,6 +157,62 @@ Masaüstü geliştirme zinciri Vivado kısıtlarından AD9364 uygulama ELF'ine k
 - FSBL ELF: üretildi ve doğrulandı
 - AD9364 uygulama ELF: üretildi ve doğrulandı
 
-Sıradaki ana iş kart üzerinde kontrollü bring-up'tır: güç/jumper/boot kontrolü, JTAG ve UART, bitstream + FSBL + uygulama yükleme, SPI ürün kimliği, saat/LO kilidi, kalibrasyon ve önce RX-only veri akışı doğrulaması. TX testi ancak düşük güç ve uygun RF ölçüm güvenliği sağlandıktan sonra yapılmalıdır.
+Bu bölümde öngörülen kart bring-up'ının temel smoke-test kısmı daha sonra başarıyla tamamlandı; ayrıntıları aşağıdaki güncel kayıtlardadır.
 
 Bu güncellemede eski, karakter kodlaması bozuk `chat_report.md` içerikleri temiz UTF-8 Türkçe ile değiştirilmiş ve yalnızca doğrulanabilen güncel sonuçlar aktarılmıştır.
+
+## 12. Vitis platformundaki `Out-of-date` durumunun onarılması
+
+Vitis'te `fmcomms2_axu4ev_hw` platformunun `Out-of-date` görünmesi yalnızca IDE görüntü yenileme sorunu olarak kabul edilmedi. Platform teslimleri ve metadata çapraz kontrol edildiğinde eksik/eski XPFM ile PMU firmware domain'inin yanlış işlemci hedefine bağlanması birlikte tespit edildi. PMU firmware hedefi `psu_pmu_0`, araç zinciri `mb-gcc` olacak şekilde düzeltildi ve platform güncel XSA'dan yeniden üretildi.
+
+FSBL tarafında Vitis 2020.1'in bazı üst seviye işlemlerde başarısız alt derlemeye rağmen yanıltıcı biçimde başarılı çıkış kodu verebildiği görüldü. Bu nedenle yalnızca IDE durumuna veya süreç çıkış koduna güvenilmedi; gerekli ELF dosyalarının varlığı, mimarisi ve hash eşitliği ayrıca denetlendi. OCM taşması için uygulama ve BSP bayrakları kalıcılaştırıldı. XPFM, domain metadatası, FSBL, PMU firmware ve uygulama handoff dosyaları son kontrolde tutarlı hale geldi. Geçici `P:` sürücü eşlemesinin kalıcı proje yollarına sızmadığı da doğrulandı.
+
+Son platform teslimlerinden bazıları:
+
+- FSBL ELF SHA-256: `C8EC16594420C96D0EDC5B64036BA9653C338C33BBD23C59AEC168F09470AC21`
+- PMU firmware ELF SHA-256: `F4D1FC0B82A64555883C79063278863654CEF80167826F2BB3541967B82FEF98`
+- XPFM SHA-256: `C85BBEBB5C3A76C5AA7D748BCCBF578269C319EE6091D750161039FFC4BA47D5`
+
+## 13. Kart üzerinde ilk başarılı bare-metal bring-up
+
+Kart PS_UART ve JTAG üzerinden bilgisayara bağlıyken güncel bitstream, FSBL ve `ad9364app.elf` çalıştırıldı. PuTTY kaydı şu kritik kanıtları verdi:
+
+```text
+Xilinx Zynq MP First Stage Boot Loader
+Release 2020.1   Jul 14 2026  -  17:00:57
+PMU-FW is not running, certain applications may not be supported.
+cf-ad9361-lpc: Successfully initialized (61441040 Hz)
+ad9361_init : AD936x Rev 2 successfully initialized
+cf-ad9361-dds-core-lpc: Successfully initialized (61439514 Hz)
+DMA_EXAMPLE: address=0x4dc00 samples=65536 channels=2 bits=16
+Done.
+```
+
+Bu çıktı FSBL'nin çalıştığını, AD9364'ün ortak AD936x sürücü katmanı üzerinden SPI ile tanınıp başlatıldığını, AXI ADC/DDS çekirdeklerinin hazırlandığını ve ilk DMA örnek aktarımının tamamlandığını kanıtlar. Logdaki `ad9361` ve `cf-ad9361` adları hata değildir; AD9361 ve AD9364 aynı AD936x no-OS/HDL sürücü ailesini paylaşır.
+
+`PMU-FW is not running` uyarısı bu ilk JTAG launch akışında PMU firmware'in ayrıca başlatılmadığını gösterdi. Smoke-test bu uyarıya rağmen tamamlandı. Sonraki doğrulamada PMUFW, FSBL'den önce yüklenip çalıştırılarak uyarı kaldırıldı; kapanış kaydı Bölüm 15'tedir.
+
+## 14. Güncel sonuç ve sonraki iş
+
+Masaüstü teslim zinciri ile kart üstü temel smoke-test birlikte geçmiştir. Kanıtlanan kapsam; bitstream/FSBL/application handoff bütünlüğü, AD9364 SPI initialization, AXI çekirdek initialization ve DMA işleminin tamamlanmasıdır. Henüz kanıtlanmayan kapsam ise DMA tamponundaki gerçek I/Q örneklerinin doğruluğu, kanal/polarite düzeni, DC ve saturasyon durumu, bilinen RF sinyaline karşı frekans/genlik doğruluğu ve TX güvenliğidir.
+
+Sıradaki kontrollü sıra şudur:
+
+1. Bilinen düşük seviyeli RF kaynak veya güvenli loopback ile RX capture almak.
+2. DMA tamponunu kanal sırası, I/Q polaritesi, tekrarlanan veri, DC ve saturasyon açısından incelemek.
+3. CPU tabanlı referans FFT ile beklenen tonu/frekansı doğrulamak.
+4. TX testini yalnızca uygun attenuator ve ölçüm güvenliği sağlandıktan sonra açmak.
+
+## 15. PMUFW içeren JTAG başlatma kapanışı
+
+Vitis'in tek uygulamalı GDB yapılandırması A53 uygulaması ile PMUFW'yi aynı anda indirmeyi kabul etmedi. Sistem proje debug yapılandırması da mevcut `ad9364app_system` için uygun olmadığından resmî ZynqMP XSCT sırası kullanıldı:
+
+1. PSU JTAG güvenlik kapıları açıldı.
+2. PMUFW, `MicroBlaze PMU` hedefine indirildi ve çalıştırıldı.
+3. Doğrulanmış bitstream FPGA'ya programlandı.
+4. Cortex-A53 #0 resetlenerek FSBL çalıştırıldı.
+5. `ad9364app.elf` A53-0'a indirilip çalıştırıldı.
+
+İkinci UART kaydında `PMU-FW is not running` uyarısı bulunmadı. AD9364 tekrar `AD936x Rev 2 successfully initialized` sonucuna ulaştı; AXI çekirdekleri yaklaşık 61,44 MHz ile başladı ve 65.536 örnekli, iki kanallı, 16-bit DMA işlemi yine `Done.` ile tamamlandı.
+
+Manuel olarak doğrulanan sıra `PROJECT/tests/Launch-Axu4evAd9364Jtag.tcl` betiğine aktarıldı. Betik kullanıcıya özel mutlak yol içermez ve PMUFW → FPGA → FSBL → uygulama sırası `PROJECT/tests/Test-Axu4evJtagLaunchScript.ps1` ile kontrol edilir.

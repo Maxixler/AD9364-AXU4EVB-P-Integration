@@ -138,6 +138,8 @@ Durum: **Tamamlandı**
 
 Yeni XSA ile platform üretimi sırasında FSBL'nin OCM alanını aşması tespit edildi. Uygulama kaynaklarına eklenen bölüm bazlı garbage collection tek başına yeterli olmadı; BSP sürücü kütüphaneleri de aynı bölümleme seçenekleriyle derlendi.
 
+Vitis'te görülen `fmcomms2_axu4ev_hw (Out-of-date)` durumu ayrıca incelendi. Platformdaki PMU firmware tanımının yanlışlıkla A53 işlemcisine yöneldiği ve eksik/eski XPFM tesliminin platform durumunu bozduğu doğrulandı. PMU domain'i `psu_pmu_0` ve `mb-gcc` araç zinciriyle yeniden oluşturuldu; XPFM, domain metadatası ve boot teslimleri güncel XSA ile eşitlendi.
+
 Kalıcı ayarlar:
 
 - FSBL uygulama derleme seçenekleri: `-ffunction-sections -fdata-sections`.
@@ -150,10 +152,19 @@ Sonuç:
 - [x] `zynqmp_fsbl/executable.elf` üretildi.
 - [x] Export edilen `boot/fsbl.elf` ile build çıktısının hash'leri eşleşti.
 - [x] PMU firmware ve standalone BSP yeni XSA ile güncellendi.
+- [x] PMU firmware hedefi `psu_pmu_0` ve derleyicisi `mb-gcc` olarak düzeltildi.
+- [x] `fmcomms2_axu4ev_hw.xpfm` yeniden üretildi ve kalıcı handoff yollarında geçici sürücü harfi bırakılmadı.
+- [x] Platform domain metadatası ve teslim hash'leri son doğrulamada eşleşti.
+
+Son teslim SHA-256 değerleri:
+
+- FSBL ELF: `C8EC16594420C96D0EDC5B64036BA9653C338C33BBD23C59AEC168F09470AC21`
+- PMU firmware ELF: `F4D1FC0B82A64555883C79063278863654CEF80167826F2BB3541967B82FEF98`
+- XPFM: `C85BBEBB5C3A76C5AA7D748BCCBF578269C319EE6091D750161039FFC4BA47D5`
 
 ## 10. Aşama 6 — AD9364 no-OS uygulaması
 
-Durum: **Derleme tamamlandı; kart üzerinde çalıştırma bekliyor**
+Durum: **Derleme ve ilk kart smoke-test'i tamamlandı**
 
 Tespit edilen eski durum:
 
@@ -172,6 +183,8 @@ Uygulanan düzeltmeler:
 - [x] `AD9361_DEVICE=0` ve `AD9364_DEVICE=1` doğrulandı.
 - [x] AArch64 Release ELF üretildi.
 - [x] Uygulamanın `_ide` bitstream ve PS-init kopyaları doğrulanmış platform çıktısıyla eşitlendi.
+- [x] Uygulama JTAG üzerinden A53-0 üzerinde çalıştırıldı ve PS_UART çıktısı kaydedildi.
+- [x] AD936x Rev 2 başlatması, AXI ADC/DDS çekirdekleri ve ilk DMA örnek aktarımı başarıyla tamamlandı.
 
 ELF:
 
@@ -191,7 +204,7 @@ ELF SHA-256:
 
 ## 11. Aşama 7 — Kart üzerinde bring-up
 
-Durum: **Sıradaki ana aşama**
+Durum: **Temel bring-up tamamlandı; RF/IQ veri doğrulaması sürüyor**
 
 Ön koşullar:
 
@@ -202,20 +215,21 @@ Durum: **Sıradaki ana aşama**
 
 İzlenecek sıra:
 
-1. [ ] Kart enerjisizken FMC bağlantısı ve jumper/gerilim kontrolü.
-2. [ ] JTAG ile PS initialization çalıştırılması.
-3. [ ] Doğrulanmış `system_top.bit` dosyasının FPGA'ya programlanması.
-4. [ ] `ad9364app.elf` dosyasının A53-0'a yüklenmesi.
-5. [ ] UART logunda AD9364 SPI kimlik/başlatma sonucunun kaydedilmesi.
-6. [ ] AD9364 initialization ve calibration adımlarının başarı durumunun doğrulanması.
-7. [ ] AXI ADC/DAC core ve DMAC durum register'larının kontrol edilmesi.
-8. [ ] İlk RX buffer capture işleminin gerçekleştirilmesi.
+1. [ ] Kart revizyonu, FMC yönü ve Bank 65/jumper konumlarının fotoğraflı veya yazılı fiziksel kaydı tamamlanacak.
+2. [x] JTAG ile PS initialization çalıştırıldı.
+3. [x] Doğrulanmış `system_top.bit` dosyası FPGA'ya programlandı.
+4. [x] `ad9364app.elf` dosyası A53-0'a yüklendi.
+5. [x] UART logunda `AD936x Rev 2 successfully initialized` sonucu kaydedildi.
+6. [x] AD9364 initialization akışı hata vermeden tamamlandı.
+7. [x] AXI ADC ve DDS çekirdekleri sırasıyla 61.441.040 Hz ve 61.439.514 Hz ile başlatıldı.
+8. [x] İlk DMA aktarımı 65.536 örnek, 2 kanal ve 16 bit formatıyla `Done.` sonucuna ulaştı.
 9. [ ] Yakalanan örneklerin DC, saturasyon, veri tekrarı ve kanal sıralaması açısından incelenmesi.
 10. [ ] Gerekirse AD9364 dijital arayüz delay tuning/calibration çalıştırılması.
+11. [x] PMU firmware JTAG ile `MicroBlaze PMU` hedefine FSBL'den önce yüklenip çalıştırıldı; `PMU-FW is not running` uyarısı kaldırıldı.
 
 ## 12. Aşama 8 — RF veri işleme ve spektrum
 
-Durum: **Bring-up sonrasına ertelendi**
+Durum: **Başlamaya hazır; ilk öncelik RX örnek bütünlüğü**
 
 1. [ ] Güvenilir RX capture boyutunun ve örnek formatının sabitlenmesi.
 2. [ ] IQ örneklerinin DDR'den alınması ve ölçeklendirilmesi.
@@ -248,6 +262,8 @@ Bare-metal bring-up başarıyla tamamlandıktan sonra:
 - `PROJECT/tests/Build-Axu4evAd9364App.tcl`
 - `PROJECT/tests/Sync-Axu4evAd9364IdeHardware.ps1`
 - `PROJECT/tests/Test-Axu4evHandoffArtifacts.ps1`
+- `PROJECT/tests/Launch-Axu4evAd9364Jtag.tcl`
+- `PROJECT/tests/Test-Axu4evJtagLaunchScript.ps1`
 
 Son otomatik doğrulama sonuçları:
 
@@ -258,10 +274,15 @@ Son otomatik doğrulama sonuçları:
 - XSA/bitstream/Vitis/IDE hash bütünlüğü: PASS.
 - FSBL build/export bütünlüğü: PASS.
 - AD9364 Release ELF build: PASS.
+- Vitis XPFM, PMU hedefi ve domain metadata bütünlüğü: PASS.
+- Kart üstü FSBL, AD9364 başlatma, AXI çekirdek ve DMA smoke-test'i: PASS.
+- PMUFW → FPGA → FSBL → AD9364 uygulaması JTAG başlatma sırası: PASS.
+- PMUFW etkin kart smoke-test'i; AD9364 initialization ve DMA: PASS.
 
 ## 15. Değişiklik güvenliği
 
 - Mevcut checkout başlangıçta kullanıcı değişiklikleri içeriyordu.
 - İlgisiz değişiklikler geri alınmadı, stage edilmedi veya commit edilmedi.
 - Bu aşamada PS DDR, MIO, block design adresleri, Linux kaynakları ve AD9364 uygulama C kaynakları değiştirilmedi.
+- İlk kart smoke-test'i SPI/AD9364 başlatmasını ve DMA tamamlanmasını kanıtlamıştır; yakalanan I/Q örneklerinin doğruluğu ve RF performansı henüz kanıtlanmış sayılmayacaktır.
 - Sonraki donanım adımlarında her programlama/boot işlemi kullanılan bitstream, XSA ve ELF hash'leri kaydedilerek yapılacaktır.

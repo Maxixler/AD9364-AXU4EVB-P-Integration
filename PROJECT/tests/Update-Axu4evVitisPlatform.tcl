@@ -1,8 +1,5 @@
-if {![info exists ::env(FPGA_PROFEN_ROOT)]} {
-  error "FPGA_PROFEN_ROOT environment variable is required."
-}
-
-set workspace_root [string map {\\ /} $::env(FPGA_PROFEN_ROOT)]
+set script_dir [file dirname [file normalize [info script]]]
+set workspace_root [file dirname [file dirname $script_dir]]
 set workspace [file join $workspace_root "Vitis" "workspace"]
 set platform_name "fmcomms2_axu4ev_hw"
 set platform_file [file join $workspace $platform_name "platform.spr"]
@@ -20,6 +17,13 @@ if {[catch {
   platform read $platform_file
   platform active $platform_name
   platform config -updatehw $xsa_file
+
+  set fsbl_flags [platform config -extra-compiler-flags fsbl]
+  if {[string first "-ffunction-sections" $fsbl_flags] < 0} {
+    platform config -extra-compiler-flags fsbl \
+      "-ffunction-sections -fdata-sections $fsbl_flags"
+  }
+
   platform generate
 } result options]} {
   puts stderr "FAIL: Vitis platform update failed: $result"
