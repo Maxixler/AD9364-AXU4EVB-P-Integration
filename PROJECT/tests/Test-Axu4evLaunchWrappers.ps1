@@ -16,13 +16,25 @@ foreach ($fragment in @(
 }
 
 function Invoke-DryRun {
-    param([Parameter(Mandatory)][ValidateSet('Golden', 'Workspace')][string]$Mode)
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Golden', 'Workspace', 'Candidate')]
+        [string]$Mode,
 
-    $lines = @(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $orchestrator -Mode $Mode -WorkspaceRoot $workspaceRoot -DryRun)
+        [string]$CandidateApplication
+    )
+
+    $arguments = @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $orchestrator,
+        '-Mode', $Mode, '-WorkspaceRoot', $workspaceRoot, '-DryRun'
+    )
+    if ($CandidateApplication) {
+        $arguments += @('-CandidateApplication', $CandidateApplication)
+    }
+    $lines = @(& powershell.exe @arguments)
     if ($LASTEXITCODE -ne 0) {
         throw "$Mode dry-run failed with exit code $LASTEXITCODE."
     }
-
     return (($lines -join "`n") | ConvertFrom-Json)
 }
 
@@ -61,7 +73,29 @@ foreach ($mode in @('Golden', 'Workspace')) {
     }
 }
 
-foreach ($mode in @('Golden', 'Workspace')) {
+$candidateTemp = Join-Path ([IO.Path]::GetTempPath()) "ad9364app-candidate-$([guid]::NewGuid()).elf"
+try {
+    Set-Content -LiteralPath $candidateTemp -Value 'candidate-app' -NoNewline
+    $golden = Invoke-DryRun -Mode Golden
+    $candidate = Invoke-DryRun -Mode Candidate -CandidateApplication $candidateTemp
+
+    foreach ($name in @('bitstream', 'pmufw', 'psu_init')) {
+        $goldenArtifact = @($golden.artifacts | Where-Object name -eq $name)[0]
+        $candidateArtifact = @($candidate.artifacts | Where-Object name -eq $name)[0]
+        if ($candidateArtifact.sha256 -ne $goldenArtifact.sha256) {
+            throw "Candidate $name did not come from the current Golden release."
+        }
+    }
+    $candidateApp = @($candidate.artifacts | Where-Object name -eq 'application')[0]
+    if ([IO.Path]::GetFullPath($candidateApp.path) -ne [IO.Path]::GetFullPath($candidateTemp)) {
+        throw 'Candidate did not use the explicit test application.'
+    }
+}
+finally {
+    Remove-Item -LiteralPath $candidateTemp -Force -ErrorAction SilentlyContinue
+}
+
+foreach ($mode in @('Golden', 'Workspace', 'Candidate')) {
     $launcher = Join-Path $workspaceRoot "PROJECT\tools\Start-Axu4evAd9364$mode.cmd"
     if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
         throw "Missing $mode launcher: $launcher"
@@ -91,4 +125,4 @@ if (-not $ignoreContent.Contains('*') -or -not $ignoreContent.Contains('!.gitign
     throw 'JTAG log ignore file does not exclude runtime logs while retaining itself.'
 }
 
-Write-Output 'PASS: Golden and Workspace launchers and dry-runs resolve verified artifacts.'
+Write-Output 'PASS: Golden, Workspace, and Candidate launchers resolve the intended verified artifacts.'
