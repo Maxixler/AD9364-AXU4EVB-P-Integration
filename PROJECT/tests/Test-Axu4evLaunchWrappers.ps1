@@ -52,4 +52,34 @@ foreach ($mode in @('Golden', 'Workspace')) {
     }
 }
 
-Write-Output 'PASS: Golden and Workspace launch orchestration dry-runs resolve verified artifacts.'
+foreach ($mode in @('Golden', 'Workspace')) {
+    $launcher = Join-Path $workspaceRoot "PROJECT\tools\Start-Axu4evAd9364$mode.cmd"
+    if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
+        throw "Missing $mode launcher: $launcher"
+    }
+    $content = Get-Content -LiteralPath $launcher -Raw
+    foreach ($fragment in @(
+        '%~dp0',
+        'powershell.exe -NoProfile -ExecutionPolicy Bypass',
+        'Invoke-Axu4evAd9364Launch.ps1',
+        "-Mode $mode",
+        'set "RC=%ERRORLEVEL%"',
+        'pause',
+        'exit /b %RC%'
+    )) {
+        if (-not $content.Contains($fragment)) {
+            throw "$mode launcher is missing required fragment: $fragment"
+        }
+    }
+}
+
+$logIgnore = Join-Path $workspaceRoot 'PROJECT\logs\jtag\.gitignore'
+if (-not (Test-Path -LiteralPath $logIgnore -PathType Leaf)) {
+    throw "Missing JTAG log ignore file: $logIgnore"
+}
+$ignoreContent = Get-Content -LiteralPath $logIgnore -Raw
+if (-not $ignoreContent.Contains('*') -or -not $ignoreContent.Contains('!.gitignore')) {
+    throw 'JTAG log ignore file does not exclude runtime logs while retaining itself.'
+}
+
+Write-Output 'PASS: Golden and Workspace launchers and dry-runs resolve verified artifacts.'
