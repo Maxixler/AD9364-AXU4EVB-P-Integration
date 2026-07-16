@@ -1249,7 +1249,8 @@ finally {
 
 $config = Get-Content -LiteralPath (Join-Path $sourceRoot 'app_config.h') -Raw
 $main = Get-Content -LiteralPath (Join-Path $sourceRoot 'main.c') -Raw
-$cproject = Get-Content -LiteralPath (Join-Path $root 'Vitis\workspace\ad9364app\.cproject') -Raw
+$cprojectPath = Join-Path $root 'Vitis\workspace\ad9364app\.cproject'
+[xml]$cproject = Get-Content -LiteralPath $cprojectPath
 
 foreach ($fragment in @(
     '#define WIFI_RF_TEST',
@@ -1268,26 +1269,315 @@ foreach ($fragment in @(
 )) {
     if (-not $main.Contains($fragment)) { throw "Missing main integration fragment: $fragment" }
 }
-if (($cproject | Select-String -Pattern '<listOptionValue builtIn="false" value="m"/>' -AllMatches).Matches.Count -lt 2) {
-    throw 'Both Debug and Release configurations must link libm.'
+
+$mainLines = @($main -split "`r?`n")
+$guards = New-Object System.Collections.Generic.List[object]
+$stack = New-Object System.Collections.Generic.List[string]
+for ($lineIndex = 0; $lineIndex -lt $mainLines.Count; $lineIndex++) {
+    $line = $mainLines[$lineIndex]
+    if ($line -match '^\s*#\s*(if|ifdef|ifndef)\s+(.+?)\s*$') {
+        $stack.Add("$($matches[1]) $($matches[2])")
+    }
+    $guards.Add(@($stack))
+    if ($line -match '^\s*#\s*endif\b') {
+        if ($stack.Count -eq 0) { throw "Unbalanced #endif at main.c:$($lineIndex + 1)" }
+        $stack.RemoveAt($stack.Count - 1)
+    }
+}
+if ($stack.Count -ne 0) { throw 'Unbalanced preprocessor guards in main.c.' }
+
+function Assert-MainGuard([string]$Needle, [string]$ExpectedGuard, [bool]$ShouldContain) {
+    $indexes = @(0..($mainLines.Count - 1) | Where-Object { $mainLines[$_].Contains($Needle) })
+    if ($indexes.Count -lt 1) { throw "Missing main.c line containing '$Needle'." }
+    $index = $indexes[0]
+    $hasGuard = @($guards[$index] | Where-Object { $_ -eq $ExpectedGuard }).Count -gt 0
+    if ($hasGuard -ne $ShouldContain) {
+        throw "Unexpected guard structure for '$Needle': $($guards[$index] -join ', ')"
+    }
+    return $indexes[0]
+}
+
+$txInitLine = Assert-MainGuard 'status = axi_dmac_init(&tx_dmac' 'ifndef WIFI_RF_TEST' $true
+$rxInitLine = Assert-MainGuard 'status = axi_dmac_init(&rx_dmac' 'ifndef WIFI_RF_TEST' $false
+$wifiRunLine = Assert-MainGuard 'status = wifi_rf_test_run(ad9361_phy' 'ifdef WIFI_RF_TEST' $true
+$normalFlowLine = Assert-MainGuard 'axi_dmac_transfer_start(tx_dmac' 'ifdef WIFI_RF_TEST' $false
+if (-not ($txInitLine -lt $rxInitLine -and $rxInitLine -lt $wifiRunLine -and
+    $wifiRunLine -lt $normalFlowLine)) {
+    throw 'AD9364 main integration order is invalid.'
+}
+
+$configurations = @($cproject.SelectNodes('//cconfiguration'))
+foreach ($configurationName in @('Debug', 'Release')) {
+    $matches = @($configurations | Where-Object {
+        $_.SelectSingleNode('./storageModule[@moduleId="org.eclipse.cdt.core.settings"]/@name').Value -eq
+            $configurationName
+    })
+    if ($matches.Count -ne 1) { throw "Expected exactly one $configurationName C configuration." }
+    $libm = @($matches[0].SelectNodes(
+        './/option[@superClass="xilinx.gnu.c.link.option.libs"]/listOptionValue[@value="m"]'
+    ))
+    if ($libm.Count -ne 1) {
+        throw "$configurationName C linker configuration must contain exactly one libm entry."
+    }
 }
 
 $buildWrapper = Get-Content -LiteralPath (Join-Path $root 'PROJECT\tests\Build-Axu4evAd9364App.ps1') -Raw
 foreach ($fragment in @(
-    '$metadataOriginal = @{}',
-    '$metadataOriginal[$path] = $text',
-    "'(?i)[A-Z]:/.*?(?=/(?:Vitis/workspace|Related-Docs)/)'",
-    '[IO.File]::WriteAllText($path, $metadataOriginal[$path], $utf8)',
-    '$buildRoot = [IO.Path]::GetFullPath(',
-    '"t5-$PID-$([guid]::NewGuid().ToString(''N''))"',
+    '$deadline = [DateTime]::UtcNow.AddSeconds($timeoutSeconds)',
+    'Start-Process -FilePath $env:ComSpec',
+    '-WindowStyle Hidden',
+    'CreateToolhelp32Snapshot',
+    'GetProcessTimes',
+    '$ownedProcessIds.Contains($parentId)',
+    '$ownedProcessBirth[$processId] = Get-RecordCreationUtc',
+    'Stop-OwnedBuildProcesses',
+    'VERIFY_OWNED_STOPPED',
+    'ConvertTo-TclListElement',
+    '$buildRoot.Length -gt 80',
     'platform create -xpfm',
     'platform generate',
     'app create -name ad9364app -platform fmcomms2_axu4ev_hw',
     'importsources -name ad9364app',
     'source P:/PROJECT/tests/Build-Axu4evAd9364App.tcl',
+    'aarch64-none-elf-nm.exe',
+    '--defined-only',
+    '$requiredSymbols',
     'Copy-Item -LiteralPath $temporaryElf -Destination $elf -Force'
 )) {
     if (-not $buildWrapper.Contains($fragment)) { throw "Missing build wrapper invariant: $fragment" }
+}
+
+$wrapperScript = Join-Path $root 'PROJECT\tests\Build-Axu4evAd9364App.ps1'
+$wrapperTempBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+$wrapperTestRoot = [IO.Path]::GetFullPath((Join-Path $wrapperTempBase (
+    "w [x]`$;" + [guid]::NewGuid().ToString('N').Substring(0, 8)
+)))
+if ([IO.Path]::GetDirectoryName($wrapperTestRoot) -ne $wrapperTempBase) {
+    throw "Unsafe wrapper-test root: $wrapperTestRoot"
+}
+$fakeSuccess = Join-Path $wrapperTestRoot 'fake-success.cmd'
+$fakeStale = Join-Path $wrapperTestRoot 'fake-stale.cmd'
+$fakeDebug = Join-Path $wrapperTestRoot 'fake-debug.cmd'
+$fakeTimeout = Join-Path $wrapperTestRoot 'fake-timeout.cmd'
+$fakeNmSuccess = Join-Path $wrapperTestRoot 'fake-nm-success.cmd'
+$fakeNmMissing = Join-Path $wrapperTestRoot 'fake-nm-missing.cmd'
+
+$fakeSuccessText = @'
+@echo off
+powershell.exe -NoProfile -Command "$p=$env:TASK5_WRAPPER_TEMP_ELF; [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($p)); [IO.File]::WriteAllBytes($p,[byte[]](1..32))"
+exit /b %errorlevel%
+'@
+$fakeStaleText = @'
+@echo off
+powershell.exe -NoProfile -Command "$p=$env:TASK5_WRAPPER_TEMP_ELF; [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($p)); [IO.File]::WriteAllBytes($p,[byte[]](1..32)); (Get-Item -LiteralPath $p).LastWriteTimeUtc=[DateTime]::UtcNow.AddHours(-1)"
+exit /b %errorlevel%
+'@
+$fakeDebugText = @'
+@echo off
+powershell.exe -NoProfile -Command "$p=$env:TASK5_WRAPPER_TEMP_ELF.Replace('\Release\','\Debug\'); [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($p)); [IO.File]::WriteAllBytes($p,[byte[]](1..32))"
+exit /b %errorlevel%
+'@
+$fakeTimeoutText = @'
+@echo off
+powershell.exe -NoProfile -Command "Start-Sleep -Seconds 30"
+exit /b %errorlevel%
+'@
+$fakeNmSuccessText = @'
+@echo off
+echo 0000000000000100 T wifi_rf_test_run
+echo 0000000000000200 T wifi_rf_prepare_rx_only
+echo 0000000000000300 T wifi_rf_capture_channel
+echo 0000000000000400 T wifi_rf_analyze_block
+exit /b 0
+'@
+$fakeNmMissingText = @'
+@echo off
+echo 0000000000000100 T wifi_rf_test_run
+echo 0000000000000200 T wifi_rf_prepare_rx_only
+echo 0000000000000300 T wifi_rf_capture_channel
+exit /b 0
+'@
+
+$testEnvironmentNames = @(
+    'TASK5_WRAPPER_TEST_MODE', 'TASK5_XSCT_PATH', 'TASK5_NM_PATH',
+    'TASK5_TIMEOUT_SECONDS', 'TASK5_TEMP_ROOT', 'TASK5_OUTPUT_ELF',
+    'TASK5_AUDIT_PATH', 'TASK5_CLEANUP_FAILURES', 'TASK5_TCL_ENCODE_ONLY'
+)
+
+function Invoke-FakeWrapperCase {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$XsctPath,
+        [Parameter(Mandatory = $true)][string]$NmPath,
+        [int]$TimeoutSeconds = 20,
+        [string]$CleanupFailures = ''
+    )
+
+    $savedEnvironment = @{}
+    foreach ($environmentName in $testEnvironmentNames) {
+        $savedEnvironment[$environmentName] = [Environment]::GetEnvironmentVariable(
+            $environmentName, 'Process'
+        )
+    }
+    $outputElf = Join-Path $wrapperTestRoot "$Name-output\ad9364app.elf"
+    $audit = Join-Path $wrapperTestRoot "$Name-audit.log"
+    try {
+        $env:TASK5_WRAPPER_TEST_MODE = '1'
+        $env:TASK5_XSCT_PATH = $XsctPath
+        $env:TASK5_NM_PATH = $NmPath
+        $env:TASK5_TIMEOUT_SECONDS = [string]$TimeoutSeconds
+        $env:TASK5_TEMP_ROOT = $wrapperTestRoot
+        $env:TASK5_OUTPUT_ELF = $outputElf
+        $env:TASK5_AUDIT_PATH = $audit
+        $env:TASK5_CLEANUP_FAILURES = $CleanupFailures
+        Remove-Item Env:TASK5_TCL_ENCODE_ONLY -ErrorAction SilentlyContinue
+        $savedErrorPreference = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $caseOutput = @(& powershell -NoProfile -ExecutionPolicy Bypass `
+                -File $wrapperScript -WorkspaceRoot $root 2>&1 | ForEach-Object { "$_" })
+            $caseExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedErrorPreference
+        }
+        return [pscustomobject]@{
+            Name = $Name
+            ExitCode = $caseExitCode
+            Output = $caseOutput
+            OutputElf = $outputElf
+            Audit = if (Test-Path -LiteralPath $audit) {
+                @(Get-Content -LiteralPath $audit)
+            }
+            else { @() }
+        }
+    }
+    finally {
+        foreach ($environmentName in $testEnvironmentNames) {
+            $savedValue = $savedEnvironment[$environmentName]
+            if ($null -eq $savedValue) {
+                [Environment]::SetEnvironmentVariable($environmentName, $null, 'Process')
+            }
+            else {
+                [Environment]::SetEnvironmentVariable($environmentName, $savedValue, 'Process')
+            }
+        }
+    }
+}
+
+function Assert-AuditOrder {
+    param([string[]]$Audit, [string[]]$Markers)
+    $previous = -1
+    foreach ($marker in $Markers) {
+        $index = -1
+        for ($auditIndex = 0; $auditIndex -lt $Audit.Count; $auditIndex++) {
+            if ($Audit[$auditIndex].StartsWith($marker, [StringComparison]::Ordinal)) {
+                $index = $auditIndex
+                break
+            }
+        }
+        if ($index -le $previous) { throw "Wrapper audit marker missing/out of order: $marker" }
+        $previous = $index
+    }
+}
+
+$unrelated = $null
+try {
+    New-Item -ItemType Directory -Path $wrapperTestRoot | Out-Null
+    Set-Content -LiteralPath $fakeSuccess -Value $fakeSuccessText -Encoding Ascii
+    Set-Content -LiteralPath $fakeStale -Value $fakeStaleText -Encoding Ascii
+    Set-Content -LiteralPath $fakeDebug -Value $fakeDebugText -Encoding Ascii
+    Set-Content -LiteralPath $fakeTimeout -Value $fakeTimeoutText -Encoding Ascii
+    Set-Content -LiteralPath $fakeNmSuccess -Value $fakeNmSuccessText -Encoding Ascii
+    Set-Content -LiteralPath $fakeNmMissing -Value $fakeNmMissingText -Encoding Ascii
+
+    $success = Invoke-FakeWrapperCase 'success' $fakeSuccess $fakeNmSuccess
+    if ($success.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $success.OutputElf)) {
+        throw "Fake nm-success wrapper case failed: $($success.Output -join [Environment]::NewLine)"
+    }
+    if ($success.Output -notcontains "PASS: AD9364 application generated: $($success.OutputElf)") {
+        throw 'Fake nm-success wrapper case did not report PASS.'
+    }
+    Assert-AuditOrder $success.Audit @(
+        'DEADLINE_TICKS:', 'LAUNCHER_TICKS:', 'NM_PASS:',
+        'VERIFY_OWNED_STOPPED', 'UNMAP_VERIFIED', 'DELETE_VERIFIED'
+    )
+    $deadlineLine = @($success.Audit | Where-Object {
+        $_.StartsWith('DEADLINE_TICKS:')
+    })[0]
+    $launcherLine = @($success.Audit | Where-Object {
+        $_.StartsWith('LAUNCHER_TICKS:')
+    })[0]
+    $deadlineTicks = [int64]$deadlineLine.Split(':')[1]
+    $launcherTicks = [int64]$launcherLine.Split(':')[1]
+    if ($deadlineTicks -le $launcherTicks) {
+        throw 'Wrapper deadline was not established before launcher start.'
+    }
+
+    foreach ($rejectCase in @(
+        @{ Name = 'stale'; Xsct = $fakeStale; Nm = $fakeNmSuccess; Pattern = 'stale isolated Release ELF' },
+        @{ Name = 'debug'; Xsct = $fakeDebug; Nm = $fakeNmSuccess; Pattern = 'exact isolated Release ELF' },
+        @{ Name = 'missing-symbol'; Xsct = $fakeSuccess; Nm = $fakeNmMissing; Pattern = 'missing required global text symbol' }
+    )) {
+        $result = Invoke-FakeWrapperCase $rejectCase.Name $rejectCase.Xsct $rejectCase.Nm
+        if ($result.ExitCode -eq 0 -or (Test-Path -LiteralPath $result.OutputElf)) {
+            throw "Wrapper rejection case unexpectedly produced an artifact: $($rejectCase.Name)"
+        }
+        if (($result.Output -join "`n") -notmatch [regex]::Escape($rejectCase.Pattern)) {
+            throw "Wrapper rejection case missed expected diagnostic: $($rejectCase.Name): $($result.Output -join ' | ')"
+        }
+    }
+
+    $unrelated = Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -PassThru `
+        -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 30')
+    $timeout = Invoke-FakeWrapperCase 'timeout' $fakeTimeout $fakeNmSuccess 2
+    $unrelated.Refresh()
+    if ($timeout.ExitCode -eq 0 -or $unrelated.HasExited) {
+        throw 'Timeout cleanup failed or stopped an unrelated user process.'
+    }
+    Assert-AuditOrder $timeout.Audit @(
+        'CLEANUP_BEGIN:ProcessShutdown', 'VERIFY_OWNED_STOPPED',
+        'CLEANUP_BEGIN:SubstUnmap', 'UNMAP_VERIFIED',
+        'CLEANUP_BEGIN:TempDelete', 'DELETE_VERIFIED'
+    )
+
+    $cleanup = Invoke-FakeWrapperCase 'cleanup' $fakeSuccess $fakeNmSuccess 20 `
+        'SubstUnmap,TempDelete'
+    $cleanupText = $cleanup.Output -join "`n"
+    if ($cleanup.ExitCode -eq 0 -or $cleanupText -match 'PASS: AD9364 application generated') {
+        throw 'Injected cleanup failures must suppress wrapper PASS.'
+    }
+    foreach ($expectedCleanup in @('Cleanup: SubstUnmap:', 'Cleanup: TempDelete:')) {
+        if (-not $cleanupText.Contains($expectedCleanup)) {
+            throw "Cleanup aggregation omitted: $expectedCleanup"
+        }
+    }
+
+    $savedEncode = [Environment]::GetEnvironmentVariable('TASK5_TCL_ENCODE_ONLY', 'Process')
+    $savedTestMode = [Environment]::GetEnvironmentVariable('TASK5_WRAPPER_TEST_MODE', 'Process')
+    try {
+        $env:TASK5_WRAPPER_TEST_MODE = '1'
+        $env:TASK5_TCL_ENCODE_ONLY = 'C:/tmp/a b[x]$semi;{c}\d'
+        $encoded = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $wrapperScript)
+        if ($LASTEXITCODE -ne 0 -or $encoded.Count -ne 1 -or
+            $encoded[0] -cne 'C:/tmp/a\ b\[x\]\$semi\;\{c\}\\d') {
+            throw "Tcl list-element encoding failed: $($encoded -join ', ')"
+        }
+    }
+    finally {
+        [Environment]::SetEnvironmentVariable('TASK5_TCL_ENCODE_ONLY', $savedEncode, 'Process')
+        [Environment]::SetEnvironmentVariable('TASK5_WRAPPER_TEST_MODE', $savedTestMode, 'Process')
+    }
+}
+finally {
+    if ($unrelated -and -not $unrelated.HasExited) {
+        Stop-Process -Id $unrelated.Id -Force -ErrorAction SilentlyContinue
+        Wait-Process -Id $unrelated.Id -Timeout 5 -ErrorAction SilentlyContinue
+    }
+    if ((Test-Path -LiteralPath $wrapperTestRoot) -and
+        [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($wrapperTestRoot)) -eq $wrapperTempBase) {
+        Remove-Item -LiteralPath $wrapperTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 Write-Output 'PASS: Wi-Fi RF capture and UART state-machine source/host behavior passed.'
