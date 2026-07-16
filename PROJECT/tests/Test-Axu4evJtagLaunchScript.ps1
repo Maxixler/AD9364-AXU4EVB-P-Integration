@@ -6,12 +6,40 @@ if (-not (Test-Path -LiteralPath $launchScript)) {
 }
 
 $content = Get-Content -LiteralPath $launchScript -Raw
+$mappingMatch = [regex]::Match($content, 'set pmufw_elf \[string map (?<mapping>\{[^}\r\n]+\}) ')
+if (-not $mappingMatch.Success) {
+    throw 'Cannot find the PMUFW Windows-path mapping expression.'
+}
+
+$xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'
+if (-not (Test-Path -LiteralPath $xsct -PathType Leaf)) {
+    throw "Missing XSCT executable: $xsct"
+}
+$probePath = Join-Path ([IO.Path]::GetTempPath()) ("axu4ev-path-map-$([guid]::NewGuid()).tcl")
+try {
+    $mapping = $mappingMatch.Groups['mapping'].Value
+    @(
+        'set sample {C:\Temp\file.elf}'
+        "set converted [string map $mapping `$sample]"
+        'if {$converted ne {C:/Temp/file.elf}} { error "Windows path conversion failed: $converted" }'
+        'puts {PASS: XSCT accepts the launch path mapping.}'
+        'exit'
+    ) | Set-Content -LiteralPath $probePath -Encoding ASCII
+    $probeOutput = @(& $xsct $probePath 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "XSCT rejected the launch path mapping.`r`n$($probeOutput -join "`r`n")"
+    }
+}
+finally {
+    Remove-Item -LiteralPath $probePath -Force -ErrorAction SilentlyContinue
+}
+
 $required = @(
     'AXU4EV_PMUFW_ELF'
     'AXU4EV_BITSTREAM'
     'AXU4EV_PSU_INIT_TCL'
     'AXU4EV_APP_ELF'
-    'set psu_init_tcl [string map {\ /} $::env(AXU4EV_PSU_INIT_TCL)]'
+    'set psu_init_tcl [string map {\\ /} $::env(AXU4EV_PSU_INIT_TCL)]'
     'set ddr_test_address 0x00100000'
     'set ddr_test_value 0xA5A5A5A5'
     'mwr 0xffca0038 0x1ff'

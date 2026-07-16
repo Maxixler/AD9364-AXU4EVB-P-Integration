@@ -4,10 +4,10 @@ foreach name {AXU4EV_PMUFW_ELF AXU4EV_BITSTREAM AXU4EV_PSU_INIT_TCL AXU4EV_APP_E
   }
 }
 
-set pmufw_elf [string map {\ /} $::env(AXU4EV_PMUFW_ELF)]
-set bitstream [string map {\ /} $::env(AXU4EV_BITSTREAM)]
-set psu_init_tcl [string map {\ /} $::env(AXU4EV_PSU_INIT_TCL)]
-set app_elf [string map {\ /} $::env(AXU4EV_APP_ELF)]
+set pmufw_elf [string map {\\ /} $::env(AXU4EV_PMUFW_ELF)]
+set bitstream [string map {\\ /} $::env(AXU4EV_BITSTREAM)]
+set psu_init_tcl [string map {\\ /} $::env(AXU4EV_PSU_INIT_TCL)]
+set app_elf [string map {\\ /} $::env(AXU4EV_APP_ELF)]
 set ddr_test_address 0x00100000
 set ddr_test_value 0xA5A5A5A5
 
