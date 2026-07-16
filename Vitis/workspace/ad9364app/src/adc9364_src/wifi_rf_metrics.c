@@ -12,6 +12,17 @@ static uint16_t abs_i16(int16_t value)
 	return (uint16_t)(widened < 0 ? -widened : widened);
 }
 
+static int32_t saturating_sub_i32(int32_t minuend, int32_t subtrahend)
+{
+	int64_t difference = (int64_t)minuend - (int64_t)subtrahend;
+
+	if (difference > INT32_MAX)
+		return INT32_MAX;
+	if (difference < INT32_MIN)
+		return INT32_MIN;
+	return (int32_t)difference;
+}
+
 int32_t wifi_rf_analyze_block(const int16_t *iq, size_t complex_samples,
 			      struct wifi_rf_block_metrics *out)
 {
@@ -20,7 +31,9 @@ int32_t wifi_rf_analyze_block(const int16_t *iq, size_t complex_samples,
 	uint16_t peak = 0;
 	size_t n;
 
-	if (!iq || !out || complex_samples == 0 || complex_samples > UINT32_MAX)
+	if (!iq || !out || complex_samples == 0 ||
+	    complex_samples > UINT32_MAX ||
+	    complex_samples > (SIZE_MAX / 2U) + 1U)
 		return -EINVAL;
 
 	for (n = 0; n < complex_samples; n++) {
@@ -84,8 +97,10 @@ struct wifi_rf_metric_delta wifi_rf_delta(
 	if (!baseline || !active) return delta;
 	delta.rssi_cdb = baseline->rssi_cdb == WIFI_RF_RSSI_INVALID_CDB ||
 		active->rssi_cdb == WIFI_RF_RSSI_INVALID_CDB ?
-		WIFI_RF_RSSI_INVALID_CDB : active->rssi_cdb - baseline->rssi_cdb;
-	delta.power_cdb = active->power_cdbfs16 - baseline->power_cdbfs16;
+		WIFI_RF_RSSI_INVALID_CDB :
+		saturating_sub_i32(active->rssi_cdb, baseline->rssi_cdb);
+	delta.power_cdb = saturating_sub_i32(active->power_cdbfs16,
+					     baseline->power_cdbfs16);
 	delta.burst_pp = (int32_t)active->burst_percent -
 			 (int32_t)baseline->burst_percent;
 	return delta;
