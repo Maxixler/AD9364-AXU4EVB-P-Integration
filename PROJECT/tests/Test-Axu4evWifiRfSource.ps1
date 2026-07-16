@@ -826,7 +826,8 @@ void no_os_mdelay(uint32_t);
 $statePrintfHeader = @'
 #ifndef XIL_PRINTF_H
 #define XIL_PRINTF_H
-int inbyte(void);
+typedef char char8;
+extern char8 inbyte(void);
 #endif
 '@
 
@@ -841,7 +842,14 @@ $stateUartHeader = @'
 #ifndef XUARTPS_HW_H
 #define XUARTPS_HW_H
 #include <stdint.h>
-int XUartPs_IsReceiveData(uintptr_t);
+typedef uint32_t u32;
+typedef uintptr_t UINTPTR;
+#define XUARTPS_SR_OFFSET 0x002CU
+#define XUARTPS_SR_RXEMPTY 0x00000002U
+u32 Xil_In32(UINTPTR address);
+#define XUartPs_IsReceiveData(BaseAddress) \
+	!((Xil_In32((UINTPTR)(BaseAddress) + XUARTPS_SR_OFFSET) & \
+	(u32)XUARTPS_SR_RXEMPTY) == (u32)XUARTPS_SR_RXEMPTY)
 #endif
 '@
 
@@ -852,6 +860,9 @@ $stateHarnessContent = @'
 
 #include "wifi_rf_capture.h"
 #include "wifi_rf_test.h"
+#include "xil_printf.h"
+#include "xparameters.h"
+#include "xuartps_hw.h"
 
 enum scenario_id {
 	SC_PASS,
@@ -870,6 +881,13 @@ static unsigned capture_calls;
 static unsigned classify_calls;
 static unsigned protocol_errors;
 static unsigned enter_delays;
+static unsigned uart_prompt_batches;
+static unsigned uart_inbyte_calls;
+static unsigned uart_status_reads;
+static unsigned uart_fifo_position;
+static unsigned uart_fifo_count;
+static const char8 uart_prompt_input[] = {'\r', '\n', 'x'};
+static const struct wifi_rf_channel_metrics *baseline_outputs[13];
 
 static void reset_scenario(enum scenario_id next)
 {
@@ -880,6 +898,12 @@ static void reset_scenario(enum scenario_id next)
 	classify_calls = 0;
 	protocol_errors = 0;
 	enter_delays = 0;
+	uart_prompt_batches = 0;
+	uart_inbyte_calls = 0;
+	uart_status_reads = 0;
+	uart_fifo_position = 0;
+	uart_fifo_count = 0;
+	memset(baseline_outputs, 0, sizeof(baseline_outputs));
 }
 
 static int fail_check(const char *test, const char *detail,
@@ -897,15 +921,28 @@ static int fail_check(const char *test, const char *detail,
 		return fail_check((test), (detail), check_actual, check_expected); \
 } while (0)
 
-int inbyte(void)
+char8 inbyte(void)
 {
-	return '\n';
+	if (uart_fifo_position == uart_fifo_count) {
+		if (uart_prompt_batches >= 2U) {
+			protocol_errors++;
+			return '\n';
+		}
+		uart_prompt_batches++;
+		uart_fifo_position = 0;
+		uart_fifo_count = sizeof(uart_prompt_input) /
+			sizeof(uart_prompt_input[0]);
+	}
+	uart_inbyte_calls++;
+	return uart_prompt_input[uart_fifo_position++];
 }
 
-int XUartPs_IsReceiveData(uintptr_t address)
+u32 Xil_In32(UINTPTR address)
 {
-	if (address != 0U) protocol_errors++;
-	return 0;
+	uart_status_reads++;
+	if (address != (UINTPTR)STDIN_BASEADDRESS + XUARTPS_SR_OFFSET)
+		protocol_errors++;
+	return uart_fifo_position < uart_fifo_count ? 0U : XUARTPS_SR_RXEMPTY;
 }
 
 void no_os_mdelay(uint32_t msecs)
@@ -952,7 +989,8 @@ static void fill_metrics(struct wifi_rf_channel_metrics *out,
 	uint8_t channel, int active, int monitor)
 {
 	memset(out, 0, sizeof(*out));
-	out->gain_db = 23;
+	out->gain_db = active ? 23 : 20 + channel;
+	out->baseline_median_power = 1000U + channel;
 	out->rssi_cdb = -6000;
 	out->power_cdbfs16 = -3000;
 	out->peak_cdbfs16 = WIFI_RF_ZERO_CDBFS;
@@ -983,12 +1021,16 @@ int32_t wifi_rf_capture_channel(struct wifi_rf_capture_ctx *ctx,
 		if (channel != call + 1U || mode != WIFI_RF_CAPTURE_BASELINE ||
 		    dwell_ms != WIFI_RF_SCAN_DWELL_MS || baseline != NULL)
 			protocol_errors++;
+		baseline_outputs[channel - 1U] = out;
 		fill_metrics(out, channel, 0, 0);
 		return 0;
 	}
 	if (call < 26U) {
 		if (channel != call - 12U || mode != WIFI_RF_CAPTURE_ACTIVE ||
-		    dwell_ms != WIFI_RF_SCAN_DWELL_MS || !baseline)
+		    dwell_ms != WIFI_RF_SCAN_DWELL_MS ||
+		    baseline != baseline_outputs[channel - 1U] ||
+		    baseline->gain_db != 20 + channel ||
+		    baseline->baseline_median_power != 1000U + channel)
 			protocol_errors++;
 		if (scenario == SC_CAPTURE_FAIL && channel == 4U) {
 			ctx->last_error = "DMA_ERROR";
@@ -998,7 +1040,10 @@ int32_t wifi_rf_capture_channel(struct wifi_rf_capture_ctx *ctx,
 		return 0;
 	}
 	if (channel != 6U || mode != WIFI_RF_CAPTURE_ACTIVE ||
-	    dwell_ms != WIFI_RF_MONITOR_DWELL_MS || !baseline)
+	    dwell_ms != WIFI_RF_MONITOR_DWELL_MS ||
+	    baseline != baseline_outputs[5] ||
+	    baseline->gain_db != 26 ||
+	    baseline->baseline_median_power != 1006U)
 		protocol_errors++;
 	fill_metrics(out, channel, 1, 1);
 	return 0;
@@ -1045,6 +1090,7 @@ static int run_complete_case(const char *test, enum scenario_id next,
 	int32_t result;
 
 	reset_scenario(next);
+	printf("HOST_CASE: %s\n", test);
 	result = wifi_rf_test_run(&phy, &dmac, iq, 16U);
 	CHECK_EQ(test, "return", result, expected);
 	CHECK_EQ(test, "init calls", init_calls, 1U);
@@ -1052,6 +1098,9 @@ static int run_complete_case(const char *test, enum scenario_id next,
 	CHECK_EQ(test, "capture calls", capture_calls, 46U);
 	CHECK_EQ(test, "classifier calls", classify_calls, expected_classify);
 	CHECK_EQ(test, "prompt delays", enter_delays, 2U);
+	CHECK_EQ(test, "CRLF prompt batches", uart_prompt_batches, 2U);
+	CHECK_EQ(test, "CRLF and queued bytes consumed", uart_inbyte_calls, 6U);
+	CHECK_EQ(test, "queued-drain status reads", uart_status_reads, 6U);
 	CHECK_EQ(test, "protocol", protocol_errors, 0U);
 	return 0;
 }
@@ -1063,6 +1112,7 @@ static int test_platform_failures(void)
 	struct axi_dmac dmac = {0};
 	static int16_t iq[32];
 
+	puts("HOST_CASE: platform failures");
 	reset_scenario(SC_INIT_FAIL);
 	CHECK_EQ(test, "sample format return",
 		wifi_rf_test_run(&phy, &dmac, iq, 16U), -11);
@@ -1084,7 +1134,6 @@ static int test_platform_failures(void)
 
 int main(void)
 {
-	if (!freopen("NUL", "w", stdout)) return 1;
 	if (run_complete_case("PASS verdict", SC_PASS,
 		WIFI_RF_TEST_PASS, 1U)) return 1;
 	if (run_complete_case("large count verdict", SC_LARGE_COUNTS,
@@ -1113,8 +1162,83 @@ try {
     & $gcc -std=c11 -Wall -Wextra -Werror "-I$stateTempRoot" "-I$sourceRoot" `
         $stateHarness $testSource -o $stateOutput
     if ($LASTEXITCODE -ne 0) { throw "Native state-machine compilation failed with: $gcc" }
-    & $stateOutput
+    $stateHostOutput = @(& $stateOutput)
     if ($LASTEXITCODE -ne 0) { throw 'Native state-machine behavior test failed.' }
+
+    function Get-ExactLineIndex([string[]]$Lines, [string]$Expected) {
+        for ($n = 0; $n -lt $Lines.Count; $n++) {
+            if ($Lines[$n] -ceq $Expected) { return $n }
+        }
+        return -1
+    }
+
+    function Get-StateCaseLines([string[]]$Lines, [string]$Label, [string]$NextLabel) {
+        $start = Get-ExactLineIndex $Lines "HOST_CASE: $Label"
+        if ($start -lt 0) { throw "Native state-machine output is missing case marker: $Label" }
+        $end = $Lines.Count
+        if ($NextLabel) {
+            $end = Get-ExactLineIndex $Lines "HOST_CASE: $NextLabel"
+            if ($end -le $start) { throw "Native state-machine case order is invalid: $Label" }
+        }
+        if ($end -eq $start + 1) { return @() }
+        return @($Lines[($start + 1)..($end - 1)])
+    }
+
+    function Assert-StateLineOrder([string[]]$Lines, [string[]]$Expected) {
+        $previous = -1
+        foreach ($line in $Expected) {
+            $index = Get-ExactLineIndex $Lines $line
+            if ($index -lt 0) { throw "Native state-machine UART output is missing exact line: $line" }
+            if ($index -le $previous) { throw "Native state-machine UART line is out of order: $line" }
+            $previous = $index
+        }
+    }
+
+    $passLines = Get-StateCaseLines $stateHostOutput 'PASS verdict' 'large count verdict'
+    $baselineLine = 'BASELINE_SCAN: START channels=1-13 dwell=250ms'
+    $activeLine = 'ACTIVE_SCAN: START channels=1-13 dwell=250ms'
+    $selectedLine = 'SELECTED: CH=06 FREQ=2437MHz DELTA_RSSI=+5.00dB DELTA_PWR=+5.00dB DELTA_BURST=+5pp'
+    $monitorLine = 'MONITOR: CH=06 duration=10s'
+    $platformLine = 'PLATFORM: PASS'
+    $rfPassLine = 'RF_ACTIVITY: PASS'
+    $testPassLine = 'WIFI_RF_TEST: PASS'
+    Assert-StateLineOrder $passLines @(
+        $baselineLine, $activeLine, $selectedLine, $monitorLine,
+        $platformLine, $rfPassLine, $testPassLine
+    )
+    $infLine = 'CH=01 FREQ=2412MHz GAIN=21dB RSSI=-60.00dB PWR=-30.00dBFS16 PEAK=-INFdBFS16 CLIP=0 BURST=0% BLOCKS=2 DMA=OK'
+    if ((Get-ExactLineIndex $passLines $infLine) -lt 0) {
+        throw 'Native state-machine UART output does not preserve exact -INF formatting.'
+    }
+    if (@($passLines | Where-Object { $_ -ceq $monitorLine }).Count -ne 1) {
+        throw 'Native state-machine UART output must contain one monitor marker.'
+    }
+    $monitorStart = Get-ExactLineIndex $passLines $monitorLine
+    $platformStart = Get-ExactLineIndex $passLines $platformLine
+    $monitorWindows = @($passLines[($monitorStart + 1)..($platformStart - 1)])
+    if ($monitorWindows.Count -ne 20 -or
+        @($monitorWindows | Where-Object { -not $_.StartsWith('CH=06 ') }).Count -ne 0) {
+        throw 'Native state-machine UART output must contain 20 selected-channel monitor windows.'
+    }
+
+    $inconclusiveLines = Get-StateCaseLines $stateHostOutput 'inconclusive verdict' 'clipping verdict'
+    Assert-StateLineOrder $inconclusiveLines @(
+        $platformLine,
+        'RF_ACTIVITY: INCONCLUSIVE',
+        'WIFI_RF_TEST: INCONCLUSIVE',
+        'WARNING: activity delta too small; verify 2.4 GHz client traffic and move hotspot closer.'
+    )
+
+    $clippingLines = Get-StateCaseLines $stateHostOutput 'clipping verdict' 'platform failures'
+    Assert-StateLineOrder $clippingLines @(
+        $platformLine,
+        'RF_ACTIVITY: INCONCLUSIVE',
+        'WIFI_RF_TEST: INCONCLUSIVE',
+        'WARNING: clipping above 0.1%; move hotspot farther from RXB.'
+    )
+    if ($stateHostOutput -notcontains 'PASS: Wi-Fi RF state-machine host behavior passed.') {
+        throw 'Native state-machine host harness did not report PASS.'
+    }
 }
 finally {
     if ((Test-Path -LiteralPath $stateTempRoot) -and
