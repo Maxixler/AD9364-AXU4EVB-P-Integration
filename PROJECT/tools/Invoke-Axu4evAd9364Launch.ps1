@@ -60,6 +60,7 @@ else {
     if ($LASTEXITCODE -ne 0) {
         throw "Workspace handoff verification failed.`r`n$($handoffOutput -join "`r`n")"
     }
+    Write-Verbose ($handoffOutput -join [Environment]::NewLine)
 
     $appRoot = Join-Path $WorkspaceRoot 'Vitis\workspace\ad9364app'
     $application = @('Release', 'Debug') |

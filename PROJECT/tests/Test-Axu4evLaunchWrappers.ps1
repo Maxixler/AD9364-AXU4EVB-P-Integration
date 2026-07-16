@@ -21,12 +21,14 @@ function Invoke-DryRun {
         [ValidateSet('Golden', 'Workspace', 'Candidate')]
         [string]$Mode,
 
-        [string]$CandidateApplication
+        [string]$CandidateApplication,
+
+        [string]$TestWorkspaceRoot = $workspaceRoot
     )
 
     $arguments = @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $orchestrator,
-        '-Mode', $Mode, '-WorkspaceRoot', $workspaceRoot, '-DryRun'
+        '-Mode', $Mode, '-WorkspaceRoot', $TestWorkspaceRoot, '-DryRun'
     )
     if ($CandidateApplication) {
         $arguments += @('-CandidateApplication', $CandidateApplication)
@@ -93,6 +95,59 @@ try {
 }
 finally {
     Remove-Item -LiteralPath $candidateTemp -Force -ErrorAction SilentlyContinue
+}
+
+$candidateWorkspace = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-candidate-workspace-$([guid]::NewGuid())"
+try {
+    $testReleaseBase = Join-Path $candidateWorkspace 'PROJECT\releases\axu4ev-ad9364'
+    $testProjectTests = Join-Path $candidateWorkspace 'PROJECT\tests'
+    $testAppRoot = Join-Path $candidateWorkspace 'Vitis\workspace\ad9364app'
+    $testDebugApplication = Join-Path $testAppRoot 'Debug\ad9364app.elf'
+    $testReleaseApplication = Join-Path $testAppRoot 'Release\ad9364app.elf'
+
+    New-Item -ItemType Directory -Path (Split-Path $testReleaseBase), $testProjectTests, (Split-Path $testDebugApplication) -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $workspaceRoot 'PROJECT\releases\axu4ev-ad9364') -Destination $testReleaseBase -Recurse
+    Copy-Item -LiteralPath (Join-Path $workspaceRoot 'PROJECT\tests\Launch-Axu4evAd9364Jtag.tcl') -Destination (Join-Path $testProjectTests 'Launch-Axu4evAd9364Jtag.tcl')
+    Set-Content -LiteralPath $testDebugApplication -Value 'debug-app-must-not-be-used' -NoNewline
+
+    $arguments = @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $orchestrator,
+        '-Mode', 'Candidate', '-WorkspaceRoot', $candidateWorkspace, '-DryRun'
+    )
+    $savedErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $failureLines = @(& powershell.exe @arguments 2>&1)
+        $failureCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedErrorActionPreference
+    }
+    if ($failureCode -eq 0) {
+        throw 'Candidate default unexpectedly fell back to the available Debug application.'
+    }
+    if (($failureLines -join "`n") -notmatch 'Missing Release candidate application ELF:') {
+        throw "Candidate without a Release ELF failed for the wrong reason.`r`n$($failureLines -join "`r`n")"
+    }
+
+    New-Item -ItemType Directory -Path (Split-Path $testReleaseApplication) -Force | Out-Null
+    Set-Content -LiteralPath $testReleaseApplication -Value 'release-app' -NoNewline
+    $defaultCandidate = Invoke-DryRun -Mode Candidate -TestWorkspaceRoot $candidateWorkspace
+    $defaultCandidateApp = @($defaultCandidate.artifacts | Where-Object name -eq 'application')[0]
+    if ([IO.Path]::GetFullPath($defaultCandidateApp.path) -ne [IO.Path]::GetFullPath($testReleaseApplication)) {
+        throw 'Candidate default did not use the exact Release application path.'
+    }
+}
+finally {
+    $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+    $candidateWorkspacePath = [IO.Path]::GetFullPath($candidateWorkspace)
+    if ($candidateWorkspacePath.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $candidateWorkspacePath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+if (-not $orchestratorContent.Contains('Write-Verbose ($handoffOutput -join [Environment]::NewLine)')) {
+    throw 'Workspace launch no longer reports successful handoff verification in verbose mode.'
 }
 
 foreach ($mode in @('Golden', 'Workspace', 'Candidate')) {
