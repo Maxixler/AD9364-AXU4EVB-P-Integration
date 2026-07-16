@@ -202,3 +202,57 @@ Kabul edilen değişmez sürümün SHA-256 değerleri:
 | `ad9364app.elf` | `320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC` |
 
 Sonuç olarak bilgisayar/kart yeniden açıldıktan sonra kullanılacak normal yol Golden başlatıcıdır; XSCT komutlarının elle tekrarlanması gerekmemektedir.
+
+## 10. Main entegrasyonu ve GitHub yayını
+
+Durum: **Tamamlandı.**
+
+Golden kart kabulünden sonra `codex/axu4ev-pmufw-bringup` üzerindeki doğrulanmış 14 commit yerel `main` dalına fast-forward edildi. İşlem çatışmasız tamamlandı; `main` ve HEAD `9d2f06a` commitinde eşleşti. Entegrasyon sonrasında beş otomatik test yeniden geçti.
+
+Yerel `main`, `https://github.com/Maxixler/FPGA-Profen.git` deposundaki `origin/main` dalına pushlandı. GitHub doğrulamasında uzak referans şu değeri verdi:
+
+```text
+9d2f06acca380778cae29ddaf4bbf327048e15b5 refs/heads/main
+```
+
+Push aralığı `6b78d06..9d2f06a` oldu. Çalışma alanındaki kullanıcıya ait 1081 staged dosya, untracked Vitis/Vivado çıktıları ve runtime JTAG logu push kapsamına girmedi. Böylece GitHub `main`, kartta doğrulanmış Golden release, otomatik başlatıcılar, bütünlük testleri ve kabul raporlarını içerirken yerel geliştirme çıktıları korunmuştur.
+
+## 11. Wi-Fi RF detection feature durumu — 16 Temmuz 2026 kapanışı
+
+Durum: **Task 1-5 tamamlandı ve review CLEAN; Task 6 READY_FOR_HARDWARE.**
+
+Geliştirme, ana kirli çalışma ağacını ve mevcut Golden geri dönüş noktasını etkilememek için `codex/wifi-rf-detection` dalındaki bağımsız worktree'de yapıldı. GitHub'a push, `main` merge veya Golden `CURRENT` değişikliği yapılmadı.
+
+### Tamamlanan fonksiyonlar
+
+- Candidate launcher: doğrulanmış Golden donanım teslimleri + exact Release uygulama ELF'i; Debug fallback yok.
+- Saf I/Q metrikleri: mean power, dBFS16, peak, clipping, medyan, delta ve aktivite verdict'i.
+- RX-only capture: `B_BALANCED / RXB`, maksimum TX attenuation, ENSM RX readback, finite DMA, 500 ms timeout, cache ownership ve baseline gain reuse.
+- UART akışı: hotspot kapalı baseline, 13 kanal active scan, deterministik kanal seçimi, 20 monitor penceresi ve PASS/INCONCLUSIVE sonucu.
+- Release entegrasyonu: `WIFI_RF_TEST`, TX DMAC/DAC/DDS dışlama, temiz cleanup ve Release `libm` bağlantısı.
+- Tekrarlanabilir Vitis build: kısa izole temp workspace, fresh platform/app üretimi, Windows Job Object ile process containment, gerçek `nm` sembol kapısı ve doğrulanmış cleanup.
+
+### Son doğrulanmış aday
+
+| Teslim | Değer |
+|---|---|
+| Branch | `codex/wifi-rf-detection` |
+| Feature HEAD | `0042e820957442f957d881f207090b3c608be789` |
+| Release ELF | `Vitis/workspace/ad9364app/Release/ad9364app.elf` |
+| ELF boyutu | `855568` bayt |
+| ELF SHA-256 | `C95CD5478275F2CA7911D1984D544AECEE44034BF368FF238221957BA4A500B1` |
+| Golden BIT SHA-256 | `AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4` |
+| Golden PMUFW SHA-256 | `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB` |
+| Golden `psu_init.tcl` SHA-256 | `CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B` |
+
+ELF içinde `wifi_rf_test_run`, `wifi_rf_prepare_rx_only`, `wifi_rf_capture_channel` ve `wifi_rf_analyze_block` global text sembolleri doğrulandı. Metrics, source/host, Candidate launcher, JTAG order, release integrity ve handoff testlerinin altısı son preflight'ta PASS verdi. `P:` eşlemesi ve güncel-format geçici build kökü kalmadı.
+
+### Donanım kabulü bekleyen maddeler
+
+- Tek 2.4 GHz anten yalnız RXB'ye bağlanacak. İkinci anten ilk testte kullanılmayacak; AD9364 1x1 olduğu için RXA/RXB eşzamanlı iki kanal değildir.
+- Telefon hotspot'u 2.4 GHz'e zorlanacak; baseline sırasında kapalı, active/monitor sırasında bağlı istemci trafiğiyle açık olacak.
+- Candidate iki kez başlatılacak ve iki ardışık `WIFI_RF_TEST: PASS` sonucu aranacak.
+- Gerçek PASS oluşmadan `PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt` oluşturulmayacak ve raporlara RF kabulü tamamlandı yazılmayacak.
+- Kart kabulünden sonra FFT/grafik, continuous streaming, PL hızlandırma ve PetaLinux/IIO ayrı fazlar olarak kalacaktır.
+
+Bugünkü kapanışta donanım programlanmadı. Yarın başlangıç noktası `PROJECT/tools/Start-Axu4evAd9364Candidate.cmd` ve Task 6 fiziksel checklist'idir.

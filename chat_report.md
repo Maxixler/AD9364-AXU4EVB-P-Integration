@@ -299,3 +299,71 @@ Kabul edilen `2026-07-16-bringup-v1` sürümünün beş SHA-256 değeri:
 - `ad9364app.elf`: `320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC`
 
 Logun ilk kısmı UTF-8, XSCT çıktısı UTF-16 olarak birleştiği için okunabilirlik sorunu ayrıca tespit edildi. Orkestratör tek `Unicode` kodlama kullanacak şekilde düzeltildi ve wrapper testi bu sözleşmeyi koruyacak biçimde genişletildi. Mevcut log Git dışında bırakılmıştır; sonraki loglar tek kodlamayla oluşacaktır.
+
+## 19. Main fast-forward ve GitHub push
+
+Kullanıcının onayıyla doğrulanmış çalışma yerel `main` dalına alındı. Ön kontrolde `main`in feature dalının doğrudan atası olduğu ve 14 commit geride bulunduğu doğrulandı; bu nedenle çatışmalı merge yerine güvenli fast-forward uygulandı. Mevcut çalışma ağacında kullanıcıya ait 1081 staged dosya ve çok sayıda Vitis/Vivado çıktısı bulunduğundan branch checkout yapılmadı ve bu dosyalara dokunulmadı.
+
+Fast-forward sonrasında:
+
+- yerel `main`: `9d2f06a`
+- doğrulanmış HEAD: `9d2f06a`
+- `main` ile HEAD farkı: yok
+- beş otomatik AXU4EV testi: PASS
+
+GitHub CLI oturumu yenilendikten sonra yalnızca `refs/heads/main:refs/heads/main` pushlandı. Push sonucu:
+
+```text
+To https://github.com/Maxixler/FPGA-Profen.git
+   6b78d06..9d2f06a  main -> main
+```
+
+Uzak referans ayrıca `9d2f06acca380778cae29ddaf4bbf327048e15b5` olarak doğrulandı. Feature checkout ve kullanıcıya ait staged dosyalar yerelde korunmuş; GitHub `main` yalnızca daha önce kapsamı belirlenerek commitlenmiş proje değişiklikleriyle güncellenmiştir.
+
+## 20. AD9364 2.4 GHz Wi-Fi RF algılama geliştirmesi — gün sonu kaydı
+
+Kullanıcı, kartın gerçek RF sinyali alabildiğini önce kontrollü ve güvenli biçimde kanıtlamak; daha sonra FFT/grafik, continuous streaming ve PetaLinux/IIO fazlarına geçmek istedi. İlk RF kaynağı olarak 2.4 GHz'e zorlanan telefon hotspot'u seçildi. Bu aşamada Wi-Fi paketleri veya kullanıcı verisi çözülmeyecek; yalnız RF enerji, burst, RSSI ve DMA örnek istatistikleri ölçülecektir.
+
+Donanım teyidi:
+
+- AD9364 RF `1x1` transceiver'dır.
+- RXA ve RXB iki eşzamanlı alıcı kanal değil, tek RX zincirinin seçilebilir girişleridir.
+- Kart eşleşmesine göre ilk 2.4 GHz testinde `RXB / B_BALANCED` kullanılacaktır.
+- Kullanıcının iki Wi-Fi anteninden yalnız biri RXB'ye bağlanacak; ikinci anten ilk testte boşta kalacaktır.
+- TXA/TXB boş, `REF_CLK` anten bağlantısından bağımsız kalacaktır.
+
+Bu konuşma kapsamında tamamlanan teknik işler:
+
+1. RF kabul tasarımı ve altı görevli implementasyon planı yazıldı.
+2. Kirli ana çalışma ağacından bağımsız `codex/wifi-rf-detection` worktree'si oluşturuldu.
+3. Candidate launcher eklendi; Golden donanım hash'leri korunurken yalnız Release ELF seçildi ve Debug fallback yasaklandı.
+4. Saf C I/Q metrik motoru TDD ile geliştirildi. Signed overflow, `INT16_MIN`, 32-bit size sınırı, exact clipping/eşik sınırları ve compiler discovery sorunları review turlarında giderildi.
+5. RX-only capture katmanı geliştirildi. Tekrarlı IRQ DMA flag'i, 64-bit pointer'ın 32-bit DMA adresine kesilmesi, aggregate sayaç taşması, cache ownership ve invalid mode/error yolları host harness ile düzeltildi.
+6. UART baseline/active scan ve verdict state machine'i geliştirildi. Kanal-baseline ilişkisi, CRLF/drain davranışı, exact çıktı sırası ve clipping warning'i davranış testleriyle korundu.
+7. Feature Release uygulamasına bağlandı. Wi-Fi yolunda TX DMAC ve DAC/DDS başlatılmıyor; RX DMAC ve cleanup akışı doğrulandı.
+8. Vitis 2020.1'in stale metadata, asenkron import, uzun Windows yolu ve detached process sorunları sistematik olarak ayrıştırıldı. Son wrapper izole kısa temp platform/app oluşturuyor ve `CreateProcessW` ile suspended başlattığı launcher'ı çalışmadan önce Windows Job Object'a atıyor. Başarı için root exit code sıfır, job process sayısı sıfır, fresh Release ELF ve dört gerçek `nm` sembolü zorunlu.
+9. Job Object fake suite success, nonzero root, detached child, timeout, unrelated process, stale ELF, Debug-only, missing symbol, cleanup aggregation ve Tcl escaping senaryolarında art arda PASS verdi.
+10. Tek final gerçek Vitis build PASS verdi; hiçbir generated artifact commit kapsamına alınmadı.
+
+Son Release ELF:
+
+```text
+Path: Vitis/workspace/ad9364app/Release/ad9364app.elf
+Size: 855568 bytes
+SHA256: C95CD5478275F2CA7911D1984D544AECEE44034BF368FF238221957BA4A500B1
+Symbols: wifi_rf_test_run, wifi_rf_prepare_rx_only,
+         wifi_rf_capture_channel, wifi_rf_analyze_block
+```
+
+Task 6 preflight'ta şu altı test iki kez PASS verdi: metrics, source/host, launcher provenance, JTAG ordering, Golden release integrity ve Vitis handoff integrity. Candidate kuru çalışması Golden BIT/PMUFW/`psu_init.tcl` ile exact Release ELF'i birleştirdi. Donanım programlanmadı ve gerçek RF evidence dosyası oluşturulmadı.
+
+Yarın devam planı:
+
+1. Tek 2.4 GHz anteni RXB'ye bağla; RXA/TXA/TXB boş kalsın.
+2. JTAG + PS_UART bağlantısını ve PuTTY `115200-8-N-1` ayarını hazırla.
+3. Hotspot kapalıyken Candidate'ı başlat ve baseline prompt'unu tamamla.
+4. Hotspot'u 2.4 GHz aç; ikinci cihazla sürekli trafik oluştur ve active/monitor prompt'unu tamamla.
+5. `RX_ONLY: PASS`, `PLATFORM: PASS`, `RF_ACTIVITY: PASS`, `WIFI_RF_TEST: PASS` satırlarını kaydet.
+6. Aynı kabulü ikinci kez tekrarla. İki PASS sonrası sanitize evidence ve rapor kapanışı yapılacak.
+
+Gün sonu durumu: Task 1-5 tamamlandı ve bağımsız review'ları CLEAN; Task 6 `READY_FOR_HARDWARE`. Feature branch yerel tutuldu. `main`, `origin/main`, Golden `CURRENT` ve mevcut bring-up fallback değiştirilmedi; push/merge yarınki kart testi sonrasına bırakıldı.
