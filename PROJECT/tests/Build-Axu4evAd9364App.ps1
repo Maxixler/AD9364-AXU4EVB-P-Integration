@@ -37,99 +37,249 @@ if ($testMode -and $null -ne $env:TASK5_TCL_ENCODE_ONLY) {
     exit 0
 }
 
-if (-not ('Task5ProcessSnapshot' -as [type])) {
+if (-not ('Task5JobProcess' -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
-using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
 
-public sealed class Task5ProcessRecord
+public sealed class Task5JobProcess : IDisposable
 {
-    public int ProcessId { get; set; }
-    public int ParentProcessId { get; set; }
-    public string Name { get; set; }
-    public DateTime CreationDate { get; set; }
-}
+    public const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
+    public const uint CREATE_SUSPENDED = 0x00000004;
+    public const uint CREATE_NO_WINDOW = 0x08000000;
+    private const uint WAIT_OBJECT_0 = 0x00000000;
+    private const uint WAIT_TIMEOUT = 0x00000102;
+    private const int JobObjectBasicAccountingInformation = 1;
+    private const int JobObjectExtendedLimitInformation = 9;
 
-public static class Task5ProcessSnapshot
-{
-    private const uint TH32CS_SNAPPROCESS = 0x00000002;
-    private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
-    private static readonly IntPtr InvalidHandle = new IntPtr(-1);
+    private IntPtr jobHandle;
+    private IntPtr processHandle;
+    private IntPtr threadHandle;
+    private bool disposed;
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct PROCESSENTRY32
+    [StructLayout(LayoutKind.Sequential)]
+    private struct STARTUPINFO
     {
-        public uint dwSize;
-        public uint cntUsage;
-        public uint th32ProcessID;
-        public IntPtr th32DefaultHeapID;
-        public uint th32ModuleID;
-        public uint cntThreads;
-        public uint th32ParentProcessID;
-        public int pcPriClassBase;
+        public uint cb;
+        public string lpReserved;
+        public string lpDesktop;
+        public string lpTitle;
+        public uint dwX;
+        public uint dwY;
+        public uint dwXSize;
+        public uint dwYSize;
+        public uint dwXCountChars;
+        public uint dwYCountChars;
+        public uint dwFillAttribute;
         public uint dwFlags;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-        public string szExeFile;
+        public ushort wShowWindow;
+        public ushort cbReserved2;
+        public IntPtr lpReserved2;
+        public IntPtr hStdInput;
+        public IntPtr hStdOutput;
+        public IntPtr hStdError;
     }
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr CreateToolhelp32Snapshot(uint flags, uint processId);
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PROCESS_INFORMATION
+    {
+        public IntPtr hProcess;
+        public IntPtr hThread;
+        public uint dwProcessId;
+        public uint dwThreadId;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct JOBOBJECT_BASIC_LIMIT_INFORMATION
+    {
+        public long PerProcessUserTimeLimit;
+        public long PerJobUserTimeLimit;
+        public uint LimitFlags;
+        public UIntPtr MinimumWorkingSetSize;
+        public UIntPtr MaximumWorkingSetSize;
+        public uint ActiveProcessLimit;
+        public UIntPtr Affinity;
+        public uint PriorityClass;
+        public uint SchedulingClass;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct IO_COUNTERS
+    {
+        public ulong ReadOperationCount;
+        public ulong WriteOperationCount;
+        public ulong OtherOperationCount;
+        public ulong ReadTransferCount;
+        public ulong WriteTransferCount;
+        public ulong OtherTransferCount;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+    {
+        public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+        public IO_COUNTERS IoInfo;
+        public UIntPtr ProcessMemoryLimit;
+        public UIntPtr JobMemoryLimit;
+        public UIntPtr PeakProcessMemoryUsed;
+        public UIntPtr PeakJobMemoryUsed;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct JOBOBJECT_BASIC_ACCOUNTING_INFORMATION
+    {
+        public long TotalUserTime;
+        public long TotalKernelTime;
+        public long ThisPeriodTotalUserTime;
+        public long ThisPeriodTotalKernelTime;
+        public uint TotalPageFaultCount;
+        public uint TotalProcesses;
+        public uint ActiveProcesses;
+        public uint TotalTerminatedProcesses;
+    }
+
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern bool Process32FirstW(IntPtr snapshot, ref PROCESSENTRY32 entry);
+    private static extern IntPtr CreateJobObject(IntPtr securityAttributes, string name);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool SetInformationJobObject(IntPtr job, int infoClass,
+        ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION info, uint length);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern bool Process32NextW(IntPtr snapshot, ref PROCESSENTRY32 entry);
+    private static extern bool CreateProcessW(string applicationName, StringBuilder commandLine,
+        IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles,
+        uint creationFlags, IntPtr environment, string currentDirectory,
+        ref STARTUPINFO startupInfo, out PROCESS_INFORMATION processInformation);
     [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr OpenProcess(uint access, bool inheritHandle, uint processId);
+    private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
     [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool GetProcessTimes(IntPtr process, out long creation,
-        out long exit, out long kernel, out long user);
+    private static extern uint ResumeThread(IntPtr thread);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetExitCodeProcess(IntPtr process, out uint exitCode);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool QueryInformationJobObject(IntPtr job, int infoClass,
+        out JOBOBJECT_BASIC_ACCOUNTING_INFORMATION info, uint length, IntPtr returnLength);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool TerminateJobObject(IntPtr job, uint exitCode);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool TerminateProcess(IntPtr process, uint exitCode);
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(IntPtr handle);
 
-    private static DateTime GetCreationUtc(uint processId)
+    private static void ThrowLastError(string operation)
     {
-        IntPtr process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, processId);
-        if (process == IntPtr.Zero) return DateTime.MinValue;
-        try
-        {
-            long creation, exit, kernel, user;
-            if (!GetProcessTimes(process, out creation, out exit, out kernel, out user))
-                return DateTime.MinValue;
-            return DateTime.FromFileTimeUtc(creation);
-        }
-        finally { CloseHandle(process); }
+        throw new Win32Exception(Marshal.GetLastWin32Error(), operation);
     }
 
-    public static Task5ProcessRecord[] GetProcesses()
+    public static Task5JobProcess Start(string applicationName, string commandLine,
+        string currentDirectory)
     {
-        var records = new List<Task5ProcessRecord>();
-        IntPtr snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if (snapshot == InvalidHandle)
-            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        IntPtr job = CreateJobObject(IntPtr.Zero, null);
+        if (job == IntPtr.Zero) ThrowLastError("CreateJobObject");
+        PROCESS_INFORMATION pi = new PROCESS_INFORMATION();
+        bool processCreated = false;
         try
         {
-            var entry = new PROCESSENTRY32();
-            entry.dwSize = (uint)Marshal.SizeOf(typeof(PROCESSENTRY32));
-            if (!Process32FirstW(snapshot, ref entry))
-                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
-            do
-            {
-                DateTime creation = GetCreationUtc(entry.th32ProcessID);
-                if (creation != DateTime.MinValue)
-                {
-                    records.Add(new Task5ProcessRecord {
-                        ProcessId = (int)entry.th32ProcessID,
-                        ParentProcessId = (int)entry.th32ParentProcessID,
-                        Name = entry.szExeFile,
-                        CreationDate = creation
-                    });
-                }
-                entry.dwSize = (uint)Marshal.SizeOf(typeof(PROCESSENTRY32));
-            } while (Process32NextW(snapshot, ref entry));
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits =
+                new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation,
+                ref limits, (uint)Marshal.SizeOf(typeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION))))
+                ThrowLastError("SetInformationJobObject");
+
+            STARTUPINFO si = new STARTUPINFO();
+            si.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
+            if (!CreateProcessW(applicationName, new StringBuilder(commandLine),
+                IntPtr.Zero, IntPtr.Zero, false, CREATE_SUSPENDED | CREATE_NO_WINDOW,
+                IntPtr.Zero, currentDirectory, ref si, out pi))
+                ThrowLastError("CreateProcessW");
+            processCreated = true;
+            if (!AssignProcessToJobObject(job, pi.hProcess))
+                ThrowLastError("AssignProcessToJobObject");
+            if (ResumeThread(pi.hThread) == UInt32.MaxValue)
+                ThrowLastError("ResumeThread");
+            CloseHandle(pi.hThread);
+            pi.hThread = IntPtr.Zero;
+            return new Task5JobProcess(job, pi.hProcess);
         }
-        finally { CloseHandle(snapshot); }
-        return records.ToArray();
+        catch
+        {
+            if (processCreated && pi.hProcess != IntPtr.Zero)
+                TerminateProcess(pi.hProcess, 1);
+            if (pi.hThread != IntPtr.Zero) CloseHandle(pi.hThread);
+            if (pi.hProcess != IntPtr.Zero) CloseHandle(pi.hProcess);
+            CloseHandle(job);
+            throw;
+        }
+    }
+
+    private Task5JobProcess(IntPtr job, IntPtr process)
+    {
+        jobHandle = job;
+        processHandle = process;
+    }
+
+    public bool WaitForRootExit(int milliseconds)
+    {
+        uint result = WaitForSingleObject(processHandle, (uint)Math.Max(0, milliseconds));
+        if (result == WAIT_OBJECT_0) return true;
+        if (result == WAIT_TIMEOUT) return false;
+        ThrowLastError("WaitForSingleObject");
+        return false;
+    }
+
+    public uint GetRootExitCode()
+    {
+        uint exitCode;
+        if (!GetExitCodeProcess(processHandle, out exitCode))
+            ThrowLastError("GetExitCodeProcess");
+        return exitCode;
+    }
+
+    public uint ActiveProcesses
+    {
+        get
+        {
+            JOBOBJECT_BASIC_ACCOUNTING_INFORMATION info;
+            if (!QueryInformationJobObject(jobHandle, JobObjectBasicAccountingInformation,
+                out info, (uint)Marshal.SizeOf(typeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION)),
+                IntPtr.Zero))
+                ThrowLastError("QueryInformationJobObject");
+            return info.ActiveProcesses;
+        }
+    }
+
+    public bool WaitForEmpty(int milliseconds)
+    {
+        Stopwatch timer = Stopwatch.StartNew();
+        do
+        {
+            if (ActiveProcesses == 0) return true;
+            Thread.Sleep(50);
+        } while (timer.ElapsedMilliseconds < milliseconds);
+        return ActiveProcesses == 0;
+    }
+
+    public void Terminate(uint exitCode)
+    {
+        if (ActiveProcesses != 0 && !TerminateJobObject(jobHandle, exitCode))
+            ThrowLastError("TerminateJobObject");
+    }
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        if (threadHandle != IntPtr.Zero) CloseHandle(threadHandle);
+        if (processHandle != IntPtr.Zero) CloseHandle(processHandle);
+        if (jobHandle != IntPtr.Zero) CloseHandle(jobHandle);
+        threadHandle = IntPtr.Zero;
+        processHandle = IntPtr.Zero;
+        jobHandle = IntPtr.Zero;
     }
 }
 '@
@@ -186,7 +336,6 @@ if ($timeoutSeconds -lt 1 -or $timeoutSeconds -gt 3600) {
 }
 
 $buildScript = Join-Path $buildRoot 'bootstrap.tcl'
-$launcherScript = Join-Path $buildRoot 'launch-xsct.cmd'
 $temporaryElf = Join-Path $buildRoot 'Vitis\workspace\ad9364app\Release\ad9364app.elf'
 $elf = if ($testMode -and $env:TASK5_OUTPUT_ELF) {
     [IO.Path]::GetFullPath($env:TASK5_OUTPUT_ELF)
@@ -212,11 +361,8 @@ $requiredSymbols = @(
     'wifi_rf_analyze_block'
 )
 $utf8 = New-Object System.Text.UTF8Encoding($false)
-$ascii = [Text.Encoding]::ASCII
 $driveMapped = $false
-$launcher = $null
-$ownedProcessIds = New-Object 'System.Collections.Generic.HashSet[int]'
-$ownedProcessBirth = New-Object 'System.Collections.Generic.Dictionary[int,datetime]'
+$jobProcess = $null
 $processesStopped = $false
 $operationError = $null
 $cleanupErrors = New-Object System.Collections.Generic.List[string]
@@ -229,71 +375,22 @@ function Write-Audit {
     }
 }
 
-function Get-BuildProcessRecords {
-    return @([Task5ProcessSnapshot]::GetProcesses())
-}
-
-function Get-RecordCreationUtc {
-    param([Parameter(Mandatory = $true)]$Record)
-    return ([DateTime]$Record.CreationDate).ToUniversalTime()
-}
-
-function Test-OwnedProcessRecord {
-    param([Parameter(Mandatory = $true)]$Record)
-
-    $processId = [int]$Record.ProcessId
-    if (-not $ownedProcessIds.Contains($processId) -or
-        -not $ownedProcessBirth.ContainsKey($processId)) {
-        return $false
-    }
-    $actualBirth = Get-RecordCreationUtc -Record $Record
-    return [Math]::Abs(($actualBirth - $ownedProcessBirth[$processId]).TotalSeconds) -lt 1.0
-}
-
-function Update-OwnedBuildProcesses {
-    param([object[]]$Records)
-
-    $changed = $true
-    while ($changed) {
-        $changed = $false
-        foreach ($record in $Records) {
-            $processId = [int]$record.ProcessId
-            $parentId = [int]$record.ParentProcessId
-            $currentParent = @($Records | Where-Object {
-                [int]$_.ProcessId -eq $parentId
-            })
-            if ($currentParent.Count -eq 0 -or
-                -not (Test-OwnedProcessRecord -Record $currentParent[0])) {
-                continue
-            }
-            if (-not $ownedProcessIds.Contains($processId) -and
-                $ownedProcessIds.Contains($parentId)) {
-                [void]$ownedProcessIds.Add($processId)
-                $ownedProcessBirth[$processId] = Get-RecordCreationUtc -Record $record
-                $changed = $true
-            }
+function Stop-JobBuildProcesses {
+    if ($null -ne $jobProcess) {
+        if ($jobProcess.ActiveProcesses -ne 0) {
+            $jobProcess.Terminate(1)
         }
-    }
-}
-
-function Stop-OwnedBuildProcesses {
-    for ($attempt = 0; $attempt -lt 4; $attempt++) {
-        $records = @(Get-BuildProcessRecords)
-        Update-OwnedBuildProcesses -Records $records
-        $liveOwned = @($records | Where-Object { Test-OwnedProcessRecord -Record $_ })
-        if ($liveOwned.Count -eq 0) { break }
-        foreach ($record in @($liveOwned | Sort-Object ProcessId -Descending)) {
-            Stop-Process -Id ([int]$record.ProcessId) -Force -ErrorAction SilentlyContinue
+        if (-not $jobProcess.WaitForEmpty(10000)) {
+            throw "Job Object still has $($jobProcess.ActiveProcesses) active process(es)."
         }
-        Start-Sleep -Milliseconds 250
-    }
-
-    $remaining = @(Get-BuildProcessRecords | Where-Object { Test-OwnedProcessRecord -Record $_ })
-    if ($remaining.Count -ne 0) {
-        throw "Owned Vitis processes did not terminate: $($remaining.ProcessId -join ', ')"
+        if ($jobProcess.ActiveProcesses -ne 0) {
+            throw "Job Object termination verification failed."
+        }
+        $jobProcess.Dispose()
+        $script:jobProcess = $null
     }
     $script:processesStopped = $true
-    Write-Audit 'VERIFY_OWNED_STOPPED'
+    Write-Audit 'VERIFY_JOB_EMPTY'
 }
 
 function Invoke-NmSymbolGate {
@@ -378,61 +475,39 @@ try {
     $buildRootTcl = ConvertTo-TclListElement -Value $buildRoot.Replace('\', '/')
     $bootstrapText = $bootstrapTemplate.Replace('__BUILD_ROOT_LIST__', $buildRootTcl)
     [IO.File]::WriteAllText($buildScript, $bootstrapText, $utf8)
-    $launcherText = "@echo off`r`ncall `"$xsct`" `"$buildScript`"`r`nexit /b %errorlevel%`r`n"
-    [IO.File]::WriteAllText($launcherScript, $launcherText, $ascii)
 
     $env:TASK5_WRAPPER_TEMP_ELF = $temporaryElf
-    $deadline = [DateTime]::UtcNow.AddSeconds($timeoutSeconds)
-    Write-Audit "DEADLINE_TICKS:$($deadline.Ticks)"
     $launchStartedUtc = [DateTime]::UtcNow
-    $launcher = Start-Process -FilePath $env:ComSpec `
-        -ArgumentList @('/d', '/c', "`"$launcherScript`"") `
-        -WindowStyle Hidden -PassThru
-    [void]$ownedProcessIds.Add([int]$launcher.Id)
-    $ownedProcessBirth[[int]$launcher.Id] = $launcher.StartTime.ToUniversalTime()
-    Write-Audit "LAUNCHER_TICKS:$($launchStartedUtc.Ticks):PID=$($launcher.Id)"
+    $deadline = $launchStartedUtc.AddSeconds($timeoutSeconds)
+    Write-Audit "DEADLINE_TICKS:$($deadline.Ticks)"
+    $commandLine = '"{0}" /d /c call "{1}" "{2}"' -f `
+        $env:ComSpec, $xsct, $buildScript
+    $jobProcess = [Task5JobProcess]::Start($env:ComSpec, $commandLine, $WorkspaceRoot)
+    Write-Audit "LAUNCHER_TICKS:$([DateTime]::UtcNow.Ticks)"
 
-    $stableElfSignature = $null
-    $stableElfSince = $null
-    while ($true) {
-        $records = @(Get-BuildProcessRecords)
-        Update-OwnedBuildProcesses -Records $records
-        $liveDescendants = @($records | Where-Object {
-            (Test-OwnedProcessRecord -Record $_) -and
-            [int]$_.ProcessId -ne [int]$launcher.Id
-        })
-        $launcherAlive = @($records | Where-Object {
-            [int]$_.ProcessId -eq [int]$launcher.Id -and
-            (Test-OwnedProcessRecord -Record $_)
-        }).Count -gt 0
-        if (-not $launcherAlive -and $liveDescendants.Count -eq 0) { break }
-        $loopCandidate = Get-Item -LiteralPath $temporaryElf -ErrorAction SilentlyContinue
-        $freshLoopElf = $null -ne $loopCandidate -and
-            $loopCandidate.Length -gt 0 -and
-            $loopCandidate.LastWriteTimeUtc -ge $launchStartedUtc.AddSeconds(-1)
-        if ($freshLoopElf) {
-            $signature = "$($loopCandidate.Length):$($loopCandidate.LastWriteTimeUtc.Ticks)"
-            if ($signature -ne $stableElfSignature) {
-                $stableElfSignature = $signature
-                $stableElfSince = [DateTime]::UtcNow
-            }
-            elseif ([DateTime]::UtcNow -ge $stableElfSince.AddSeconds(5)) {
-                Write-Audit 'ELF_STABLE_BEFORE_PROCESS_CLEANUP'
-                break
-            }
-        }
-        else {
-            $stableElfSignature = $null
-            $stableElfSince = $null
-        }
+    while (-not $jobProcess.WaitForRootExit(250)) {
         if ([DateTime]::UtcNow -ge $deadline) {
-            $liveDescription = @($records | Where-Object {
-                Test-OwnedProcessRecord -Record $_
-            } | ForEach-Object { "$($_.ProcessId):$($_.Name)" }) -join ', '
-            throw "Timed out after $timeoutSeconds seconds waiting for the owned Vitis process tree: $liveDescription"
+            throw "Timed out after $timeoutSeconds seconds waiting for the controlled XSCT root process."
         }
-        Start-Sleep -Milliseconds 200
     }
+    $rootExitCode = $jobProcess.GetRootExitCode()
+    Write-Audit "ROOT_EXIT_CODE:$rootExitCode"
+    if ($rootExitCode -ne 0) {
+        throw "Controlled XSCT root process failed with exit code $rootExitCode."
+    }
+
+    while ($jobProcess.ActiveProcesses -ne 0) {
+        $remainingMilliseconds = [int][Math]::Max(
+            0,
+            [Math]::Min(500, ($deadline - [DateTime]::UtcNow).TotalMilliseconds)
+        )
+        if ($remainingMilliseconds -le 0 -or
+            -not $jobProcess.WaitForEmpty($remainingMilliseconds) -and
+            [DateTime]::UtcNow -ge $deadline) {
+            throw "Timed out after $timeoutSeconds seconds waiting for the Job Object to become empty."
+        }
+    }
+    Write-Audit 'JOB_NATURALLY_EMPTY'
     $candidate = Get-Item -LiteralPath $temporaryElf -ErrorAction SilentlyContinue
     if ($null -eq $candidate -or $candidate.Length -le 0) {
         throw 'Owned XSCT build did not produce the exact isolated Release ELF.'
@@ -457,7 +532,7 @@ catch {
 }
 finally {
     Invoke-CleanupStage -Name 'ProcessShutdown' -Action {
-        Stop-OwnedBuildProcesses
+        Stop-JobBuildProcesses
     }
     Invoke-CleanupStage -Name 'SubstUnmap' -Action {
         if (-not $processesStopped) { throw 'Owned processes were not verified stopped.' }
@@ -491,7 +566,6 @@ finally {
     else {
         $env:TASK5_WRAPPER_TEMP_ELF = $originalTestElfEnvironment
     }
-    if ($launcher) { $launcher.Dispose() }
 }
 
 $failures = New-Object System.Collections.Generic.List[string]

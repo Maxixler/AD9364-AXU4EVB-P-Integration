@@ -1323,15 +1323,18 @@ foreach ($configurationName in @('Debug', 'Release')) {
 
 $buildWrapper = Get-Content -LiteralPath (Join-Path $root 'PROJECT\tests\Build-Axu4evAd9364App.ps1') -Raw
 foreach ($fragment in @(
-    '$deadline = [DateTime]::UtcNow.AddSeconds($timeoutSeconds)',
-    'Start-Process -FilePath $env:ComSpec',
-    '-WindowStyle Hidden',
-    'CreateToolhelp32Snapshot',
-    'GetProcessTimes',
-    '$ownedProcessIds.Contains($parentId)',
-    '$ownedProcessBirth[$processId] = Get-RecordCreationUtc',
-    'Stop-OwnedBuildProcesses',
-    'VERIFY_OWNED_STOPPED',
+    '$deadline = $launchStartedUtc.AddSeconds($timeoutSeconds)',
+    'CreateJobObject',
+    'JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE',
+    'CREATE_SUSPENDED',
+    'CREATE_NO_WINDOW',
+    'CreateProcessW',
+    'AssignProcessToJobObject',
+    'ResumeThread',
+    'QueryInformationJobObject',
+    'TerminateJobObject',
+    'VERIFY_JOB_EMPTY',
+    'GetRootExitCode',
     'ConvertTo-TclListElement',
     '$buildRoot.Length -gt 80',
     'platform create -xpfm',
@@ -1346,6 +1349,14 @@ foreach ($fragment in @(
 )) {
     if (-not $buildWrapper.Contains($fragment)) { throw "Missing build wrapper invariant: $fragment" }
 }
+foreach ($removedFragment in @(
+    'CreateToolhelp32Snapshot', 'Get-BuildProcessRecords',
+    'ownedProcessIds', 'stableElfSignature', 'Start-Process -FilePath $env:ComSpec'
+)) {
+    if ($buildWrapper.Contains($removedFragment)) {
+        throw "Removed PID-polling wrapper fragment is still present: $removedFragment"
+    }
+}
 
 $wrapperScript = Join-Path $root 'PROJECT\tests\Build-Axu4evAd9364App.ps1'
 $wrapperTempBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
@@ -1359,6 +1370,8 @@ $fakeSuccess = Join-Path $wrapperTestRoot 'fake-success.cmd'
 $fakeStale = Join-Path $wrapperTestRoot 'fake-stale.cmd'
 $fakeDebug = Join-Path $wrapperTestRoot 'fake-debug.cmd'
 $fakeTimeout = Join-Path $wrapperTestRoot 'fake-timeout.cmd'
+$fakeNonzero = Join-Path $wrapperTestRoot 'fake-nonzero.cmd'
+$fakeDetached = Join-Path $wrapperTestRoot 'fake-detached.cmd'
 $fakeNmSuccess = Join-Path $wrapperTestRoot 'fake-nm-success.cmd'
 $fakeNmMissing = Join-Path $wrapperTestRoot 'fake-nm-missing.cmd'
 
@@ -1382,6 +1395,16 @@ $fakeTimeoutText = @'
 powershell.exe -NoProfile -Command "Start-Sleep -Seconds 30"
 exit /b %errorlevel%
 '@
+$fakeNonzeroText = @'
+@echo off
+powershell.exe -NoProfile -Command "$p=$env:TASK5_WRAPPER_TEMP_ELF; [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($p)); [IO.File]::WriteAllBytes($p,[byte[]](1..32))"
+exit /b 7
+'@
+$fakeDetachedText = @'
+@echo off
+start "" /b powershell.exe -NoProfile -Command "[IO.File]::WriteAllText($env:TASK5_FAKE_CHILD_PID_PATH,[string]$PID); Start-Sleep -Seconds 30"
+exit /b 0
+'@
 $fakeNmSuccessText = @'
 @echo off
 echo 0000000000000100 T wifi_rf_test_run
@@ -1401,7 +1424,8 @@ exit /b 0
 $testEnvironmentNames = @(
     'TASK5_WRAPPER_TEST_MODE', 'TASK5_XSCT_PATH', 'TASK5_NM_PATH',
     'TASK5_TIMEOUT_SECONDS', 'TASK5_TEMP_ROOT', 'TASK5_OUTPUT_ELF',
-    'TASK5_AUDIT_PATH', 'TASK5_CLEANUP_FAILURES', 'TASK5_TCL_ENCODE_ONLY'
+    'TASK5_AUDIT_PATH', 'TASK5_CLEANUP_FAILURES', 'TASK5_TCL_ENCODE_ONLY',
+    'TASK5_FAKE_CHILD_PID_PATH'
 )
 
 function Invoke-FakeWrapperCase {
@@ -1421,6 +1445,7 @@ function Invoke-FakeWrapperCase {
     }
     $outputElf = Join-Path $wrapperTestRoot "$Name-output\ad9364app.elf"
     $audit = Join-Path $wrapperTestRoot "$Name-audit.log"
+    $childPidPath = Join-Path $wrapperTestRoot "$Name-child.pid"
     try {
         $env:TASK5_WRAPPER_TEST_MODE = '1'
         $env:TASK5_XSCT_PATH = $XsctPath
@@ -1430,6 +1455,7 @@ function Invoke-FakeWrapperCase {
         $env:TASK5_OUTPUT_ELF = $outputElf
         $env:TASK5_AUDIT_PATH = $audit
         $env:TASK5_CLEANUP_FAILURES = $CleanupFailures
+        $env:TASK5_FAKE_CHILD_PID_PATH = $childPidPath
         Remove-Item Env:TASK5_TCL_ENCODE_ONLY -ErrorAction SilentlyContinue
         $savedErrorPreference = $ErrorActionPreference
         $ErrorActionPreference = 'Continue'
@@ -1446,6 +1472,7 @@ function Invoke-FakeWrapperCase {
             ExitCode = $caseExitCode
             Output = $caseOutput
             OutputElf = $outputElf
+            ChildPidPath = $childPidPath
             Audit = if (Test-Path -LiteralPath $audit) {
                 @(Get-Content -LiteralPath $audit)
             }
@@ -1488,6 +1515,8 @@ try {
     Set-Content -LiteralPath $fakeStale -Value $fakeStaleText -Encoding Ascii
     Set-Content -LiteralPath $fakeDebug -Value $fakeDebugText -Encoding Ascii
     Set-Content -LiteralPath $fakeTimeout -Value $fakeTimeoutText -Encoding Ascii
+    Set-Content -LiteralPath $fakeNonzero -Value $fakeNonzeroText -Encoding Ascii
+    Set-Content -LiteralPath $fakeDetached -Value $fakeDetachedText -Encoding Ascii
     Set-Content -LiteralPath $fakeNmSuccess -Value $fakeNmSuccessText -Encoding Ascii
     Set-Content -LiteralPath $fakeNmMissing -Value $fakeNmMissingText -Encoding Ascii
 
@@ -1499,8 +1528,9 @@ try {
         throw 'Fake nm-success wrapper case did not report PASS.'
     }
     Assert-AuditOrder $success.Audit @(
-        'DEADLINE_TICKS:', 'LAUNCHER_TICKS:', 'NM_PASS:',
-        'VERIFY_OWNED_STOPPED', 'UNMAP_VERIFIED', 'DELETE_VERIFIED'
+        'DEADLINE_TICKS:', 'LAUNCHER_TICKS:', 'ROOT_EXIT_CODE:0',
+        'JOB_NATURALLY_EMPTY', 'NM_PASS:', 'VERIFY_JOB_EMPTY',
+        'UNMAP_VERIFIED', 'DELETE_VERIFIED'
     )
     $deadlineLine = @($success.Audit | Where-Object {
         $_.StartsWith('DEADLINE_TICKS:')
@@ -1513,6 +1543,33 @@ try {
     if ($deadlineTicks -le $launcherTicks) {
         throw 'Wrapper deadline was not established before launcher start.'
     }
+
+    $nonzero = Invoke-FakeWrapperCase 'nonzero-root' $fakeNonzero $fakeNmSuccess
+    $nonzeroText = $nonzero.Output -join "`n"
+    if ($nonzero.ExitCode -eq 0 -or (Test-Path -LiteralPath $nonzero.OutputElf) -or
+        -not $nonzeroText.Contains('root process failed with exit code 7')) {
+        throw "Valid-ELF/nonzero-root case must fail before copy: $nonzeroText"
+    }
+    if ($nonzero.Audit -match '^NM_PASS:') {
+        throw 'Nonzero root exit must fail before the nm/copy gate.'
+    }
+
+    $detached = Invoke-FakeWrapperCase 'detached-child' $fakeDetached $fakeNmSuccess 2
+    if ($detached.ExitCode -eq 0 -or
+        ($detached.Output -join "`n") -notmatch 'Job Object to become empty') {
+        throw 'Detached child was not retained by the Job Object until timeout.'
+    }
+    if (-not (Test-Path -LiteralPath $detached.ChildPidPath -PathType Leaf)) {
+        throw 'Detached-child fake did not record its PID.'
+    }
+    $detachedPid = [int](Get-Content -LiteralPath $detached.ChildPidPath -Raw)
+    if (Get-Process -Id $detachedPid -ErrorAction SilentlyContinue) {
+        throw "Detached Job Object child survived cleanup: $detachedPid"
+    }
+    Assert-AuditOrder $detached.Audit @(
+        'ROOT_EXIT_CODE:0', 'CLEANUP_BEGIN:ProcessShutdown',
+        'VERIFY_JOB_EMPTY', 'UNMAP_VERIFIED', 'DELETE_VERIFIED'
+    )
 
     foreach ($rejectCase in @(
         @{ Name = 'stale'; Xsct = $fakeStale; Nm = $fakeNmSuccess; Pattern = 'stale isolated Release ELF' },
@@ -1536,7 +1593,7 @@ try {
         throw 'Timeout cleanup failed or stopped an unrelated user process.'
     }
     Assert-AuditOrder $timeout.Audit @(
-        'CLEANUP_BEGIN:ProcessShutdown', 'VERIFY_OWNED_STOPPED',
+        'CLEANUP_BEGIN:ProcessShutdown', 'VERIFY_JOB_EMPTY',
         'CLEANUP_BEGIN:SubstUnmap', 'UNMAP_VERIFIED',
         'CLEANUP_BEGIN:TempDelete', 'DELETE_VERIFIED'
     )
