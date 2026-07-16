@@ -245,3 +245,22 @@ Done.
 ```
 
 `Launch-Axu4evAd9364Jtag.tcl` bu doğrulanmış sıraya güncellendi: stale FSBL yolu kaldırıldı, `psu_init.tcl` ve iki zorunlu PS–PL prosedürü eklendi, uygulama seçimi Release → Debug fallback olarak korundu. `Test-Axu4evJtagLaunchScript.ps1` önce eski betikte beklenen nedenle başarısız oldu; düzeltme sonrasında yeni sırayı ve FSBL'nin kullanılmadığını doğrulayarak geçti. Bölüm 15'teki FSBL tabanlı sıra tarihsel kayıttır; güncel geçerli sıra bu bölümdedir.
+
+## 17. Golden sürüm ve tek tıklamalı yeniden açılış düzeni
+
+Kullanıcının bilgisayarı/kartı kapatıp açtıktan sonra XSCT komutlarını tek tek girmemesi için doğrulanmış bring-up kalıcı bir pakete dönüştürüldü.
+
+Yapılanlar:
+
+- `Axu4evRelease.psm1` ile manifest okuma, güvenli bağıl yol, dosya boyutu ve SHA-256 doğrulaması eklendi.
+- Mevcut sürüm üzerine yazmayı reddeden terfi aracı ile `CURRENT` değerini yalnızca açıkça değiştiren ayrı seçim aracı eklendi.
+- Kartta başarı vermiş BIT, XSA, PMUFW, `psu_init.tcl` ve Debug uygulama ELF'i `2026-07-16-bringup-v1` değişmez sürümünde sabitlendi.
+- Tcl betiği çalışma alanı yolu üretmek yerine doğrulanmış dört dosya yolunu ortamdan alacak şekilde düzenlendi.
+- DDR yaz/oku eşleşmesi başarısızsa uygulama ELF'inin indirilmesini durduran kapı eklendi.
+- Golden ve Workspace modlarını yöneten ortak PowerShell orkestratörü oluşturuldu.
+- `Start-Axu4evAd9364Golden.cmd` ve `Start-Axu4evAd9364Workspace.cmd` tek tıklama girişleri oluşturuldu.
+- Her gerçek çalıştırma için Git dışında kalan tarihli JTAG log dizini eklendi.
+
+Golden modu yalnızca manifesti tam eşleşen sürümü çalıştırır. Workspace modu yeni Vivado/Vitis adayını önce handoff testinden geçirir. Yeni aday, UART'ta AD9364 Rev 2 ve DMA `Done.` sonucunu vermeden Golden sürüme terfi ettirilmeyecektir. PetaLinux'a geçildiğinde mevcut Golden XSA, bilinen-iyi donanım tabanı olarak korunacaktır.
+
+Bu oturumda release/promotion, Golden ve Workspace kuru çalışma, handoff hash'leri, Tcl sırası/yol bağımsızlığı ve `.cmd` sözleşmeleri geçti. Sonraki kullanıcı adımı gerçek soğuk güç döngüsü sonrası Golden `.cmd` dosyasını çift tıklamak ve PuTTY/XSCT log kanıtını paylaşmaktır; bu fiziksel adım henüz yapılmış sayılmamıştır.

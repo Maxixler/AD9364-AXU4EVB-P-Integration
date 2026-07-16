@@ -321,3 +321,25 @@ Bu doğrulamada kullanılan güncel SHA-256 değerleri:
 - Debug `ad9364app.elf`: `320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC`
 
 Önceki bölümlerdeki FSBL/Release ELF hash'leri tarihsel kayıt olarak değerlendirilmelidir; güncel JTAG smoke-test'i yukarıdaki doğrudan PS/DDR/PS–PL akışı ve Debug ELF ile yapılmıştır.
+
+## 17. 16 Temmuz 2026 — yeniden açılışa dayanıklı Golden/Workspace düzeni
+
+Manuel XSCT komutlarını her bilgisayar veya kart açılışında tekrarlamamak için iki ayrı çalışma yolu oluşturuldu:
+
+- **Golden:** `PROJECT/tools/Start-Axu4evAd9364Golden.cmd`, `CURRENT` ile seçilen değişmez sürümü manifest boyutları ve SHA-256 değerleriyle doğrulayıp çalıştırır.
+- **Workspace:** `PROJECT/tools/Start-Axu4evAd9364Workspace.cmd`, güncel Vivado/Vitis teslim zincirini çapraz doğrular ve yalnızca aday çıktıları çalıştırır.
+
+Seçili Golden sürüm `PROJECT/releases/axu4ev-ad9364/2026-07-16-bringup-v1` dizinidir. BIT, XSA, PMUFW, `psu_init.tcl` ve Debug uygulama ELF'i burada sabitlenmiş; `CURRENT` ayrı seçim dosyasında tutulmuştur. `Promote-Axu4evAd9364Release.ps1` mevcut sürümün üzerine yazmayı reddeder ve `CURRENT` değerini kendiliğinden değiştirmez. Yeni sürüm ancak Workspace kart testi geçtikten sonra `Set-Axu4evAd9364CurrentRelease.ps1` ile açıkça seçilecektir.
+
+Ortak orkestratör `Invoke-Axu4evAd9364Launch.ps1` dört çalıştırma artefaktını seçer, bütünlük kontrollerini tamamlar, XSCT ortamını hazırlar ve tarihli log üretir. Ortak Tcl akışı uygulama indirmesini DDR `0x00100000 = 0xA5A5A5A5` yaz/oku karşılaştırmasının arkasına alır. FSBL bu akışta kullanılmaz.
+
+Operatör sırası:
+
+1. JTAG ve PS_UART'ı bağla; PuTTY'yi `115200-8-N-1` aç.
+2. Önceki oturum instruction-transfer timeout ile bittiyse kartı 10–15 saniye kapalı tutarak güç döngüsü yap.
+3. Normal kullanımda Golden `.cmd` dosyasına çift tıkla.
+4. UART'ta `AD936x Rev 2 successfully initialized`, `DMA_EXAMPLE:` ve `Done.` işaretlerini doğrula.
+5. Yalnızca yeni derleme testi için Workspace `.cmd` dosyasını kullan.
+6. Aday aynı UART/DMA kabulünü geçmeden terfi/seçim yapma.
+
+Otomatik bütünlük, kuru çalışma ve sıralama testleri geçmiştir. Kalan son kabul kapısı, Vitis/XSCT kapalı ve kart tamamen enerjisiz durumdan başlanarak Golden `.cmd` dosyasının hiçbir manuel XSCT komutu olmadan doğrulanmasıdır. PetaLinux aşamasında Golden XSA sabit donanım referansı, yeni Workspace XSA'ları ise aday olarak kullanılacaktır.

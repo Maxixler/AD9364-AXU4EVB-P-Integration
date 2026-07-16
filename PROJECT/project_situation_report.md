@@ -160,3 +160,21 @@ Geçerli kart-smoke-test teslimleri:
 | Debug uygulama ELF | `320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC` |
 
 Kalıcı XSCT betiği stale FSBL'yi artık kullanmaz, Release bulunmadığında Debug ELF'e düşer ve kartta doğrulanan iki PS–PL prosedürünü zorunlu sırada çalıştırır.
+
+## 9. Yeniden başlatılabilir proje paketi — 16 Temmuz 2026
+
+Durum: **Otomatik yazılım doğrulaması tamamlandı; soğuk güç döngüsü kabulü bekleniyor.**
+
+Seçili sürüm `2026-07-16-bringup-v1` olarak `PROJECT/releases/axu4ev-ad9364/CURRENT` dosyasına kaydedildi. Sürümdeki beş teslim manifest boyutu ve SHA-256 değeriyle doğrulanmadan JTAG programlama başlamaz. Golden ve Workspace kuru çalışmaları doğru dört çalıştırma girdisini seçmiş; release bütünlüğü, Vitis handoff bütünlüğü, XSCT yol bağımsızlığı, PMUFW/FPGA/PS–PL/DDR/uygulama sırası ve çift tıklama başlatıcı sözleşmeleri otomatik testlerden geçmiştir.
+
+Günlük kullanım:
+
+1. JTAG ve PS_UART bağlanır; PuTTY `115200-8-N-1` açılır.
+2. Normal açılış için `PROJECT/tools/Start-Axu4evAd9364Golden.cmd` çift tıklanır.
+3. `AD936x Rev 2 successfully initialized`, `DMA_EXAMPLE:` ve `Done.` UART'ta aranır.
+4. Yeni derlemeler yalnızca Workspace başlatıcısıyla aday olarak denenir.
+5. Başarılı aday değişmez yeni sürüme terfi ettirilir; `CURRENT` daha sonra ayrı komutla seçilir.
+
+Çalışma logları `PROJECT/logs/jtag` altında tutulur ve Git tarafından yok sayılır. Mevcut Golden sürüm gelecekteki RF/anten ölçümleri için bilinen-iyi geri dönüş noktasıdır. PetaLinux geçişinde aynı sürümün doğrulanmış XSA'sı ilk donanım referansı olarak korunacaktır.
+
+Henüz tamamlanmayan fiziksel kabul: bilgisayar/Vitis/XSCT kapalı ve kart 10–15 saniye enerjisiz bırakılmış durumdan Golden başlatıcının manuel komut olmadan çalıştırılması; UART ve XSCT logundaki başarı işaretlerinin kaydedilmesi. Bu yapılmadan “soğuk başlangıç tamamen kapandı” kabul edilmeyecektir.
