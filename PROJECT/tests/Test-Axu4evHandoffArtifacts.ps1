@@ -71,7 +71,11 @@ $fsblHashes = @(
 ) | Select-Object -Unique
 Assert-True ($fsblHashes.Count -eq 1) 'Built and exported FSBL files do not match.'
 
-$appElf = Join-Path $appRoot 'Release\ad9364app.elf'
+$appElf = @(
+    (Join-Path $appRoot 'Release\ad9364app.elf'),
+    (Join-Path $appRoot 'Debug\ad9364app.elf')
+) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+Assert-True (-not [string]::IsNullOrWhiteSpace($appElf)) 'Missing AD9364 application ELF under the Release and Debug configurations.'
 $appElfHash = Get-Sha256 $appElf
 Assert-True ((Get-Item -LiteralPath $appElf).Length -gt 0) 'AD9364 application ELF is empty.'
 
@@ -93,4 +97,5 @@ Assert-True ($metadata -notmatch 'C:/Users/DELL/workspace|sdr_wrapper|(?:value|l
 Write-Output "PASS: Handoff artifacts are coherent."
 Write-Output "BIT_SHA256=$($bitHashes[0])"
 Write-Output "XSA_SHA256=$($xsaHashes[0])"
+Write-Output "APP_ELF=$appElf"
 Write-Output "APP_ELF_SHA256=$appElfHash"

@@ -1,6 +1,6 @@
 # Proje Durum Raporu — AXU4EVB-P + AD9364
 
-**Son güncelleme:** 14 Temmuz 2026
+**Son güncelleme:** 16 Temmuz 2026
 
 **Ana hedef:** ALINX AXU4EVB-P üzerinde AD9364/FMCOMMS ailesi ile doğrulanmış FPGA donanım platformu ve bare-metal yazılım zinciri oluşturmak.
 
@@ -142,3 +142,21 @@ Kalıcı betikler `PROJECT/tests` klasöründedir:
 - `Test-Axu4evJtagLaunchScript.ps1`
 
 Son taze doğrulamada kısıt regresyonu ve teslim bütünlüğü testleri geçti; zamanlama değerleri yukarıdaki sonuçlarla eşleşti ve DRC hata sayısı sıfır kaldı. PMUFW, FPGA, FSBL ve uygulama sırasıyla JTAG üzerinden başlatıldı; önceki PMUFW uyarısı tekrar oluşmadı. Kart smoke-test'inde AD936x Rev 2 başarıyla başlatıldı, AXI ADC/DDS çekirdekleri yaklaşık 61,44 MHz değerleriyle hazırlandı ve 65.536 örneklik iki kanallı 16-bit DMA işlemi `Done.` ile tamamlandı. RF/IQ örnek bütünlüğü doğrulaması açık iş olarak korunmaktadır.
+
+## 8. 16 Temmuz 2026 kart tekrar-doğrulaması ve geçerli başlatma yolu
+
+Bu bölüm, yukarıdaki FSBL tabanlı başlatma ve eski artifact hash kayıtlarını güncel çalışma alanı açısından geçersiz kılar. Mevcut FSBL kartta SerDes/PCIe kalibrasyonunda kalmış, DDR handoff tamamlanmadığı için uygulamanın `0x0` adresine indirilmesi önce başarısız olmuştur. FSBL atlanıp yalnızca `psu_init` çalıştırıldığında DDR testi geçmiş; ancak boş olan `psu_post_config` PS–PL sınırını hazırlamadığı için AD9364 ürün kimliği `0x00` okunmuştur.
+
+Doğrulanmış çözüm; PMUFW → FPGA → A53 reset → `psu_init` → `psu_ps_pl_isolation_removal` → `psu_ps_pl_reset_config` → DDR testi → uygulama sırasıdır. DDR'de `0x00100000` adresine yazılan `A5A5A5A5` doğru okunmuş, ardından Debug uygulama ELF'i başarıyla çalışmıştır. UART sonucu AD9364 Rev 2 başlangıcını, yaklaşık 61,44 MHz AXI ADC/DDS saatlerini ve `address=0x60c00` adresindeki 65.536 örnekli DMA işleminin `Done.` ile tamamlandığını göstermiştir.
+
+Geçerli kart-smoke-test teslimleri:
+
+| Teslim | SHA-256 |
+|---|---|
+| Bitstream | `AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4` |
+| XSA | `AE0F23D2D87A403528870858F78F73D76DD2C2B4B224B0E0A78D2FCE1EB0B118` |
+| PMUFW ELF | `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB` |
+| `psu_init.tcl` | `CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B` |
+| Debug uygulama ELF | `320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC` |
+
+Kalıcı XSCT betiği stale FSBL'yi artık kullanmaz, Release bulunmadığında Debug ELF'e düşer ve kartta doğrulanan iki PS–PL prosedürünü zorunlu sırada çalıştırır.

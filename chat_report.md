@@ -216,3 +216,32 @@ Vitis'in tek uygulamalı GDB yapılandırması A53 uygulaması ile PMUFW'yi ayn�
 İkinci UART kaydında `PMU-FW is not running` uyarısı bulunmadı. AD9364 tekrar `AD936x Rev 2 successfully initialized` sonucuna ulaştı; AXI çekirdekleri yaklaşık 61,44 MHz ile başladı ve 65.536 örnekli, iki kanallı, 16-bit DMA işlemi yine `Done.` ile tamamlandı.
 
 Manuel olarak doğrulanan sıra `PROJECT/tests/Launch-Axu4evAd9364Jtag.tcl` betiğine aktarıldı. Betik kullanıcıya özel mutlak yol içermez ve PMUFW → FPGA → FSBL → uygulama sırası `PROJECT/tests/Test-Axu4evJtagLaunchScript.ps1` ile kontrol edilir.
+
+## 16. 16 Temmuz 2026 — tekrar başlatma arızası ve kalıcı düzeltme
+
+Yeni oturumda Vitis platformu düzeltildikten sonra GUI Run işlemi `Memory write error at 0x0 / Instruction transfer timeout` ile başarısız oldu. İncelemede Release uygulama ELF'inin mevcut olmadığı, güncel çıktının `Debug/ad9364app.elf` olduğu ve çalışma alanındaki mevcut FSBL'nin SerDes/PCIe kalibrasyonunda kaldığı görüldü. DDR kurulmadığından uygulama yüklemesi başarısız oldu.
+
+FSBL yerine XSA'daki `psu_init.tcl` doğrudan çalıştırıldı. DDR yaz/oku testi geçti; fakat ilk denemede yalnızca boş olan `psu_post_config` çağrıldığı için PS–PL izolasyonu ve fabric reset sırası uygulanmadı. Bunun sonucu AD9364 SPI ürün kimliği `0x00`, sürücü sonucu `Unsupported PRODUCT_ID` ve devamında `-22` okuma/yazma hataları oldu.
+
+Gerçek güç döngüsünden sonra şu sıra kartta tek tek doğrulandı:
+
+1. JTAG güvenlik kapıları açıldı.
+2. PMUFW yüklendi ve çalıştırıldı.
+3. Doğrulanmış bitstream programlandı.
+4. A53-0 resetlendi; `force-mem-accesses 1` etkinleştirildi.
+5. `psu_init` ile PS/DDR hazırlandı.
+6. `psu_ps_pl_isolation_removal` ve `psu_ps_pl_reset_config` çalıştırıldı.
+7. DDR `A5A5A5A5` yaz/oku testi geçti.
+8. Debug `ad9364app.elf` yüklendi ve çalıştırıldı.
+
+PuTTY kapanış kanıtı:
+
+```text
+cf-ad9361-lpc: Successfully initialized (61439514 Hz)
+ad9361_init : AD936x Rev 2 successfully initialized
+cf-ad9361-dds-core-lpc: Successfully initialized (61441040 Hz)
+DMA_EXAMPLE: address=0x60c00 samples=65536 channels=2 bits=16
+Done.
+```
+
+`Launch-Axu4evAd9364Jtag.tcl` bu doğrulanmış sıraya güncellendi: stale FSBL yolu kaldırıldı, `psu_init.tcl` ve iki zorunlu PS–PL prosedürü eklendi, uygulama seçimi Release → Debug fallback olarak korundu. `Test-Axu4evJtagLaunchScript.ps1` önce eski betikte beklenen nedenle başarısız oldu; düzeltme sonrasında yeni sırayı ve FSBL'nin kullanılmadığını doğrulayarak geçti. Bölüm 15'teki FSBL tabanlı sıra tarihsel kayıttır; güncel geçerli sıra bu bölümdedir.

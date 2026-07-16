@@ -286,3 +286,38 @@ Son otomatik doğrulama sonuçları:
 - Bu aşamada PS DDR, MIO, block design adresleri, Linux kaynakları ve AD9364 uygulama C kaynakları değiştirilmedi.
 - İlk kart smoke-test'i SPI/AD9364 başlatmasını ve DMA tamamlanmasını kanıtlamıştır; yakalanan I/Q örneklerinin doğruluğu ve RF performansı henüz kanıtlanmış sayılmayacaktır.
 - Sonraki donanım adımlarında her programlama/boot işlemi kullanılan bitstream, XSA ve ELF hash'leri kaydedilerek yapılacaktır.
+
+## 16. 16 Temmuz 2026 — doğrulanmış JTAG başlatma düzeltmesi
+
+Önceki FSBL tabanlı JTAG kaydı güncel çalışma alanı için geçerli değildir. Çalışma alanındaki mevcut FSBL (`B65950BA...`) A53 üzerinde SerDes/PCIe kalibrasyonunda kaldığı için DDR handoff'unu tamamlamamaktadır. Ayrıca yalnızca `psu_init` ve `psu_post_config` çağrılarından oluşan doğrudan akış yetersizdir; bu XSA'nın `psu_post_config` prosedürü boştur. PS–PL izolasyonu kaldırılmadan ve fabric reset sırası çalıştırılmadan uygulama AD9364 ürün kimliğini `0x00` okumuş ve `-22` SPI hataları üretmiştir.
+
+Kart üzerinde doğrulanan kalıcı sıra şöyledir:
+
+1. PSU JTAG güvenlik kapılarını `0xffca0038 = 0x1ff` ile aç.
+2. PMUFW'yi `MicroBlaze PMU` hedefine indir ve çalıştır.
+3. Doğrulanmış bitstream'i programla.
+4. Cortex-A53 #0'ı temiz register resetine al.
+5. `psu_init.tcl` dosyasını yükle ve `force-mem-accesses 1` ile `psu_init` çalıştır.
+6. Sırayla `psu_ps_pl_isolation_removal` ve `psu_ps_pl_reset_config` çalıştır.
+7. DDR yaz/oku testi yap.
+8. Mevcut uygulama ELF'ini A53-0'a indir, zorlanmış bellek erişimini kapat ve çalıştır.
+
+Bu sıra `PROJECT/tests/Launch-Axu4evAd9364Jtag.tcl` içine aktarıldı; betik Release ELF varsa onu, yoksa Debug ELF'i seçer ve stale FSBL'yi çalıştırmaz. Statik sıra testi `PROJECT/tests/Test-Axu4evJtagLaunchScript.ps1` ile korunur.
+
+16 Temmuz 2026 kart kanıtı:
+
+- `cf-ad9361-lpc: Successfully initialized (61439514 Hz)`
+- `ad9361_init : AD936x Rev 2 successfully initialized`
+- `cf-ad9361-dds-core-lpc: Successfully initialized (61441040 Hz)`
+- `DMA_EXAMPLE: address=0x60c00 samples=65536 channels=2 bits=16`
+- `Done.`
+
+Bu doğrulamada kullanılan güncel SHA-256 değerleri:
+
+- Bitstream: `AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4`
+- XSA: `AE0F23D2D87A403528870858F78F73D76DD2C2B4B224B0E0A78D2FCE1EB0B118`
+- PMUFW: `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB`
+- `psu_init.tcl`: `CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B`
+- Debug `ad9364app.elf`: `320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC`
+
+Önceki bölümlerdeki FSBL/Release ELF hash'leri tarihsel kayıt olarak değerlendirilmelidir; güncel JTAG smoke-test'i yukarıdaki doğrudan PS/DDR/PS–PL akışı ve Debug ELF ile yapılmıştır.

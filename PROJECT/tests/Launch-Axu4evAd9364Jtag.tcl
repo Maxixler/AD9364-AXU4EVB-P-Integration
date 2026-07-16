@@ -1,17 +1,29 @@
-set script_dir [file dirname [file normalize [info script]]]
-set project_root [file dirname [file dirname $script_dir]]
+if {![info exists ::env(FPGA_PROFEN_ROOT)]} {
+  error "FPGA_PROFEN_ROOT environment variable is required."
+}
 
-set workspace [file join $project_root "Vitis" "workspace"]
+set workspace_root [string map {\\ /} $::env(FPGA_PROFEN_ROOT)]
+set workspace [file join $workspace_root "Vitis" "workspace"]
 set pmufw_elf [file join $workspace "fmcomms2_axu4ev_hw" "zynqmp_pmufw" "executable.elf"]
 set bitstream [file join $workspace "ad9364app" "_ide" "bitstream" "system_top.bit"]
-set fsbl_elf [file join $workspace "fmcomms2_axu4ev_hw" "zynqmp_fsbl" "executable.elf"]
-set app_elf [file join $workspace "ad9364app" "Release" "ad9364app.elf"]
+set psuInitTcl [file join $workspace "fmcomms2_axu4ev_hw" "hw" "psu_init.tcl"]
+set app_elf ""
+foreach configuration {Release Debug} {
+  set candidate [file join $workspace "ad9364app" $configuration "ad9364app.elf"]
+  if {[file isfile $candidate]} {
+    set app_elf $candidate
+    break
+  }
+}
+
+if {$app_elf eq ""} {
+  error "Missing AD9364 application ELF under the Release and Debug configurations."
+}
 
 foreach {label artifact} [list \
   "PMUFW ELF" $pmufw_elf \
   "bitstream" $bitstream \
-  "FSBL ELF" $fsbl_elf \
-  "AD9364 application ELF" $app_elf] {
+  "PS initialization Tcl" $psuInitTcl] {
   if {![file isfile $artifact]} {
     error "Missing $label: $artifact"
   }
@@ -34,16 +46,22 @@ after 500
 puts "Programming the verified FPGA bitstream..."
 fpga -file $bitstream
 
-puts "Resetting Cortex-A53 #0 and running FSBL..."
+puts "Resetting Cortex-A53 #0..."
 targets -set -filter {name =~ "Cortex-A53 #0"}
 rst -processor -clear-registers
-dow $fsbl_elf
-con
-after 5000
-stop
+
+puts "Initializing PS, DDR and the PS-PL boundary directly..."
+targets -set -filter {name =~ "PSU"}
+configparams force-mem-accesses 1
+source $psuInitTcl
+psu_init
+psu_ps_pl_isolation_removal
+psu_ps_pl_reset_config
 
 puts "Loading and starting the AD9364 application..."
+targets -set -filter {name =~ "Cortex-A53 #0"}
 dow $app_elf
+configparams force-mem-accesses 0
 con
 
-puts "PASS: PMUFW, FPGA, FSBL and ad9364app were launched over JTAG."
+puts "PASS: PMUFW, FPGA, direct PS/DDR/PS-PL initialization and ad9364app were launched over JTAG."
