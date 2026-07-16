@@ -75,7 +75,7 @@ Sorumluluklar:
 
 Özellik `WIFI_RF_TEST` derleme bayrağıyla etkinleşir. Bayrak kapalıyken mevcut uygulama davranışı korunur. Golden release içindeki doğrulanmış ELF'in üzerine yazılmaz.
 
-Başlatma aracına üçüncü bir `Candidate` modu eklenir. Bu mod Golden manifestten doğrulanmış `system_top.bit`, PMUFW ve `psu_init.tcl` dosyalarını; workspace'ten ise açıkça `Vitis/workspace/ad9364app/Debug/ad9364app.elf` dosyasını alır. Release/Debug arasında sessiz fallback yapılmaz; beklenen Debug ELF yoksa başlatma karta erişmeden hata verir. Böylece ilk RF testi için Vivado artifact'leri değişmez, fakat uygulama hızlıca build edilip denenebilir. Mevcut `Golden` ve `Workspace` modlarının anlamı değişmez.
+Başlatma aracına üçüncü bir `Candidate` modu eklenir. Bu mod Golden manifestten doğrulanmış `system_top.bit`, PMUFW ve `psu_init.tcl` dosyalarını; workspace'ten ise açıkça `Vitis/workspace/ad9364app/Release/ad9364app.elf` dosyasını alır. Release/Debug arasında sessiz fallback yapılmaz; doğrulanmış otomatik build zincirinin ürettiği Release ELF yoksa başlatma karta erişmeden hata verir. Böylece ilk RF testi için Vivado artifact'leri değişmez, fakat uygulama hızlıca build edilip denenebilir. Mevcut `Golden` ve `Workspace` modlarının anlamı değişmez.
 
 ## 6. Sabit RF ve yakalama ayarları
 
