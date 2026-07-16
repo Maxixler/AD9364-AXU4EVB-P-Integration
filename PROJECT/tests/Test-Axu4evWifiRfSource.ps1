@@ -1247,4 +1247,47 @@ finally {
     }
 }
 
+$config = Get-Content -LiteralPath (Join-Path $sourceRoot 'app_config.h') -Raw
+$main = Get-Content -LiteralPath (Join-Path $sourceRoot 'main.c') -Raw
+$cproject = Get-Content -LiteralPath (Join-Path $root 'Vitis\workspace\ad9364app\.cproject') -Raw
+
+foreach ($fragment in @(
+    '#define WIFI_RF_TEST',
+    '#if defined(WIFI_RF_TEST) && defined(DMA_EXAMPLE)',
+    '#error "WIFI_RF_TEST and DMA_EXAMPLE cannot be enabled together"'
+)) {
+    if (-not $config.Contains($fragment)) { throw "Missing app config invariant: $fragment" }
+}
+foreach ($fragment in @(
+    '#include "wifi_rf_test.h"',
+    'status = ad9361_init(&ad9361_phy, &default_init_param);',
+    '#ifndef WIFI_RF_TEST',
+    'status = wifi_rf_test_run(ad9361_phy, rx_dmac,',
+    'goto cleanup;',
+    'cleanup:'
+)) {
+    if (-not $main.Contains($fragment)) { throw "Missing main integration fragment: $fragment" }
+}
+if (($cproject | Select-String -Pattern '<listOptionValue builtIn="false" value="m"/>' -AllMatches).Matches.Count -lt 2) {
+    throw 'Both Debug and Release configurations must link libm.'
+}
+
+$buildWrapper = Get-Content -LiteralPath (Join-Path $root 'PROJECT\tests\Build-Axu4evAd9364App.ps1') -Raw
+foreach ($fragment in @(
+    '$metadataOriginal = @{}',
+    '$metadataOriginal[$path] = $text',
+    "'(?i)[A-Z]:/.*?(?=/(?:Vitis/workspace|Related-Docs)/)'",
+    '[IO.File]::WriteAllText($path, $metadataOriginal[$path], $utf8)',
+    '$buildRoot = [IO.Path]::GetFullPath(',
+    '"t5-$PID-$([guid]::NewGuid().ToString(''N''))"',
+    'platform create -xpfm',
+    'platform generate',
+    'app create -name ad9364app -platform fmcomms2_axu4ev_hw',
+    'importsources -name ad9364app',
+    'source P:/PROJECT/tests/Build-Axu4evAd9364App.tcl',
+    'Copy-Item -LiteralPath $temporaryElf -Destination $elf -Force'
+)) {
+    if (-not $buildWrapper.Contains($fragment)) { throw "Missing build wrapper invariant: $fragment" }
+}
+
 Write-Output 'PASS: Wi-Fi RF capture and UART state-machine source/host behavior passed.'

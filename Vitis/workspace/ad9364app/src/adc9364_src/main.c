@@ -61,6 +61,7 @@
 #include "axi_dac_core.h"
 #include "axi_dmac.h"
 #include "no_os_error.h"
+#include "wifi_rf_test.h"
 
 #ifdef IIO_SUPPORT
 
@@ -559,7 +560,7 @@ static int ad9361_iio_axi_adc_get_sampling_freq(struct axi_adc *dev,
 *******************************************************************************/
 int main(void)
 {
-	int32_t status;
+	int32_t status = 0;
 #ifdef XILINX_PLATFORM
 	Xil_ICacheEnable();
 	Xil_DCacheEnable();
@@ -621,7 +622,11 @@ int main(void)
 	default_init_param.digital_interface_tune_fir_disable = 1;
 #endif
 
-	ad9361_init(&ad9361_phy, &default_init_param);
+	status = ad9361_init(&ad9361_phy, &default_init_param);
+	if (status < 0) {
+		printf("PLATFORM: FAIL stage=AD9364_INIT error=%"PRIi32"\n", status);
+		goto cleanup;
+	}
 
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);
 	ad9361_set_rx_fir_config(ad9361_phy, rx_fir_config);
@@ -650,16 +655,27 @@ int main(void)
 	ad9361_set_tx_fir_config(ad9361_phy_b, tx_fir_config);
 	ad9361_set_rx_fir_config(ad9361_phy_b, rx_fir_config);
 #endif
+#ifndef WIFI_RF_TEST
 	status = axi_dmac_init(&tx_dmac, &tx_dmac_init);
 	if (status < 0) {
 		printf("axi_dmac_init tx init error: %"PRIi32"\n", status);
-		return status;
+		goto cleanup;
 	}
+#endif
 	status = axi_dmac_init(&rx_dmac, &rx_dmac_init);
 	if (status < 0) {
 		printf("axi_dmac_init rx init error: %"PRIi32"\n", status);
-		return status;
+		goto cleanup;
 	}
+
+#ifdef WIFI_RF_TEST
+	status = wifi_rf_test_run(ad9361_phy, rx_dmac,
+				  (int16_t *)adc_buffer,
+				  NO_OS_ARRAY_SIZE(adc_buffer) / 2U);
+	goto cleanup;
+#endif
+
+#ifndef WIFI_RF_TEST
 #ifndef AXI_ADC_NOT_PRESENT
 #if defined XILINX_PLATFORM || defined LINUX_PLATFORM || defined ALTERA_PLATFORM
 #ifdef DMA_EXAMPLE
@@ -689,6 +705,7 @@ int main(void)
 #endif
 	axi_dac_init(&ad9361_phy->tx_dac, &tx_dac_init);
 	axi_dac_set_datasel(ad9361_phy->tx_dac, -1, AXI_DAC_DATA_SEL_DDS);
+#endif
 #endif
 #endif
 #endif
@@ -1215,9 +1232,12 @@ int main(void)
 	}
 #endif
 
-	ad9361_remove(ad9361_phy);
+cleanup:
+	if (ad9361_phy)
+		ad9361_remove(ad9361_phy);
 #ifdef FMCOMMS5
-	ad9361_remove(ad9361_phy_b);
+	if (ad9361_phy_b)
+		ad9361_remove(ad9361_phy_b);
 #endif
 
 #ifdef XILINX_PLATFORM
@@ -1231,6 +1251,5 @@ int main(void)
 		return -1;
 	}
 #endif
-
-	return 0;
+	return status;
 }
