@@ -5,6 +5,15 @@ $orchestrator = Join-Path $workspaceRoot 'PROJECT\tools\Invoke-Axu4evAd9364Launc
 if (-not (Test-Path -LiteralPath $orchestrator -PathType Leaf)) {
     throw "Missing launch orchestrator: $orchestrator"
 }
+$orchestratorContent = Get-Content -LiteralPath $orchestrator -Raw
+foreach ($fragment in @(
+    'Set-Content -LiteralPath $logPath -Encoding Unicode',
+    'Add-Content -LiteralPath $logPath -Encoding Unicode'
+)) {
+    if (-not $orchestratorContent.Contains($fragment)) {
+        throw "Launch orchestrator does not keep the XSCT log in one Windows PowerShell encoding: $fragment"
+    }
+}
 
 function Invoke-DryRun {
     param([Parameter(Mandatory)][ValidateSet('Golden', 'Workspace')][string]$Mode)

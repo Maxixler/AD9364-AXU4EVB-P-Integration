@@ -110,8 +110,8 @@ foreach ($name in $environment.Keys) {
 }
 
 try {
-    "Mode=$Mode" | Set-Content -LiteralPath $logPath -Encoding UTF8
-    $artifacts | Format-Table -AutoSize | Out-String | Add-Content -LiteralPath $logPath -Encoding UTF8
+    "Mode=$Mode" | Set-Content -LiteralPath $logPath -Encoding Unicode
+    $artifacts | Format-Table -AutoSize | Out-String | Add-Content -LiteralPath $logPath -Encoding Unicode
     & $xsct $launchTcl 2>&1 | Tee-Object -FilePath $logPath -Append
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
