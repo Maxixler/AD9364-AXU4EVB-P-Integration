@@ -52,4 +52,54 @@ finally {
     Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-Write-Output 'PASS: AXU4EV release resolution and integrity checks reject corruption.'
+$promote = Join-Path $PSScriptRoot '..\tools\Promote-Axu4evAd9364Release.ps1'
+$select = Join-Path $PSScriptRoot '..\tools\Set-Axu4evAd9364CurrentRelease.ps1'
+if (-not (Test-Path -LiteralPath $promote)) {
+    throw "Missing promotion tool: $promote"
+}
+if (-not (Test-Path -LiteralPath $select)) {
+    throw "Missing current-release tool: $select"
+}
+
+$promotionRoot = Join-Path ([IO.Path]::GetTempPath()) ("axu4ev-promotion-" + [guid]::NewGuid())
+try {
+    $fakeFiles = @(
+        'Vitis\workspace\ad9364app\_ide\bitstream\system_top.bit',
+        'Related-Docs\hdl-main\projects\fmcomms2\axu4ev\fmcomms2_axu4ev.sdk\system_top.xsa',
+        'Vitis\workspace\fmcomms2_axu4ev_hw\hw\psu_init.tcl',
+        'Vitis\workspace\fmcomms2_axu4ev_hw\zynqmp_pmufw\executable.elf',
+        'Vitis\workspace\ad9364app\Debug\ad9364app.elf'
+    )
+    foreach ($relative in $fakeFiles) {
+        $path = Join-Path $promotionRoot $relative
+        New-Item -ItemType Directory -Path (Split-Path $path) -Force | Out-Null
+        Set-Content -LiteralPath $path -Value $relative -NoNewline
+    }
+
+    & $promote -ReleaseId r2 -WorkspaceRoot $promotionRoot -BoardVerified
+    $currentPath = Join-Path $promotionRoot 'PROJECT\releases\axu4ev-ad9364\CURRENT'
+    if (Test-Path -LiteralPath $currentPath) {
+        throw 'Promotion changed CURRENT.'
+    }
+
+    try {
+        & $promote -ReleaseId r2 -WorkspaceRoot $promotionRoot
+        throw 'Duplicate release was accepted.'
+    }
+    catch {
+        if ($_.Exception.Message -notmatch 'Release already exists') {
+            throw
+        }
+    }
+
+    & $select -ReleaseId r2 -WorkspaceRoot $promotionRoot
+    $current = (Get-Content -LiteralPath $currentPath -Raw).Trim()
+    if ($current -ne 'r2') {
+        throw 'Explicit selection did not update CURRENT.'
+    }
+}
+finally {
+    Remove-Item -LiteralPath $promotionRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+Write-Output 'PASS: AXU4EV release integrity, immutable promotion, and explicit selection checks passed.'
