@@ -688,4 +688,439 @@ if (([regex]::Matches($content, 'axi_dmac_transfer_start\s*\(')).Count -ne 1 -or
     throw 'Capture source has an unexpected DMA start site or incomplete mode validation.'
 }
 
-Write-Output 'PASS: Wi-Fi RF capture source and host behavior enforce RX-only finite-DMA safety.'
+$testSource = Join-Path $sourceRoot 'wifi_rf_test.c'
+$testHeader = Join-Path $sourceRoot 'wifi_rf_test.h'
+foreach ($path in @($testSource, $testHeader)) {
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw "Missing Wi-Fi RF test state machine: $path"
+    }
+}
+$testContent = Get-Content -LiteralPath $testSource -Raw
+foreach ($fragment in @(
+    'Hotspot kapali',
+    'Hotspot 2.4 GHz',
+    'BASELINE_SCAN: START',
+    'ACTIVE_SCAN: START',
+    'SELECTED:',
+    'MONITOR:',
+    'PLATFORM: PASS',
+    'RF_ACTIVITY: PASS',
+    'RF_ACTIVITY: INCONCLUSIVE',
+    'WIFI_RF_TEST: PASS',
+    'WIFI_RF_TEST: INCONCLUSIVE',
+    'XUartPs_IsReceiveData(STDIN_BASEADDRESS)',
+    'WIFI_RF_MONITOR_WINDOWS'
+)) {
+    if (-not $testContent.Contains($fragment)) {
+        throw "UART state machine is missing required fragment: $fragment"
+    }
+}
+
+$stateTempRoot = [IO.Path]::GetFullPath((Join-Path $tempBase "wifi-rf-state-$([guid]::NewGuid())"))
+if (-not $stateTempRoot.StartsWith($tempBase, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Unsafe state-machine-test temporary path: $stateTempRoot"
+}
+$stateStubCapture = Join-Path $stateTempRoot 'wifi_rf_capture.h'
+$stateStubMetrics = Join-Path $stateTempRoot 'wifi_rf_metrics.h'
+$stateStubAd9361 = Join-Path $stateTempRoot 'ad9361_api.h'
+$stateStubDmac = Join-Path $stateTempRoot 'axi_dmac.h'
+$stateStubDelay = Join-Path $stateTempRoot 'no_os_delay.h'
+$stateStubPrintf = Join-Path $stateTempRoot 'xil_printf.h'
+$stateStubParameters = Join-Path $stateTempRoot 'xparameters.h'
+$stateStubUart = Join-Path $stateTempRoot 'xuartps_hw.h'
+$stateHarness = Join-Path $stateTempRoot 'wifi_rf_test_host.c'
+$stateOutput = Join-Path $stateTempRoot 'wifi_rf_test_host.exe'
+
+$stateCaptureHeader = @'
+#ifndef WIFI_RF_CAPTURE_H
+#define WIFI_RF_CAPTURE_H
+#include <stddef.h>
+#include <stdint.h>
+#include "wifi_rf_metrics.h"
+struct ad9361_rf_phy { uint32_t marker; };
+struct axi_dmac { uint32_t marker; };
+#define WIFI_RF_FIRST_CHANNEL 1U
+#define WIFI_RF_CHANNEL_COUNT 13U
+#define WIFI_RF_SCAN_DWELL_MS 250U
+#define WIFI_RF_MONITOR_DWELL_MS 500U
+enum wifi_rf_capture_mode {
+	WIFI_RF_CAPTURE_BASELINE = 0,
+	WIFI_RF_CAPTURE_ACTIVE = 1
+};
+struct wifi_rf_capture_ctx {
+	struct ad9361_rf_phy *phy;
+	struct axi_dmac *rx_dmac;
+	int16_t *iq_buffer;
+	size_t complex_samples;
+	const char *last_error;
+};
+int32_t wifi_rf_capture_init(struct wifi_rf_capture_ctx *,
+	struct ad9361_rf_phy *, struct axi_dmac *, int16_t *, size_t);
+int32_t wifi_rf_prepare_rx_only(struct wifi_rf_capture_ctx *);
+uint64_t wifi_rf_channel_frequency_hz(uint8_t);
+int32_t wifi_rf_capture_channel(struct wifi_rf_capture_ctx *, uint8_t,
+	enum wifi_rf_capture_mode, uint32_t,
+	const struct wifi_rf_channel_metrics *, struct wifi_rf_channel_metrics *);
+#endif
+'@
+
+$stateMetricsHeader = @'
+#ifndef WIFI_RF_METRICS_H
+#define WIFI_RF_METRICS_H
+#include <limits.h>
+#include <stdint.h>
+#define WIFI_RF_ZERO_CDBFS INT32_MIN
+#define WIFI_RF_RSSI_INVALID_CDB INT32_MIN
+struct wifi_rf_channel_metrics {
+	int32_t rssi_cdb;
+	int32_t power_cdbfs16;
+	int32_t peak_cdbfs16;
+	int32_t gain_db;
+	uint64_t baseline_median_power;
+	uint32_t clip_count;
+	uint32_t complex_samples;
+	uint32_t dma_blocks;
+	uint8_t burst_percent;
+};
+struct wifi_rf_metric_delta {
+	int32_t rssi_cdb;
+	int32_t power_cdb;
+	int32_t burst_pp;
+};
+enum wifi_rf_activity_verdict {
+	WIFI_RF_ACTIVITY_INCONCLUSIVE = 0,
+	WIFI_RF_ACTIVITY_PASS = 1
+};
+struct wifi_rf_metric_delta wifi_rf_delta(
+	const struct wifi_rf_channel_metrics *,
+	const struct wifi_rf_channel_metrics *);
+enum wifi_rf_activity_verdict wifi_rf_classify(
+	const struct wifi_rf_metric_delta *, uint32_t, uint32_t, uint32_t);
+#endif
+'@
+
+$stateAd9361Header = @'
+#ifndef AD9361_API_H
+#define AD9361_API_H
+#include <stdint.h>
+struct ad9361_rf_phy { uint32_t marker; };
+#endif
+'@
+
+$stateDmacHeader = @'
+#ifndef AXI_DMAC_H
+#define AXI_DMAC_H
+#include <stdint.h>
+struct axi_dmac { uint32_t marker; };
+#endif
+'@
+
+$stateDelayHeader = @'
+#ifndef NO_OS_DELAY_H
+#define NO_OS_DELAY_H
+#include <stdint.h>
+void no_os_mdelay(uint32_t);
+#endif
+'@
+
+$statePrintfHeader = @'
+#ifndef XIL_PRINTF_H
+#define XIL_PRINTF_H
+int inbyte(void);
+#endif
+'@
+
+$stateParametersHeader = @'
+#ifndef XPARAMETERS_H
+#define XPARAMETERS_H
+#define STDIN_BASEADDRESS 0U
+#endif
+'@
+
+$stateUartHeader = @'
+#ifndef XUARTPS_HW_H
+#define XUARTPS_HW_H
+#include <stdint.h>
+int XUartPs_IsReceiveData(uintptr_t);
+#endif
+'@
+
+$stateHarnessContent = @'
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "wifi_rf_capture.h"
+#include "wifi_rf_test.h"
+
+enum scenario_id {
+	SC_PASS,
+	SC_LARGE_COUNTS,
+	SC_INCONCLUSIVE,
+	SC_CLIPPING,
+	SC_INIT_FAIL,
+	SC_RX_FAIL,
+	SC_CAPTURE_FAIL
+};
+
+static enum scenario_id scenario;
+static unsigned init_calls;
+static unsigned prepare_calls;
+static unsigned capture_calls;
+static unsigned classify_calls;
+static unsigned protocol_errors;
+static unsigned enter_delays;
+
+static void reset_scenario(enum scenario_id next)
+{
+	scenario = next;
+	init_calls = 0;
+	prepare_calls = 0;
+	capture_calls = 0;
+	classify_calls = 0;
+	protocol_errors = 0;
+	enter_delays = 0;
+}
+
+static int fail_check(const char *test, const char *detail,
+	long actual, long expected)
+{
+	fprintf(stderr, "FAIL: %s: %s (actual=%ld expected=%ld)\n",
+		test, detail, actual, expected);
+	return 1;
+}
+
+#define CHECK_EQ(test, detail, actual, expected) do { \
+	long check_actual = (long)(actual); \
+	long check_expected = (long)(expected); \
+	if (check_actual != check_expected) \
+		return fail_check((test), (detail), check_actual, check_expected); \
+} while (0)
+
+int inbyte(void)
+{
+	return '\n';
+}
+
+int XUartPs_IsReceiveData(uintptr_t address)
+{
+	if (address != 0U) protocol_errors++;
+	return 0;
+}
+
+void no_os_mdelay(uint32_t msecs)
+{
+	if (msecs != 20U) protocol_errors++;
+	enter_delays++;
+}
+
+int32_t wifi_rf_capture_init(struct wifi_rf_capture_ctx *ctx,
+	struct ad9361_rf_phy *phy, struct axi_dmac *dmac,
+	int16_t *iq_buffer, size_t complex_samples)
+{
+	init_calls++;
+	if (!ctx || !phy || !dmac || !iq_buffer || complex_samples != 16U)
+		protocol_errors++;
+	if (scenario == SC_INIT_FAIL)
+		return -11;
+	ctx->phy = phy;
+	ctx->rx_dmac = dmac;
+	ctx->iq_buffer = iq_buffer;
+	ctx->complex_samples = complex_samples;
+	ctx->last_error = "NONE";
+	return 0;
+}
+
+int32_t wifi_rf_prepare_rx_only(struct wifi_rf_capture_ctx *ctx)
+{
+	prepare_calls++;
+	if (!ctx || !ctx->phy || !ctx->rx_dmac) protocol_errors++;
+	if (scenario == SC_RX_FAIL) return -12;
+	return 0;
+}
+
+uint64_t wifi_rf_channel_frequency_hz(uint8_t channel)
+{
+	if (channel < 1U || channel > 13U) {
+		protocol_errors++;
+		return 0;
+	}
+	return 2412000000ULL + (uint64_t)(channel - 1U) * 5000000ULL;
+}
+
+static void fill_metrics(struct wifi_rf_channel_metrics *out,
+	uint8_t channel, int active, int monitor)
+{
+	memset(out, 0, sizeof(*out));
+	out->gain_db = 23;
+	out->rssi_cdb = -6000;
+	out->power_cdbfs16 = -3000;
+	out->peak_cdbfs16 = WIFI_RF_ZERO_CDBFS;
+	out->dma_blocks = 2U;
+	out->complex_samples = 1000U;
+	if (scenario == SC_LARGE_COUNTS)
+		out->complex_samples = UINT32_MAX;
+	if (active && (channel == 6U || channel == 7U)) {
+		out->rssi_cdb = -5500;
+		out->power_cdbfs16 = -2500;
+		out->burst_percent = 5U;
+	}
+	if (monitor) out->burst_percent = 1U;
+	if (scenario == SC_CLIPPING && (active || monitor))
+		out->clip_count = 2U;
+	else if (active || monitor)
+		out->clip_count = 1U;
+}
+
+int32_t wifi_rf_capture_channel(struct wifi_rf_capture_ctx *ctx,
+	uint8_t channel, enum wifi_rf_capture_mode mode, uint32_t dwell_ms,
+	const struct wifi_rf_channel_metrics *baseline,
+	struct wifi_rf_channel_metrics *out)
+{
+	unsigned call = capture_calls++;
+	if (!ctx || !out) protocol_errors++;
+	if (call < 13U) {
+		if (channel != call + 1U || mode != WIFI_RF_CAPTURE_BASELINE ||
+		    dwell_ms != WIFI_RF_SCAN_DWELL_MS || baseline != NULL)
+			protocol_errors++;
+		fill_metrics(out, channel, 0, 0);
+		return 0;
+	}
+	if (call < 26U) {
+		if (channel != call - 12U || mode != WIFI_RF_CAPTURE_ACTIVE ||
+		    dwell_ms != WIFI_RF_SCAN_DWELL_MS || !baseline)
+			protocol_errors++;
+		if (scenario == SC_CAPTURE_FAIL && channel == 4U) {
+			ctx->last_error = "DMA_ERROR";
+			return -33;
+		}
+		fill_metrics(out, channel, 1, 0);
+		return 0;
+	}
+	if (channel != 6U || mode != WIFI_RF_CAPTURE_ACTIVE ||
+	    dwell_ms != WIFI_RF_MONITOR_DWELL_MS || !baseline)
+		protocol_errors++;
+	fill_metrics(out, channel, 1, 1);
+	return 0;
+}
+
+struct wifi_rf_metric_delta wifi_rf_delta(
+	const struct wifi_rf_channel_metrics *baseline,
+	const struct wifi_rf_channel_metrics *active)
+{
+	struct wifi_rf_metric_delta delta = {0};
+	if (!baseline || !active) {
+		protocol_errors++;
+		return delta;
+	}
+	delta.rssi_cdb = active->rssi_cdb - baseline->rssi_cdb;
+	delta.power_cdb = active->power_cdbfs16 - baseline->power_cdbfs16;
+	delta.burst_pp = (int32_t)active->burst_percent -
+		(int32_t)baseline->burst_percent;
+	return delta;
+}
+
+enum wifi_rf_activity_verdict wifi_rf_classify(
+	const struct wifi_rf_metric_delta *delta, uint32_t monitor_hits,
+	uint32_t clip_count, uint32_t complex_samples)
+{
+	classify_calls++;
+	if (!delta || delta->rssi_cdb != 500 || delta->power_cdb != 500 ||
+	    delta->burst_pp != 5 || monitor_hits != 20U)
+		protocol_errors++;
+	if (!((clip_count == 21U && complex_samples == 21000U) ||
+	      (clip_count == 0U && complex_samples == 1U)))
+		protocol_errors++;
+	return scenario == SC_PASS || scenario == SC_LARGE_COUNTS ?
+		WIFI_RF_ACTIVITY_PASS :
+		WIFI_RF_ACTIVITY_INCONCLUSIVE;
+}
+
+static int run_complete_case(const char *test, enum scenario_id next,
+	int32_t expected, unsigned expected_classify)
+{
+	struct ad9361_rf_phy phy = {0};
+	struct axi_dmac dmac = {0};
+	static int16_t iq[32];
+	int32_t result;
+
+	reset_scenario(next);
+	result = wifi_rf_test_run(&phy, &dmac, iq, 16U);
+	CHECK_EQ(test, "return", result, expected);
+	CHECK_EQ(test, "init calls", init_calls, 1U);
+	CHECK_EQ(test, "prepare calls", prepare_calls, 1U);
+	CHECK_EQ(test, "capture calls", capture_calls, 46U);
+	CHECK_EQ(test, "classifier calls", classify_calls, expected_classify);
+	CHECK_EQ(test, "prompt delays", enter_delays, 2U);
+	CHECK_EQ(test, "protocol", protocol_errors, 0U);
+	return 0;
+}
+
+static int test_platform_failures(void)
+{
+	const char *test = "platform failures";
+	struct ad9361_rf_phy phy = {0};
+	struct axi_dmac dmac = {0};
+	static int16_t iq[32];
+
+	reset_scenario(SC_INIT_FAIL);
+	CHECK_EQ(test, "sample format return",
+		wifi_rf_test_run(&phy, &dmac, iq, 16U), -11);
+	CHECK_EQ(test, "sample format stops", prepare_calls, 0U);
+	CHECK_EQ(test, "sample format captures", capture_calls, 0U);
+
+	reset_scenario(SC_RX_FAIL);
+	CHECK_EQ(test, "RX-only return",
+		wifi_rf_test_run(&phy, &dmac, iq, 16U), -12);
+	CHECK_EQ(test, "RX-only stops", capture_calls, 0U);
+
+	reset_scenario(SC_CAPTURE_FAIL);
+	CHECK_EQ(test, "channel return",
+		wifi_rf_test_run(&phy, &dmac, iq, 16U), -33);
+	CHECK_EQ(test, "channel stops", capture_calls, 17U);
+	CHECK_EQ(test, "failure protocol", protocol_errors, 0U);
+	return 0;
+}
+
+int main(void)
+{
+	if (!freopen("NUL", "w", stdout)) return 1;
+	if (run_complete_case("PASS verdict", SC_PASS,
+		WIFI_RF_TEST_PASS, 1U)) return 1;
+	if (run_complete_case("large count verdict", SC_LARGE_COUNTS,
+		WIFI_RF_TEST_PASS, 1U)) return 1;
+	if (run_complete_case("inconclusive verdict", SC_INCONCLUSIVE,
+		WIFI_RF_TEST_INCONCLUSIVE, 1U)) return 1;
+	if (run_complete_case("clipping verdict", SC_CLIPPING,
+		WIFI_RF_TEST_INCONCLUSIVE, 0U)) return 1;
+	if (test_platform_failures()) return 1;
+	puts("PASS: Wi-Fi RF state-machine host behavior passed.");
+	return 0;
+}
+'@
+
+try {
+    New-Item -ItemType Directory -Path $stateTempRoot | Out-Null
+    Set-Content -LiteralPath $stateStubCapture -Value $stateCaptureHeader -Encoding Ascii
+    Set-Content -LiteralPath $stateStubMetrics -Value $stateMetricsHeader -Encoding Ascii
+    Set-Content -LiteralPath $stateStubAd9361 -Value $stateAd9361Header -Encoding Ascii
+    Set-Content -LiteralPath $stateStubDmac -Value $stateDmacHeader -Encoding Ascii
+    Set-Content -LiteralPath $stateStubDelay -Value $stateDelayHeader -Encoding Ascii
+    Set-Content -LiteralPath $stateStubPrintf -Value $statePrintfHeader -Encoding Ascii
+    Set-Content -LiteralPath $stateStubParameters -Value $stateParametersHeader -Encoding Ascii
+    Set-Content -LiteralPath $stateStubUart -Value $stateUartHeader -Encoding Ascii
+    Set-Content -LiteralPath $stateHarness -Value $stateHarnessContent -Encoding Ascii
+    & $gcc -std=c11 -Wall -Wextra -Werror "-I$stateTempRoot" "-I$sourceRoot" `
+        $stateHarness $testSource -o $stateOutput
+    if ($LASTEXITCODE -ne 0) { throw "Native state-machine compilation failed with: $gcc" }
+    & $stateOutput
+    if ($LASTEXITCODE -ne 0) { throw 'Native state-machine behavior test failed.' }
+}
+finally {
+    if ((Test-Path -LiteralPath $stateTempRoot) -and
+        ([IO.Path]::GetFullPath($stateTempRoot)).StartsWith($tempBase, [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $stateTempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Output 'PASS: Wi-Fi RF capture and UART state-machine source/host behavior passed.'
