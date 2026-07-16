@@ -163,7 +163,7 @@ Kalıcı XSCT betiği stale FSBL'yi artık kullanmaz, Release bulunmadığında 
 
 ## 9. Yeniden başlatılabilir proje paketi — 16 Temmuz 2026
 
-Durum: **Otomatik yazılım doğrulaması tamamlandı; soğuk güç döngüsü kabulü bekleniyor.**
+Durum: **Golden otomatik başlatma ve kart kabulü tamamlandı.**
 
 Seçili sürüm `2026-07-16-bringup-v1` olarak `PROJECT/releases/axu4ev-ad9364/CURRENT` dosyasına kaydedildi. Sürümdeki beş teslim manifest boyutu ve SHA-256 değeriyle doğrulanmadan JTAG programlama başlamaz. Golden ve Workspace kuru çalışmaları doğru dört çalıştırma girdisini seçmiş; release bütünlüğü, Vitis handoff bütünlüğü, XSCT yol bağımsızlığı, PMUFW/FPGA/PS–PL/DDR/uygulama sırası ve çift tıklama başlatıcı sözleşmeleri otomatik testlerden geçmiştir.
 
@@ -177,4 +177,28 @@ Günlük kullanım:
 
 Çalışma logları `PROJECT/logs/jtag` altında tutulur ve Git tarafından yok sayılır. Mevcut Golden sürüm gelecekteki RF/anten ölçümleri için bilinen-iyi geri dönüş noktasıdır. PetaLinux geçişinde aynı sürümün doğrulanmış XSA'sı ilk donanım referansı olarak korunacaktır.
 
-Henüz tamamlanmayan fiziksel kabul: bilgisayar/Vitis/XSCT kapalı ve kart 10–15 saniye enerjisiz bırakılmış durumdan Golden başlatıcının manuel komut olmadan çalıştırılması; UART ve XSCT logundaki başarı işaretlerinin kaydedilmesi. Bu yapılmadan “soğuk başlangıç tamamen kapandı” kabul edilmeyecektir.
+### Golden kart kabulü
+
+16 Temmuz 2026 tarihinde `2026-07-16-bringup-v1` sürümü `Start-Axu4evAd9364Golden.cmd` üzerinden, manuel XSCT komutu girilmeden çalıştırıldı. JTAG tarafında PMUFW ve FPGA programlama tamamlandı; doğrudan PS/DDR/PS–PL başlangıcı geçti ve DDR `A5A5A5A5` doğrulaması uygulama indirilmeden önce başarı verdi. Çalışma logu: `PROJECT/logs/jtag/20260716-120323-golden.log`.
+
+UART kabul kanıtı:
+
+```text
+cf-ad9361-lpc: Successfully initialized (61439514 Hz)
+ad9361_init : AD936x Rev 2 successfully initialized
+cf-ad9361-dds-core-lpc: Successfully initialized (61439514 Hz)
+DMA_EXAMPLE: address=0x60c00 samples=65536 channels=2 bits=16
+Done.
+```
+
+Kabul edilen değişmez sürümün SHA-256 değerleri:
+
+| Teslim | SHA-256 |
+|---|---|
+| Bitstream | `AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4` |
+| XSA | `AE0F23D2D87A403528870858F78F73D76DD2C2B4B224B0E0A78D2FCE1EB0B118` |
+| PMUFW ELF | `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB` |
+| `psu_init.tcl` | `CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B` |
+| `ad9364app.elf` | `320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC` |
+
+Sonuç olarak bilgisayar/kart yeniden açıldıktan sonra kullanılacak normal yol Golden başlatıcıdır; XSCT komutlarının elle tekrarlanması gerekmemektedir.

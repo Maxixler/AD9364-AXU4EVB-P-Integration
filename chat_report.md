@@ -263,4 +263,39 @@ Yapılanlar:
 
 Golden modu yalnızca manifesti tam eşleşen sürümü çalıştırır. Workspace modu yeni Vivado/Vitis adayını önce handoff testinden geçirir. Yeni aday, UART'ta AD9364 Rev 2 ve DMA `Done.` sonucunu vermeden Golden sürüme terfi ettirilmeyecektir. PetaLinux'a geçildiğinde mevcut Golden XSA, bilinen-iyi donanım tabanı olarak korunacaktır.
 
-Bu oturumda release/promotion, Golden ve Workspace kuru çalışma, handoff hash'leri, Tcl sırası/yol bağımsızlığı ve `.cmd` sözleşmeleri geçti. Sonraki kullanıcı adımı gerçek soğuk güç döngüsü sonrası Golden `.cmd` dosyasını çift tıklamak ve PuTTY/XSCT log kanıtını paylaşmaktır; bu fiziksel adım henüz yapılmış sayılmamıştır.
+Bu oturumda release/promotion, Golden ve Workspace kuru çalışma, handoff hash'leri, Tcl sırası/yol bağımsızlığı ve `.cmd` sözleşmeleri geçti.
+
+## 18. Golden otomatik kart kabulü
+
+16 Temmuz 2026 tarihinde kullanıcı `Start-Axu4evAd9364Golden.cmd` dosyasını çalıştırdı. İlk denemede Tcl Windows yol eşlemesindeki eksik ters eğik çizgi nedeniyle `char map list unbalanced` hatası alındı. Yol eşlemesi çalışan XSCT biçimi olan `{\\ /}` şeklinde düzeltildi ve gerçek XSCT yorumlayıcısını kullanan regresyon testi eklendi.
+
+Düzeltilen Golden çalışma hiçbir manuel XSCT komutu istemeden şu aşamaları tamamladı:
+
+- yerel hardware server bağlantısı;
+- PMU JTAG güvenlik kapılarının açılması;
+- PMUFW yükleme/başlatma;
+- doğrulanmış FPGA bitstream programlama;
+- Cortex-A53 #0 reset;
+- doğrudan PS, DDR ve PS–PL sınırı başlangıcı;
+- DDR `A5A5A5A5` yaz/oku kapısı;
+- `ad9364app.elf` yükleme ve başlatma.
+
+XSCT logu `PROJECT/logs/jtag/20260716-120323-golden.log` olarak üretildi. PuTTY kabul çıktısı:
+
+```text
+cf-ad9361-lpc: Successfully initialized (61439514 Hz)
+ad9361_init : AD936x Rev 2 successfully initialized
+cf-ad9361-dds-core-lpc: Successfully initialized (61439514 Hz)
+DMA_EXAMPLE: address=0x60c00 samples=65536 channels=2 bits=16
+Done.
+```
+
+Kabul edilen `2026-07-16-bringup-v1` sürümünün beş SHA-256 değeri:
+
+- Bitstream: `AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4`
+- XSA: `AE0F23D2D87A403528870858F78F73D76DD2C2B4B224B0E0A78D2FCE1EB0B118`
+- PMUFW: `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB`
+- `psu_init.tcl`: `CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B`
+- `ad9364app.elf`: `320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC`
+
+Logun ilk kısmı UTF-8, XSCT çıktısı UTF-16 olarak birleştiği için okunabilirlik sorunu ayrıca tespit edildi. Orkestratör tek `Unicode` kodlama kullanacak şekilde düzeltildi ve wrapper testi bu sözleşmeyi koruyacak biçimde genişletildi. Mevcut log Git dışında bırakılmıştır; sonraki loglar tek kodlamayla oluşacaktır.

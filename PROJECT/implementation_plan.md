@@ -342,4 +342,4 @@ Operatör sırası:
 5. Yalnızca yeni derleme testi için Workspace `.cmd` dosyasını kullan.
 6. Aday aynı UART/DMA kabulünü geçmeden terfi/seçim yapma.
 
-Otomatik bütünlük, kuru çalışma ve sıralama testleri geçmiştir. Kalan son kabul kapısı, Vitis/XSCT kapalı ve kart tamamen enerjisiz durumdan başlanarak Golden `.cmd` dosyasının hiçbir manuel XSCT komutu olmadan doğrulanmasıdır. PetaLinux aşamasında Golden XSA sabit donanım referansı, yeni Workspace XSA'ları ise aday olarak kullanılacaktır.
+Otomatik bütünlük, kuru çalışma ve sıralama testleri geçmiştir. Golden `.cmd` dosyası hiçbir manuel XSCT komutu olmadan çalıştırılmış; PMUFW, FPGA, doğrudan PS/DDR/PS–PL hazırlığı, DDR `A5A5A5A5` kapısı, AD9364 Rev 2 başlatması ve DMA `Done.` sonucu 16 Temmuz 2026 tarihinde doğrulanmıştır. Kabul logu `20260716-120323-golden.log` dosyasıdır. PetaLinux aşamasında Golden XSA sabit donanım referansı, yeni Workspace XSA'ları ise aday olarak kullanılacaktır.
