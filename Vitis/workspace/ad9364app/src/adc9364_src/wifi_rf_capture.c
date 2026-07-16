@@ -19,9 +19,26 @@ int32_t wifi_rf_capture_init(struct wifi_rf_capture_ctx *ctx,
 			     int16_t *iq_buffer,
 			     size_t complex_samples)
 {
-	if (!ctx || !phy || !rx_dmac || !iq_buffer ||
-	    ((uintptr_t)iq_buffer & 63U) != 0U || complex_samples == 0 ||
+	size_t bytes;
+	uintptr_t addr;
+
+	if (!ctx) return -EINVAL;
+	ctx->last_error = "ARG_ERROR";
+	if (!phy || !rx_dmac || !iq_buffer || complex_samples == 0 ||
+	    complex_samples > SIZE_MAX / (2U * sizeof(int16_t)) ||
+	    complex_samples > UINT32_MAX / WIFI_RF_MAX_BLOCKS ||
 	    complex_samples > UINT32_MAX / (2U * sizeof(int16_t)))
+		return -EINVAL;
+	bytes = complex_samples * 2U * sizeof(int16_t);
+	addr = (uintptr_t)iq_buffer;
+	if ((addr & (WIFI_RF_CACHE_LINE_BYTES - 1U)) != 0U ||
+	    (bytes & (WIFI_RF_CACHE_LINE_BYTES - 1U)) != 0U)
+		return -EINVAL;
+#if UINTPTR_MAX > UINT32_MAX
+	if (addr > UINT32_MAX)
+		return -EINVAL;
+#endif
+	if (bytes - 1U > (size_t)(UINT32_MAX - (uint32_t)addr))
 		return -EINVAL;
 	ctx->phy = phy;
 	ctx->rx_dmac = rx_dmac;
@@ -37,6 +54,9 @@ int32_t wifi_rf_prepare_rx_only(struct wifi_rf_capture_ctx *ctx)
 	uint32_t ensm = UINT32_MAX;
 	int32_t ret;
 	if (!ctx) return -EINVAL;
+	ctx->last_error = "ARG_ERROR";
+	if (!ctx->phy) return -EINVAL;
+	ctx->last_error = "RX_ONLY_ERROR";
 	ret = ad9361_set_rx_rf_port_input(ctx->phy, B_BALANCED);
 	if (ret < 0) return ret;
 	ret = ad9361_get_rx_rf_port_input(ctx->phy, &port);
@@ -47,6 +67,7 @@ int32_t wifi_rf_prepare_rx_only(struct wifi_rf_capture_ctx *ctx)
 	if (ret < 0) return ret;
 	ret = ad9361_get_en_state_machine_mode(ctx->phy, &ensm);
 	if (ret < 0 || ensm != ENSM_MODE_RX) return ret < 0 ? ret : -EIO;
+	ctx->last_error = "NONE";
 	return 0;
 }
 
@@ -69,11 +90,14 @@ static int32_t capture_one_block(struct wifi_rf_capture_ctx *ctx,
 	};
 	int32_t ret;
 	ctx->last_error = "DMA_ERROR";
+	Xil_DCacheInvalidateRange((uintptr_t)ctx->iq_buffer, transfer.size);
+	ctx->rx_dmac->transfer.transfer_done = false;
 	ret = axi_dmac_transfer_start(ctx->rx_dmac, &transfer);
 	if (ret < 0) return ret;
 	ret = axi_dmac_transfer_wait_completion(ctx->rx_dmac, WIFI_RF_DMA_TIMEOUT_MS);
 	if (ret < 0) return ret;
 	Xil_DCacheInvalidateRange((uintptr_t)ctx->iq_buffer, transfer.size);
+	ctx->last_error = "ANALYZE_ERROR";
 	return wifi_rf_analyze_block(ctx->iq_buffer, ctx->complex_samples, metrics);
 }
 
@@ -93,7 +117,13 @@ int32_t wifi_rf_capture_channel(struct wifi_rf_capture_ctx *ctx,
 	uint64_t frequency = wifi_rf_channel_frequency_hz(channel);
 	int32_t gain_db, ret;
 
-	if (!ctx || !out || !frequency || !dwell_ms) return -EINVAL;
+	if (!ctx) return -EINVAL;
+	ctx->last_error = "ARG_ERROR";
+	if (!out || !ctx->phy || !ctx->rx_dmac || !ctx->iq_buffer ||
+	    !ctx->complex_samples || !frequency || !dwell_ms)
+		return -EINVAL;
+	if (mode != WIFI_RF_CAPTURE_BASELINE &&
+	    mode != WIFI_RF_CAPTURE_ACTIVE) return -EINVAL;
 	if (mode == WIFI_RF_CAPTURE_ACTIVE && !baseline) return -EINVAL;
 	memset(out, 0, sizeof(*out));
 
