@@ -79,7 +79,10 @@ static void test_input_and_threshold_boundaries(void)
 	assert(wifi_rf_analyze_block(NULL, 1, &m) == -EINVAL);
 	assert(wifi_rf_analyze_block(clip_boundary, 0, &m) == -EINVAL);
 	assert(wifi_rf_analyze_block(clip_boundary, 1, NULL) == -EINVAL);
-#if SIZE_MAX > UINT32_MAX
+#if SIZE_MAX == UINT32_MAX
+	assert(wifi_rf_analyze_block(clip_boundary,
+		(SIZE_MAX / 2U) + 2U, &m) == -EINVAL);
+#else
 	assert(wifi_rf_analyze_block(clip_boundary,
 		(size_t)UINT32_MAX + 1U, &m) == -EINVAL);
 #endif
