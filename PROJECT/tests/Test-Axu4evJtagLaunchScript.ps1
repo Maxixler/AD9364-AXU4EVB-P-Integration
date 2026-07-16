@@ -7,21 +7,27 @@ if (-not (Test-Path -LiteralPath $launchScript)) {
 
 $content = Get-Content -LiteralPath $launchScript -Raw
 $required = @(
-    'if {![info exists ::env(FPGA_PROFEN_ROOT)]}'
-    'set workspace_root [string map {\\ /} $::env(FPGA_PROFEN_ROOT)]'
-    'foreach configuration {Release Debug}'
-    'set candidate [file join $workspace "ad9364app" $configuration "ad9364app.elf"]'
+    'AXU4EV_PMUFW_ELF'
+    'AXU4EV_BITSTREAM'
+    'AXU4EV_PSU_INIT_TCL'
+    'AXU4EV_APP_ELF'
+    'set psu_init_tcl [string map {\ /} $::env(AXU4EV_PSU_INIT_TCL)]'
+    'set ddr_test_address 0x00100000'
+    'set ddr_test_value 0xA5A5A5A5'
     'mwr 0xffca0038 0x1ff'
     'dow $pmufw_elf'
     'fpga -file $bitstream'
-    'set psuInitTcl [file join $workspace "fmcomms2_axu4ev_hw" "hw" "psu_init.tcl"]'
-    'source $psuInitTcl'
+    'rst -processor -clear-registers'
+    'source $psu_init_tcl'
     'configparams force-mem-accesses 1'
     'psu_init'
     'psu_ps_pl_isolation_removal'
     'psu_ps_pl_reset_config'
-    'rst -processor -clear-registers'
+    'mwr $ddr_test_address $ddr_test_value'
+    'mrd $ddr_test_address'
+    'DDR verification failed'
     'dow $app_elf'
+    'configparams force-mem-accesses 0'
 )
 
 foreach ($fragment in $required) {
@@ -30,21 +36,19 @@ foreach ($fragment in $required) {
     }
 }
 
-$releaseIndex = $content.IndexOf('foreach configuration {Release Debug}', [System.StringComparison]::Ordinal)
-if ($releaseIndex -lt 0) {
-    throw 'JTAG launch script must prefer Release and fall back to Debug.'
-}
-
 $orderedPhases = @(
     'mwr 0xffca0038 0x1ff'
     'dow $pmufw_elf'
     'fpga -file $bitstream'
     'rst -processor -clear-registers'
-    'source $psuInitTcl'
+    'source $psu_init_tcl'
     "`npsu_init"
     'psu_ps_pl_isolation_removal'
     'psu_ps_pl_reset_config'
+    'mwr $ddr_test_address $ddr_test_value'
+    'mrd $ddr_test_address'
     'dow $app_elf'
+    'configparams force-mem-accesses 0'
 )
 
 $lastIndex = -1
@@ -56,12 +60,21 @@ foreach ($phase in $orderedPhases) {
     $lastIndex = $index
 }
 
+$finalCon = $content.LastIndexOf("`ncon", [System.StringComparison]::Ordinal)
+if ($finalCon -le $lastIndex) {
+    throw 'The application is not resumed after force-mem-accesses is restored.'
+}
+
 if ($content.Contains('dow $fsbl_elf') -or $content.Contains('set fsbl_elf')) {
     throw 'The verified JTAG path must initialize PS/DDR directly and must not launch the stale FSBL.'
+}
+
+if ($content.Contains('FPGA_PROFEN_ROOT') -or $content.Contains('set workspace ')) {
+    throw 'The launch script must consume verified artifact paths instead of constructing workspace paths.'
 }
 
 if ($content -match '(?i)C:/Users|C:\\Users') {
     throw 'JTAG launch script must not contain a user-specific absolute path.'
 }
 
-Write-Output 'PASS: PMUFW, FPGA, direct PS/DDR/PS-PL initialization and application JTAG launch order is valid.'
+Write-Output 'PASS: verified artifacts, PMUFW, FPGA, PS/DDR/PS-PL, DDR gate, and application launch order are valid.'

@@ -1,29 +1,21 @@
-if {![info exists ::env(FPGA_PROFEN_ROOT)]} {
-  error "FPGA_PROFEN_ROOT environment variable is required."
-}
-
-set workspace_root [string map {\\ /} $::env(FPGA_PROFEN_ROOT)]
-set workspace [file join $workspace_root "Vitis" "workspace"]
-set pmufw_elf [file join $workspace "fmcomms2_axu4ev_hw" "zynqmp_pmufw" "executable.elf"]
-set bitstream [file join $workspace "ad9364app" "_ide" "bitstream" "system_top.bit"]
-set psuInitTcl [file join $workspace "fmcomms2_axu4ev_hw" "hw" "psu_init.tcl"]
-set app_elf ""
-foreach configuration {Release Debug} {
-  set candidate [file join $workspace "ad9364app" $configuration "ad9364app.elf"]
-  if {[file isfile $candidate]} {
-    set app_elf $candidate
-    break
+foreach name {AXU4EV_PMUFW_ELF AXU4EV_BITSTREAM AXU4EV_PSU_INIT_TCL AXU4EV_APP_ELF} {
+  if {![info exists ::env($name)] || $::env($name) eq ""} {
+    error "Missing environment variable: $name"
   }
 }
 
-if {$app_elf eq ""} {
-  error "Missing AD9364 application ELF under the Release and Debug configurations."
-}
+set pmufw_elf [string map {\ /} $::env(AXU4EV_PMUFW_ELF)]
+set bitstream [string map {\ /} $::env(AXU4EV_BITSTREAM)]
+set psu_init_tcl [string map {\ /} $::env(AXU4EV_PSU_INIT_TCL)]
+set app_elf [string map {\ /} $::env(AXU4EV_APP_ELF)]
+set ddr_test_address 0x00100000
+set ddr_test_value 0xA5A5A5A5
 
 foreach {label artifact} [list \
   "PMUFW ELF" $pmufw_elf \
   "bitstream" $bitstream \
-  "PS initialization Tcl" $psuInitTcl] {
+  "PS initialization Tcl" $psu_init_tcl \
+  "AD9364 application ELF" $app_elf] {
   if {![file isfile $artifact]} {
     error "Missing $label: $artifact"
   }
@@ -53,10 +45,21 @@ rst -processor -clear-registers
 puts "Initializing PS, DDR and the PS-PL boundary directly..."
 targets -set -filter {name =~ "PSU"}
 configparams force-mem-accesses 1
-source $psuInitTcl
+source $psu_init_tcl
 psu_init
 psu_ps_pl_isolation_removal
 psu_ps_pl_reset_config
+
+puts "Verifying DDR access before application download..."
+mwr $ddr_test_address $ddr_test_value
+set ddr_readback [mrd $ddr_test_address]
+if {![regexp -nocase {([0-9a-f]{8})\s*$} $ddr_readback -> ddr_word]} {
+  error "Unable to parse DDR readback: $ddr_readback"
+}
+if {[string toupper $ddr_word] ne "A5A5A5A5"} {
+  error "DDR verification failed at $ddr_test_address: $ddr_word"
+}
+puts "DDR verification passed: $ddr_word"
 
 puts "Loading and starting the AD9364 application..."
 targets -set -filter {name =~ "Cortex-A53 #0"}
@@ -64,4 +67,4 @@ dow $app_elf
 configparams force-mem-accesses 0
 con
 
-puts "PASS: PMUFW, FPGA, direct PS/DDR/PS-PL initialization and ad9364app were launched over JTAG."
+puts "PASS: PMUFW, FPGA, direct PS/DDR/PS-PL initialization, DDR gate and ad9364app were launched over JTAG."
