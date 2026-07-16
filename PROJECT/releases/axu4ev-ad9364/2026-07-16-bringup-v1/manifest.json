@@ -1,0 +1,48 @@
+﻿{
+    "schema_version":  1,
+    "release_id":  "2026-07-16-bringup-v1",
+    "created_at":  "2026-07-16T11:39:07.4613591+03:00",
+    "target_board":  "AXU4EVB-P",
+    "fpga_part":  "xczu4ev-sfvc784-1-i",
+    "rf_device":  "AD9364",
+    "tool_version":  "2020.1",
+    "source_commit":  "0cc0cf8f046e0c4e5d1f0378365d97e8492c3edb",
+    "board_verified":  true,
+    "uart_markers":  [
+                         "AD936x Rev 2 successfully initialized",
+                         "DMA_EXAMPLE:",
+                         "Done."
+                     ],
+    "artifacts":  [
+                      {
+                          "name":  "application",
+                          "path":  "applications/ad9364app.elf",
+                          "length":  1700112,
+                          "sha256":  "320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC"
+                      },
+                      {
+                          "name":  "bitstream",
+                          "path":  "hardware/system_top.bit",
+                          "length":  7797806,
+                          "sha256":  "AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4"
+                      },
+                      {
+                          "name":  "pmufw",
+                          "path":  "firmware/pmufw.elf",
+                          "length":  133264,
+                          "sha256":  "9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB"
+                      },
+                      {
+                          "name":  "psu_init",
+                          "path":  "hardware/psu_init.tcl",
+                          "length":  884749,
+                          "sha256":  "CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B"
+                      },
+                      {
+                          "name":  "xsa",
+                          "path":  "hardware/system_top.xsa",
+                          "length":  1658719,
+                          "sha256":  "AE0F23D2D87A403528870858F78F73D76DD2C2B4B224B0E0A78D2FCE1EB0B118"
+                      }
+                  ]
+}
