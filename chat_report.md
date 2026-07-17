@@ -367,3 +367,19 @@ Yarın devam planı:
 6. Aynı kabulü ikinci kez tekrarla. İki PASS sonrası sanitize evidence ve rapor kapanışı yapılacak.
 
 Gün sonu durumu: Task 1-5 tamamlandı ve bağımsız review'ları CLEAN; Task 6 `READY_FOR_HARDWARE`. Feature branch yerel tutuldu. `main`, `origin/main`, Golden `CURRENT` ve mevcut bring-up fallback değiştirilmedi; push/merge yarınki kart testi sonrasına bırakıldı.
+
+## 21. 17 Temmuz 2026 — FDD hata düzeltmesi ve iki koşulu kart kabulü
+
+İlk fiziksel Candidate çalıştırmasında AD9364 Rev 2 init başarılı olmasına rağmen `PLATFORM: FAIL stage=RX_ONLY error=-5` alındı. Kod geriye doğru izlendiğinde `-5` değerinin `-EIO` olduğu ve FDD yapılandırılmış AD9364'ün ENSM readback'ini `FDD` döndürmesine karşın uygulamanın yalnız `RX` beklediği doğrulandı. Aynı anda kaynakta bulunan tamamlanmamış `pdata->fdd` denemesi host stub'ıyla derlenmediği için kullanılmadı.
+
+TDD akışında önce FDD senaryosu eklendi ve eski kodun `FDD prepare (actual=-5 expected=0)` ile düştüğü görüldü. Üretim kodu mevcut ENSM'yi önce okuyacak şekilde değiştirildi: FDD ve independent-FDD kabul edilirken FDD dışındaki yol RX'e geçirilip tekrar okunuyor. RXB seçimi, 89.75 dB TX attenuation ve hata kapıları korundu.
+
+Kaynak/host testleri, altı preflight kapısı ve gerçek Vitis Release build PASS verdi. Yeni ELF `855568` bayt ve SHA-256 değeri `7E89D1A7D912661FD9843CFDAF48D4A81135EBE632FDF3E93B178CE01D92C2F0` oldu. Candidate dry-run tam olarak bu ELF'i, mevcut Golden BIT/PMUFW/`psu_init.tcl` ile eşledi.
+
+Kullanıcı tek 2.4 GHz anteni RXB'ye bağlayıp hotspot kapalı baseline ve gerçek istemci trafiğiyle active/monitor aşamalarını iki kez tamamladı:
+
+- İlk koşu CH6 / 2437 MHz'i seçti; delta power `+3.14 dB`, delta burst `+32 pp`.
+- İkinci koşu CH5 / 2432 MHz'i seçti; delta power `+4.77 dB`, delta burst `+49 pp`.
+- Her iki koşu `RX_ONLY: PASS`, `DMA=OK`, `CLIP=0`, `PLATFORM: PASS`, `RF_ACTIVITY: PASS` ve `WIFI_RF_TEST: PASS` ile bitti.
+
+İki ardışık gerçek kart PASS sonucu `PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt` içine sanitize edilerek kaydedildi. Bu kabul RF enerji/aktivite algılamasını doğrular; paket veya payload decode edildiği anlamına gelmez. Task 6 fiziksel kabulü tamamlandı, Golden `CURRENT` değiştirilmedi.

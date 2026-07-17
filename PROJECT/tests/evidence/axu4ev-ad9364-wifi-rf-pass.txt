@@ -1,0 +1,47 @@
+AXU4EVB-P + AD9364 2.4 GHz Wi-Fi RF acceptance evidence
+Date: 2026-07-17
+
+Test setup
+- One 2.4 GHz 50-ohm antenna connected to RXB / B_BALANCED.
+- RXA, TXA and TXB left unconnected.
+- Phone hotspot forced to 2.4 GHz.
+- Baseline captured with hotspot off.
+- Active scan and monitor captured with a client connected and sustained traffic running.
+- This test detects RF energy/activity; it does not decode Wi-Fi packets or payloads.
+
+Candidate provenance
+- Application: Vitis/workspace/ad9364app/Release/ad9364app.elf
+- Application bytes: 855568
+- Application SHA-256: 7E89D1A7D912661FD9843CFDAF48D4A81135EBE632FDF3E93B178CE01D92C2F0
+- Golden BIT SHA-256: AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4
+- Golden PMUFW SHA-256: 9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB
+- Golden psu_init.tcl SHA-256: CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B
+
+Pre-acceptance defect and correction
+- Initial hardware run stopped at PLATFORM: FAIL stage=RX_ONLY error=-5.
+- Root cause: the application was configured for FDD, while the RX-only guard required ENSM_MODE_RX readback.
+- Correction: accept FDD and independent-FDD readback after RXB selection and maximum TX attenuation; preserve the RX transition/readback path for non-FDD operation.
+- The regression test reproduced the old failure as FDD prepare actual=-5 expected=0 before the correction.
+
+Run 1
+RX_ONLY: PASS port=RXB fs=30.72MSPS bw=18MHz
+SELECTED: CH=06 FREQ=2437MHz DELTA_RSSI=+6.75dB DELTA_PWR=+3.14dB DELTA_BURST=+32pp
+All reported capture blocks: DMA=OK, CLIP=0
+PLATFORM: PASS
+RF_ACTIVITY: PASS
+WIFI_RF_TEST: PASS
+
+Run 2
+RX_ONLY: PASS port=RXB fs=30.72MSPS bw=18MHz
+SELECTED: CH=05 FREQ=2432MHz DELTA_RSSI=-17.25dB DELTA_PWR=+4.77dB DELTA_BURST=+49pp
+All reported capture blocks: DMA=OK, CLIP=0
+PLATFORM: PASS
+RF_ACTIVITY: PASS
+WIFI_RF_TEST: PASS
+
+Acceptance result
+PASS: Two consecutive physical Candidate runs completed with RX_ONLY, DMA,
+PLATFORM, RF_ACTIVITY and WIFI_RF_TEST acceptance markers. The adjacent CH5/CH6
+selection is consistent with energy from a 20 MHz Wi-Fi transmission appearing
+across the scanner's 5 MHz-spaced measurement points; no packet-channel decode is
+claimed.

@@ -63,6 +63,12 @@ int32_t wifi_rf_prepare_rx_only(struct wifi_rf_capture_ctx *ctx)
 	if (ret < 0 || port != B_BALANCED) return ret < 0 ? ret : -EIO;
 	ret = ad9361_set_tx_attenuation(ctx->phy, 0, 89750);
 	if (ret < 0) return ret;
+	ret = ad9361_get_en_state_machine_mode(ctx->phy, &ensm);
+	if (ret < 0) return ret;
+	if (ensm == ENSM_MODE_FDD || ensm == ENSM_MODE_PINCTRL_FDD_INDEP) {
+		ctx->last_error = "NONE";
+		return 0;
+	}
 	ret = ad9361_set_en_state_machine_mode(ctx->phy, ENSM_MODE_RX);
 	if (ret < 0) return ret;
 	ret = ad9361_get_en_state_machine_mode(ctx->phy, &ensm);

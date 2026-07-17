@@ -397,3 +397,27 @@ Task 6 kart öncesi kapıları iki kez geçmiştir: metrics, source/host, Candid
 - İki gerçek PASS görülmeden evidence dosyası oluşturulmayacak, eşikler değiştirilmeyecek ve yeni Golden terfisi yapılmayacak.
 
 Bu oturumun sonunda Task 1-5 tamamlanmış ve bağımsız review'ları CLEAN durumundadır. Task 6 `READY_FOR_HARDWARE` durumunda bırakılmıştır. Feature dalı yereldir; `main`, `origin/main`, mevcut Golden release ve `CURRENT` değiştirilmemiştir. Push/merge yarınki kart kabulünden sonra ayrıca kararlaştırılacaktır.
+
+## 20. 17 Temmuz 2026 — FDD düzeltmesi ve fiziksel RF kabulü
+
+İlk Candidate kart koşusunda AD9364 başarıyla başlatıldıktan sonra `PLATFORM: FAIL stage=RX_ONLY error=-5` görüldü. Kök neden donanım veya SPI değildi: uygulama FDD modunda yapılandırılmışken RX güvenlik kapısı ENSM readback'inin yalnızca `ENSM_MODE_RX` olmasını bekliyordu. Hata önce host regresyonunda `FDD prepare (actual=-5 expected=0)` olarak yeniden üretildi.
+
+Düzeltmede RXB seçimi ve 89.75 dB TX attenuation korunarak mevcut ENSM durumu önce okunur hâle getirildi. `ENSM_MODE_FDD` ve `ENSM_MODE_PINCTRL_FDD_INDEP` güvenli FDD durumları olarak kabul edildi; FDD dışındaki çalışma için `ENSM_MODE_RX` geçişi ve ikinci readback doğrulaması aynen korundu. Sürücünün özel `pdata` alanına bağımlılık eklenmedi.
+
+Yeni Release uygulaması:
+
+- Yol: `Vitis/workspace/ad9364app/Release/ad9364app.elf`
+- Boyut: `855568` bayt
+- SHA-256: `7E89D1A7D912661FD9843CFDAF48D4A81135EBE632FDF3E93B178CE01D92C2F0`
+- Global text sembolleri: `wifi_rf_test_run`, `wifi_rf_prepare_rx_only`, `wifi_rf_capture_channel`, `wifi_rf_analyze_block`
+
+Yeni ELF ile altı yazılım/preflight kapısı yeniden PASS verdi ve Candidate kuru çalışması doğrulanmış Golden BIT, PMUFW ve `psu_init.tcl` ile tam olarak bu Release ELF'i seçti.
+
+Fiziksel kabul, tek 2.4 GHz anten RXB'ye bağlıyken ve telefon hotspot'u gerçek istemci trafiği üretirken iki ardışık Candidate koşusuyla tamamlandı:
+
+1. Koşu: CH6 / 2437 MHz seçildi; delta power `+3.14 dB`, delta burst `+32 pp`.
+2. Koşu: CH5 / 2432 MHz seçildi; delta power `+4.77 dB`, delta burst `+49 pp`.
+
+Her iki koşuda `RX_ONLY: PASS`, tüm bloklarda `DMA=OK` ve `CLIP=0`, ardından `PLATFORM: PASS`, `RF_ACTIVITY: PASS` ve `WIFI_RF_TEST: PASS` elde edildi. CH5/CH6 komşuluğu, 20 MHz Wi-Fi enerjisinin 5 MHz aralıklı ölçüm noktalarına yayılmasıyla uyumludur; bu aşamada paket veya payload çözümü iddia edilmez.
+
+Task 6 fiziksel kabulü tamamlanmıştır. Kanıt: `PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt`. Sonraki geliştirme fazları FFT/grafik, sürekli I/Q streaming ve PetaLinux/IIO entegrasyonudur. Golden `CURRENT` bu kabul sırasında değiştirilmemiştir.

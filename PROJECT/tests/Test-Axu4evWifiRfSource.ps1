@@ -85,6 +85,8 @@ struct rf_rssi {
 #define A_BALANCED 0U
 #define B_BALANCED 1U
 #define ENSM_MODE_RX 1U
+#define ENSM_MODE_FDD 3U
+#define ENSM_MODE_PINCTRL_FDD_INDEP 7U
 #define RF_GAIN_MGC 0U
 #define RF_GAIN_SLOWATTACK_AGC 2U
 int32_t ad9361_set_rx_rf_port_input(struct ad9361_rf_phy *, uint32_t);
@@ -464,7 +466,11 @@ static int test_rx_only_safety(void)
 {
 	const char *test = "RX-only safety";
 	const int expected[] = {
-		EV_SET_PORT, EV_GET_PORT, EV_SET_TX_ATTEN, EV_SET_ENSM, EV_GET_ENSM
+		EV_SET_PORT, EV_GET_PORT, EV_SET_TX_ATTEN, EV_GET_ENSM,
+		EV_SET_ENSM, EV_GET_ENSM
+	};
+	const int expected_fdd[] = {
+		EV_SET_PORT, EV_GET_PORT, EV_SET_TX_ATTEN, EV_GET_ENSM
 	};
 	struct wifi_rf_capture_ctx ctx;
 	struct ad9361_rf_phy phy = {0};
@@ -482,11 +488,28 @@ static int test_rx_only_safety(void)
 	if (check_events(test, expected, sizeof(expected) / sizeof(expected[0]))) return 1;
 
 	reset_stubs();
+	returned_ensm = ENSM_MODE_FDD;
+	CHECK_EQ(test, "FDD prepare", wifi_rf_prepare_rx_only(&ctx), 0);
+	if (check_label(test, ctx.last_error, "NONE")) return 1;
+	CHECK_EQ(test, "FDD protocol", protocol_errors, 0);
+	if (check_events(test, expected_fdd,
+			 sizeof(expected_fdd) / sizeof(expected_fdd[0]))) return 1;
+
+	reset_stubs();
+	returned_ensm = ENSM_MODE_PINCTRL_FDD_INDEP;
+	CHECK_EQ(test, "independent FDD prepare",
+		 wifi_rf_prepare_rx_only(&ctx), 0);
+	if (check_label(test, ctx.last_error, "NONE")) return 1;
+	CHECK_EQ(test, "independent FDD protocol", protocol_errors, 0);
+	if (check_events(test, expected_fdd,
+			 sizeof(expected_fdd) / sizeof(expected_fdd[0]))) return 1;
+
+	reset_stubs();
 	returned_port = A_BALANCED;
 	CHECK_EQ(test, "port mismatch", wifi_rf_prepare_rx_only(&ctx), -EIO);
 	if (check_label(test, ctx.last_error, "RX_ONLY_ERROR")) return 1;
 	reset_stubs();
-	returned_ensm = 7U;
+	returned_ensm = 99U;
 	CHECK_EQ(test, "ENSM mismatch", wifi_rf_prepare_rx_only(&ctx), -EIO);
 	if (check_label(test, ctx.last_error, "RX_ONLY_ERROR")) return 1;
 	ctx.phy = NULL;
