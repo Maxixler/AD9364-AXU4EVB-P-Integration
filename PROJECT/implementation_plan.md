@@ -404,17 +404,28 @@ ve `MONOPULSE_FOUNDATION: PASS` verdi. Yasaklı `DMA_EXAMPLE:`, `WIFI_RF_TEST:`,
 `Read Error`, `Write Error` ve `PLATFORM: FAIL` işaretleri yoktur. Kanıt dosyası:
 `PROJECT/tests/evidence/axu4ev-ad9364-monopulse-foundation-pass.txt`.
 
-Post-review note: the two runs above are historical acceptance evidence only for
-launch commit `53f74d9` and ELF SHA-256 `B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2`.
-The rebuilt review-fix ELF is not accepted by those runs and requires a fresh
-two-run AXU4EVB-P validation, including one cold power cycle, before this branch
-is merge-ready.
+Post-review revalidation: the two runs above remain historical acceptance
+evidence for launch commit `53f74d9` and ELF SHA-256
+`B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2`. The rebuilt
+review-fix commit `e0c293544bc45e21b734bb215b39e341acb918b2` is now separately
+accepted by two physical Candidate runs, including one after a cold power cycle.
+Its `860576`-byte Release ELF SHA-256 is
+`D6FFF74DEFC1ACE260010D5BF13A93E7373C1633C3C5DC73DB23839FB13C9106`; the Golden
+BIT SHA-256 remains `AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4`.
+The `20260720-174800-candidate.log` and cold-cycle
+`20260720-174936-candidate.log` records each show the full artifact manifest,
+DDR `A5A5A5A5`, and full JTAG launch PASS. UART reports 61441040 Hz then
+61439514 Hz initialization, the required RF readback and
+`MONOPULSE_FOUNDATION: PASS`, without DMA/Wi-Fi/error/platform/foundation FAIL
+markers.
 
-Bu adımda yalnız software/A53 foundation kabul edilmiştir. Sonraki plan ayrı
-kapılarla PL 2048-point FFT, ZX80/HMC936A fiziksel GPIO ve 5 V sürücü,
-ölçülmüş settle/discard, ardından chamber angle modeli ve ürün kabulünü ele
-alacaktır. HMC fotoğraf eşlemesi `5.625..180 -> BIT1..BIT6` olarak kullanılacak;
-FPGA pin/kablo sürekliliği ispatlanmadan fiziksel phase kodu uygulanmayacaktır.
+Bu adımda yalnız software/A53 foundation kabul edilmiştir; tamamlanmış monopulse
+ürünü değildir. Sonraki kapılar PL 2048-point FFT ve timing closure,
+ZX80/HMC936A fiziksel GPIO ile FPGA bank/XDC ve continuity, 5 V
+level-shifter/safe OE, BDC IF/koherens, gerçek IF/güç/sıcaklıkta ölçülmüş
+settle/discard, ardından chamber angle modeli ve ürün kabulüdür. HMC fotoğraf
+eşlemesi `5.625..180 -> BIT1..BIT6` olarak kullanılacak; FPGA pin/kablo
+sürekliliği ispatlanmadan fiziksel phase kodu uygulanmayacaktır.
 ## 19. 16 Temmuz 2026 — AD9364 2.4 GHz Wi-Fi RF algılama adayı
 
 İlk gerçek RF doğrulaması için çalışma `codex/wifi-rf-detection` dalındaki bağımsız worktree'de sürdürüldü. Amaç Wi-Fi paketlerini çözmek değil; AXU4EVB-P + AD9364 alıcı yolunun kontrollü telefon hotspot'u ile oluşan 2.4 GHz RF enerji ve burst değişimini güvenilir biçimde ölçtüğünü kanıtlamaktır.

@@ -295,16 +295,25 @@ gain=71 tx_att=89750` readback'ini verdi; ardından tam bir
 kanıt `PROJECT/tests/evidence/axu4ev-ad9364-monopulse-foundation-pass.txt`
 içindedir.
 
-Post-review status: this is historical acceptance evidence only for launch
-commit `53f74d9` and ELF SHA-256
-`B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2`.
-The rebuilt review-fix ELF still needs a fresh two-run AXU4EVB-P validation,
-including one cold power cycle, before the current branch is merge-ready.
+Post-review revalidation status: the historical acceptance above remains scoped
+to launch commit `53f74d9` and ELF SHA-256
+`B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2`. The rebuilt
+review-fix commit `e0c293544bc45e21b734bb215b39e341acb918b2` is separately
+accepted after two fresh physical runs, one following a cold power cycle. Its
+Candidate ELF is `860576` bytes with SHA-256
+`D6FFF74DEFC1ACE260010D5BF13A93E7373C1633C3C5DC73DB23839FB13C9106`; the Golden
+BIT SHA-256 remains `AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4`.
+`20260720-174800-candidate.log` and `20260720-174936-candidate.log` each record
+the full artifact manifest, DDR `A5A5A5A5`, and full JTAG launch PASS. The
+user-supplied UART records show 61441040 Hz / 61439514 Hz initialization, the
+required RF readback, and `MONOPULSE_FOUNDATION: PASS`, with no forbidden
+DMA/Wi-Fi/error/platform/foundation FAIL marker.
 
 Bu kabul yalnız A53 C foundation, AD9364 runtime sözleşmesi ve dört-durum
-aritmetiğini kapatır. PL 2048-point FFT, sekiz fiziksel switch pini, 5 V
-level-shifter/buffer, ölçülmüş settle/discard değerleri ve chamber angle modeli
-henüz sonraki kapılı teslimlerdir. Fiziksel HMC bağlantısında fotoğrafla
+aritmetiğini kapatır; monopulse ürünü tamamlanmış değildir. PL 2048-point FFT ve
+timing closure, ZX80/HMC936A GPIO ile FPGA bank/XDC/continuity, 5 V
+level-shifter/safe OE, BDC IF/koherens, ölçülmüş settle/discard ve chamber angle
+modeli sonraki kapılı teslimlerdir. Fiziksel HMC bağlantısında fotoğrafla
 doğrulanan eval-header sırası `5.625..180 -> BIT1..BIT6` olarak korunacak;
 süreklilik tablosu kapanmadan fiziksel kod sürülmeyecektir.
 ## 11. Wi-Fi RF detection feature durumu — 16 Temmuz 2026 kapanışı

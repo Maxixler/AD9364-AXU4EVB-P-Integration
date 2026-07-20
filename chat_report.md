@@ -409,18 +409,27 @@ bw=10000000 lo=2400000000 gain=71 tx_att=89750` ve
 `Read Error`, `Write Error` veya `PLATFORM: FAIL` görünmedi. Kalıcı sanitize
 kanıt: `PROJECT/tests/evidence/axu4ev-ad9364-monopulse-foundation-pass.txt`.
 
-Post-review status: those two runs accept only launch commit `53f74d9` and ELF
-SHA-256 `B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2`.
-They do not accept the rebuilt review-fix ELF. A fresh two-run AXU4EVB-P
-validation, including one cold power cycle, is required before the current
-branch is merge-ready.
+Post-review revalidation: those historical runs remain scoped to launch commit
+`53f74d9` and ELF SHA-256
+`B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2`. The rebuilt
+review-fix commit `e0c293544bc45e21b734bb215b39e341acb918b2` is separately
+accepted by two new physical Candidate runs, including a cold power cycle. The
+`860576`-byte Release ELF SHA-256 is
+`D6FFF74DEFC1ACE260010D5BF13A93E7373C1633C3C5DC73DB23839FB13C9106`; the Golden
+BIT SHA-256 remains `AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4`.
+The `20260720-174800-candidate.log` and `20260720-174936-candidate.log` files
+each contain the full artifact manifest, DDR `A5A5A5A5`, and full JTAG launch
+PASS. User UART records show 61441040 Hz / 61439514 Hz initialization, the
+required RF readback and `MONOPULSE_FOUNDATION: PASS`, with no forbidden
+DMA/Wi-Fi/error/platform/foundation FAIL marker.
 
 Bu, A53 software foundation kabulüdür; tamamlanmış monopulse ürünü iddiası
-değildir. PL FFT, dış switch pinleri, HMC için 5 V buffer/safe OE, ölçülmüş
-settle/discard ve chamber angle modeli sonraki kapılı işlerdir. Devam eden
-fiziksel bağlantı sözleşmesinde fotoğrafla düzeltilen eşleme
-`5.625..180 -> BIT1..BIT6` olarak esas alınır; kablo/level-shifter/FPGA
-süreklilik tablosu kapanmadan HMC fiziksel kodu sürülmeyecektir.
+değildir. PL FFT/timing closure, dış ZX80/HMC GPIO ile FPGA bank/XDC/continuity,
+HMC için 5 V buffer/safe OE, BDC IF/koherens, ölçülmüş settle/discard ve chamber
+angle modeli sonraki kapılı işlerdir. Devam eden fiziksel bağlantı sözleşmesinde
+fotoğrafla düzeltilen eşleme `5.625..180 -> BIT1..BIT6` olarak esas alınır;
+kablo/level-shifter/FPGA süreklilik tablosu kapanmadan HMC fiziksel kodu
+sürülmeyecektir.
 ## 20. AD9364 2.4 GHz Wi-Fi RF algılama geliştirmesi — gün sonu kaydı
 
 Kullanıcı, kartın gerçek RF sinyali alabildiğini önce kontrollü ve güvenli biçimde kanıtlamak; daha sonra FFT/grafik, continuous streaming ve PetaLinux/IIO fazlarına geçmek istedi. İlk RF kaynağı olarak 2.4 GHz'e zorlanan telefon hotspot'u seçildi. Bu aşamada Wi-Fi paketleri veya kullanıcı verisi çözülmeyecek; yalnız RF enerji, burst, RSSI ve DMA örnek istatistikleri ölçülecektir.
