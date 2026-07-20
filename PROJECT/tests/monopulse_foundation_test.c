@@ -1,0 +1,92 @@
+#include <assert.h>
+#include <errno.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "monopulse_math.h"
+
+static void test_axis_vectors(void)
+{
+	struct monopulse_axis_result r;
+
+	assert(monopulse_compute_axis(300, 100, 1, &r) == 0);
+	assert(r.numerator == 200);
+	assert(r.denominator == 400);
+	assert(r.error_q31 == INT32_C(1073741824));
+	assert(r.valid == 1U);
+
+	assert(monopulse_compute_axis(100, 300, 1, &r) == 0);
+	assert(r.numerator == -200);
+	assert(r.error_q31 == -INT32_C(1073741824));
+
+	assert(monopulse_compute_axis(200, 200, 1, &r) == 0);
+	assert(r.error_q31 == 0);
+
+	assert(monopulse_compute_axis(1, 0, 1, &r) == 0);
+	assert(r.error_q31 == INT32_MAX);
+	assert(monopulse_compute_axis(0, 1, 1, &r) == 0);
+	assert(r.error_q31 == INT32_MIN);
+
+	assert(monopulse_compute_axis(2, 1, 4, &r) == 0);
+	assert(r.valid == 0U);
+	assert((r.flags & MONOPULSE_AXIS_DENOMINATOR_SMALL) != 0U);
+}
+
+static void test_invalid_arguments(void)
+{
+	struct monopulse_axis_result axis;
+	struct monopulse_result result;
+	struct monopulse_power_set powers = { 1, 1, 1, 1 };
+
+	assert(monopulse_compute_axis(1, 1, 1, NULL) == -EINVAL);
+	assert(monopulse_compute_axis(1, 1, 0, &axis) == -EINVAL);
+	assert(monopulse_compute_result(NULL, 1, &result) == -EINVAL);
+	assert(monopulse_compute_result(&powers, 1, NULL) == -EINVAL);
+	assert(monopulse_compute_result(&powers, 0, &result) == -EINVAL);
+}
+
+static void test_axis_boundaries(void)
+{
+	struct monopulse_axis_result r;
+
+	assert(monopulse_compute_axis(UINT64_MAX, UINT64_MAX, 1, &r) == 0);
+	assert(r.denominator == UINT64_MAX);
+	assert(r.numerator == 0);
+	assert(r.error_q31 == 0);
+	assert((r.flags & MONOPULSE_AXIS_POWER_OVERFLOW) != 0U);
+	assert(r.valid == 1U);
+
+	assert(monopulse_compute_axis(UINT64_MAX, 0, 1, &r) == 0);
+	assert(r.numerator == INT64_MAX);
+	assert(r.error_q31 == INT32_MAX);
+	assert((r.flags & MONOPULSE_AXIS_POWER_OVERFLOW) != 0U);
+
+	assert(monopulse_compute_axis(0, UINT64_MAX, 1, &r) == 0);
+	assert(r.numerator == INT64_MIN);
+	assert(r.error_q31 == INT32_MIN);
+	assert((r.flags & MONOPULSE_AXIS_POWER_OVERFLOW) != 0U);
+}
+
+static void test_independent_axes(void)
+{
+	struct monopulse_power_set powers = { 600, 200, 100, 300 };
+	struct monopulse_result result;
+
+	assert(monopulse_compute_result(&powers, 1, &result) == 0);
+	assert(result.powers.az_plus == 600);
+	assert(result.powers.el_minus == 300);
+	assert(result.az.error_q31 == INT32_C(1073741824));
+	assert(result.el.error_q31 == -INT32_C(1073741824));
+	assert(result.az.valid == 1U);
+	assert(result.el.valid == 1U);
+}
+
+int main(void)
+{
+	test_axis_vectors();
+	test_invalid_arguments();
+	test_axis_boundaries();
+	test_independent_axes();
+	puts("PASS: monopulse foundation deterministic vectors passed.");
+	return 0;
+}
