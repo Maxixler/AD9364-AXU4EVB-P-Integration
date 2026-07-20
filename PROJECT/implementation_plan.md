@@ -389,6 +389,26 @@ Yeni bağlayıcı donanım belgesi:
 `PROJECT/designs/2026-07-20-rf-control-hardware-contract.md`
 
 Kalan fiziksel kapılar: BDC IF'nin 1.2-1.4 GHz içinde doğrulanması, AZ/EL kablolarının ZX80 RF1/RF2 eşlemesi, ZX80 VDD kaynağı, HMC 5 V sürücü şeması, sekiz FPGA çıkış pininin bank/XDC eşlemesi ve ölçülmüş settle/discard değerleridir. Foundation C/Python işi bu pinlerden bağımsız sürdürülecektir; fiziksel RTL/XDC entegrasyonu bu kapılar kapanmadan yapılmayacaktır.
+
+## 21. 20 Temmuz 2026 — Candidate kart foundation kabulü
+
+Candidate foundation kabulü tamamlandı. `53f74d93da93e77a21e3c5f733c11be330f20e19`
+commitindeki Candidate, Golden BIT
+`AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4` ve exact
+Release ELF
+`B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2` ile iki kez
+başlatıldı. İkinci koşu cold power cycle sonrasındadır. Her iki JTAG logu DDR
+`A5A5A5A5` ve full launch PASS, her iki UART koşusu da AD936x Rev 2 init,
+`MONOPULSE_RF: PASS fs=30720000 bw=10000000 lo=2400000000 gain=71 tx_att=89750`
+ve `MONOPULSE_FOUNDATION: PASS` verdi. Yasaklı `DMA_EXAMPLE:`, `WIFI_RF_TEST:`,
+`Read Error`, `Write Error` ve `PLATFORM: FAIL` işaretleri yoktur. Kanıt dosyası:
+`PROJECT/tests/evidence/axu4ev-ad9364-monopulse-foundation-pass.txt`.
+
+Bu adımda yalnız software/A53 foundation kabul edilmiştir. Sonraki plan ayrı
+kapılarla PL 2048-point FFT, ZX80/HMC936A fiziksel GPIO ve 5 V sürücü,
+ölçülmüş settle/discard, ardından chamber angle modeli ve ürün kabulünü ele
+alacaktır. HMC fotoğraf eşlemesi `5.625..180 -> BIT1..BIT6` olarak kullanılacak;
+FPGA pin/kablo sürekliliği ispatlanmadan fiziksel phase kodu uygulanmayacaktır.
 ## 19. 16 Temmuz 2026 — AD9364 2.4 GHz Wi-Fi RF algılama adayı
 
 İlk gerçek RF doğrulaması için çalışma `codex/wifi-rf-detection` dalındaki bağımsız worktree'de sürdürüldü. Amaç Wi-Fi paketlerini çözmek değil; AXU4EVB-P + AD9364 alıcı yolunun kontrollü telefon hotspot'u ile oluşan 2.4 GHz RF enerji ve burst değişimini güvenilir biçimde ölçtüğünü kanıtlamaktır.

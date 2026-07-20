@@ -391,6 +391,30 @@ Kullanıcı harici SPDT'yi `ZX80-DR230-S+`, phase-shifter'ı önce `EV1HMC946ALP
 - HMC bandı nedeniyle BDC sonrası gerçek IF 1.2-1.4 GHz içinde kanıtlanmalıdır.
 
 Bu bilgiler `PROJECT/designs/2026-07-20-rf-control-hardware-contract.md` dosyasına, ana tasarıma, nihai plana ve foundation uygulama planına işlendi. Fiziksel GPIO/XDC için hâlâ BDC IF, RF1/RF2 kablo eşlemesi, sekiz pin ve sürücü şeması gereklidir.
+
+## 23. AXU4EVB-P üzerinde monopulse foundation kabulü — 20 Temmuz 2026
+
+Foundation Candidate kart üzerinde iki kez kabul edildi; ikinci çalışma cold power
+cycle sonrasındadır. `codex/axu4ev-ad9364-monopulse` branch'inde launch commit
+`53f74d93da93e77a21e3c5f733c11be330f20e19` kullanıldı. Golden BIT SHA-256
+`AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4` korunurken
+Candidate Release ELF SHA-256
+`B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2` yüklendi.
+İki JTAG launch kaydında da DDR `A5A5A5A5` doğrulaması ve full JTAG launch PASS
+vardır.
+
+İki UART koşusu da aynen AD9364 init, `MONOPULSE_RF: PASS fs=30720000
+bw=10000000 lo=2400000000 gain=71 tx_att=89750` ve
+`MONOPULSE_FOUNDATION: PASS` ile bitti. `DMA_EXAMPLE:`, `WIFI_RF_TEST:`,
+`Read Error`, `Write Error` veya `PLATFORM: FAIL` görünmedi. Kalıcı sanitize
+kanıt: `PROJECT/tests/evidence/axu4ev-ad9364-monopulse-foundation-pass.txt`.
+
+Bu, A53 software foundation kabulüdür; tamamlanmış monopulse ürünü iddiası
+değildir. PL FFT, dış switch pinleri, HMC için 5 V buffer/safe OE, ölçülmüş
+settle/discard ve chamber angle modeli sonraki kapılı işlerdir. Devam eden
+fiziksel bağlantı sözleşmesinde fotoğrafla düzeltilen eşleme
+`5.625..180 -> BIT1..BIT6` olarak esas alınır; kablo/level-shifter/FPGA
+süreklilik tablosu kapanmadan HMC fiziksel kodu sürülmeyecektir.
 ## 20. AD9364 2.4 GHz Wi-Fi RF algılama geliştirmesi — gün sonu kaydı
 
 Kullanıcı, kartın gerçek RF sinyali alabildiğini önce kontrollü ve güvenli biçimde kanıtlamak; daha sonra FFT/grafik, continuous streaming ve PetaLinux/IIO fazlarına geçmek istedi. İlk RF kaynağı olarak 2.4 GHz'e zorlanan telefon hotspot'u seçildi. Bu aşamada Wi-Fi paketleri veya kullanıcı verisi çözülmeyecek; yalnız RF enerji, burst, RSSI ve DMA örnek istatistikleri ölçülecektir.

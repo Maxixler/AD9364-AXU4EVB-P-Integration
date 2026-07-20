@@ -1,0 +1,58 @@
+AXU4EVB-P + AD9364 monopulse foundation acceptance evidence
+Date: 2026-07-20
+
+Acceptance scope
+- Candidate-mode AXU4EVB-P board run of the portable monopulse foundation.
+- This accepts AD9364 initialization, runtime RF readbacks, and the deterministic
+  Cortex-A53 arithmetic/sequence self-test. It does not accept the complete
+  monopulse product or any PL/external-control implementation.
+
+Candidate provenance
+- Branch: codex/axu4ev-ad9364-monopulse
+- Launch commit: 53f74d93da93e77a21e3c5f733c11be330f20e19
+- Candidate application: Vitis/workspace/ad9364app/Release/ad9364app.elf
+- Candidate ELF SHA-256: B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2
+- Golden BIT SHA-256: AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4
+- Golden hardware artifacts remained selected; Candidate mode replaced only the
+  application ELF.
+
+JTAG launch evidence
+- Run 1 launcher log: PROJECT/logs/jtag/20260720-165930-candidate.log
+- Run 2 launcher log: PROJECT/logs/jtag/20260720-170223-candidate.log
+- Both logs contain: DDR verification passed: A5A5A5A5
+- Both logs contain: PASS: PMUFW, FPGA, direct PS/DDR/PS-PL initialization, DDR
+  gate and ad9364app were launched over JTAG.
+
+UART Run 1 (before cold power cycle)
+cf-ad9361-lpc: Successfully initialized (61439514 Hz)
+ad9361_init : AD936x Rev 2 successfully initialized
+MONOPULSE_RF: PASS fs=30720000 bw=10000000 lo=2400000000 gain=71 tx_att=89750
+MONOPULSE_FOUNDATION: PASS
+
+Cold-power-cycle repeat
+- Board was cold power-cycled, then PS_UART and JTAG were reconnected before
+  launching Candidate mode again.
+
+UART Run 2 (after cold power cycle)
+cf-ad9361-lpc: Successfully initialized (61439514 Hz)
+ad9361_init : AD936x Rev 2 successfully initialized
+MONOPULSE_RF: PASS fs=30720000 bw=10000000 lo=2400000000 gain=71 tx_att=89750
+MONOPULSE_FOUNDATION: PASS
+
+Negative-marker review
+- Neither UART run contains DMA_EXAMPLE:, WIFI_RF_TEST:, Read Error, Write Error,
+  or PLATFORM: FAIL.
+
+Acceptance result
+PASS: Two consecutive physical Candidate runs, including one after a cold power
+cycle, produced identical required AD9364 initialization and MONOPULSE_FOUNDATION
+PASS markers. The accepted runtime readbacks are fs=30720000, bw=10000000,
+lo=2400000000, gain=71, and tx_att=89750.
+
+Remaining gates
+- PL 2048-point FFT integration and hardware timing closure.
+- ZX80/HMC936A control pins, 5 V level shifting, and the signed physical
+  continuity table.
+- Measured switching/settle/discard values at the actual IF, power, and
+  temperature.
+- Chamber angle-model calibration and product-level acceptance.
