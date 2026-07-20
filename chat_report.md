@@ -299,3 +299,67 @@ Kabul edilen `2026-07-16-bringup-v1` sürümünün beş SHA-256 değeri:
 - `ad9364app.elf`: `320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC`
 
 Logun ilk kısmı UTF-8, XSCT çıktısı UTF-16 olarak birleştiği için okunabilirlik sorunu ayrıca tespit edildi. Orkestratör tek `Unicode` kodlama kullanacak şekilde düzeltildi ve wrapper testi bu sözleşmeyi koruyacak biçimde genişletildi. Mevcut log Git dışında bırakılmıştır; sonraki loglar tek kodlamayla oluşacaktır.
+
+## 19. Main fast-forward ve GitHub push
+
+Kullanıcının onayıyla doğrulanmış çalışma yerel `main` dalına alındı. Ön kontrolde `main`in feature dalının doğrudan atası olduğu ve 14 commit geride bulunduğu doğrulandı; bu nedenle çatışmalı merge yerine güvenli fast-forward uygulandı. Mevcut çalışma ağacında kullanıcıya ait 1081 staged dosya ve çok sayıda Vitis/Vivado çıktısı bulunduğundan branch checkout yapılmadı ve bu dosyalara dokunulmadı.
+
+Fast-forward sonrasında:
+
+- yerel `main`: `9d2f06a`
+- doğrulanmış HEAD: `9d2f06a`
+- `main` ile HEAD farkı: yok
+- beş otomatik AXU4EV testi: PASS
+
+GitHub CLI oturumu yenilendikten sonra yalnızca `refs/heads/main:refs/heads/main` pushlandı. Push sonucu:
+
+```text
+To https://github.com/Maxixler/FPGA-Profen.git
+   6b78d06..9d2f06a  main -> main
+```
+
+Uzak referans ayrıca `9d2f06acca380778cae29ddaf4bbf327048e15b5` olarak doğrulandı. Feature checkout ve kullanıcıya ait staged dosyalar yerelde korunmuş; GitHub `main` yalnızca daha önce kapsamı belirlenerek commitlenmiş proje değişiklikleriyle güncellenmiştir.
+
+## 20. Monopulse ister analizi ve onaylanan tasarım — 20 Temmuz 2026
+
+Kullanıcı, yöneticiden aldığı yeni isterleri karışık sırayla aktardı. İstenen ana fonksiyonlar; FFT çıktısı, maximum peak tespiti, genlik oranı, 0°/180° phase switching, SUM/ERROR yaklaşımı ve azimuth/elevation hata üretimiydi. Kullanıcının paylaştığı RF blok şeması bağlayıcı ürün mimarisi, `Antenna_Tracking_Techniques_for_Long_Range_Air-to- (1).pdf` ise yalnız referans kabul edildi.
+
+Referans makale görsel ve metinsel olarak incelendi. Makalenin tek IF zincirinde Σ+Δ ve Σ-Δ güçlerini zaman bölüşümlü ölçtüğü, tam eşzamanlı iki dijital kanal veya doğrudan kompleks faz bölmesi yapmadığı belirlendi.
+
+AD9364 ürün yeteneği, güncel no-OS kaynakları ve fotoğraflar birlikte incelendi:
+
+- Hedef AD9364 1x1'dir; RXA/RXB eşzamanlı iki ADC kanalı değildir.
+- Mevcut `AD9364_DEVICE=1` yazılımı `rx2tx2=false` zorlamaktadır.
+- Fotoğraftaki eski düzenin kartı `AD-FMCOMMS3-EBZ` olarak okundu.
+- İki mavi IF kablosunun `RX1A` ve `RX2A` portlarına bağlı olduğu görüldü.
+- Bu kart AD9361 tabanlı gerçek 2Rx referans sistemdir; AXU4EVB-P + AD9364 hedefini değiştirmez.
+
+Kullanıcı hedef kartın değiştirilmemesini onayladı. Bunun sonucunda eşzamanlı iki dijital RX yaklaşımı elendi ve şu analog tek-kanallı pseudo-monopulse akışı kabul edildi:
+
+```text
+S0: Σ + ΔAZ
+S1: Σ - ΔAZ
+S2: Σ + ΔEL
+S3: Σ - ΔEL
+```
+
+SPDT ΔAZ/ΔEL seçer; 0°/180° bi-phase switch seçilen Δ'nın işaretini tersler; combiner tek hattı AD9364'e verir. Phase switch'in anten azimuth açısını doğrudan değiştirmediği ve tek RF yolunda yalnız 180° çevirmenin FFT gücünü değiştirmeyeceği açıklığa kavuşturuldu.
+
+Onaylanan ilk sayısal profil ve DSP sözleşmesi:
+
+- 30,72 MSPS sample rate
+- Runtime readback ile 10 MHz RX bandwidth hedefi
+- 2048-point tek ve zaman paylaşımlı FFT
+- CW için dört spektrum toplamından ortak peak
+- Peak çevresinde ±2 bin güç integrasyonu
+- 5-10 MHz modülasyonlu sinyal için configured band-power
+- Dört scalar güçten Q1.31 `AZ_ERROR` ve `EL_ERROR`
+- Küçük payda, clipping, sample drop, FFT error ve switch timeout denetimi
+
+R&S SMW200A, yankısız oda, verici/alıcı anten, döner mekanizma ve X-band BDC altyapısının hazır olduğu fotoğraflarla görüldü. Kalibrasyon akışı; düşük güçten başlama, ortak MGC, mekanik sıfır biası, tek eksenli `-θ/0/+θ` taraması, simetri/eğim ve tekrar edilebilirlik raporu olarak tasarlandı. Açı RMSE için kanıtsız limit konmadı.
+
+Bağımsız bağlayıcı tasarım belgesi oluşturuldu:
+
+`PROJECT/designs/2026-07-20-axu4ev-ad9364-single-channel-monopulse-design.md`
+
+Mevcut nihai planın eski anten A/B terminolojisi yeni Σ/Δ mimarisiyle çeliştiği için bağlayıcı düzeltme ve güncel iş paketleri eklendi. Bu aşamada RTL, Vivado BD veya Vitis uygulama kaynakları değiştirilmedi.

@@ -229,15 +229,23 @@ Durum: **Temel bring-up tamamlandı; RF/IQ veri doğrulaması sürüyor**
 
 ## 12. Aşama 8 — RF veri işleme ve spektrum
 
-Durum: **Başlamaya hazır; ilk öncelik RX örnek bütünlüğü**
+Durum: **Tek kanallı monopulse tasarımı onaylandı; RTL uygulaması başlamadı.**
 
-1. [ ] Güvenilir RX capture boyutunun ve örnek formatının sabitlenmesi.
-2. [ ] IQ örneklerinin DDR'den alınması ve ölçeklendirilmesi.
-3. [ ] Pencereleme ve FFT yönteminin seçilmesi.
-4. [ ] CPU tabanlı FFT ile ilk spektrum doğrulaması.
-5. [ ] Performans ihtiyacına göre PL tabanlı FFT veya streaming mimarisinin değerlendirilmesi.
-6. [ ] TX test tonu ve RX loopback testlerinin eklenmesi.
-7. [ ] Otomatik RF smoke-test ve veri bütünlüğü testlerinin oluşturulması.
+Bağlayıcı tasarım: `PROJECT/designs/2026-07-20-axu4ev-ad9364-single-channel-monopulse-design.md`
+
+1. [ ] AD9364 I0/Q0 sample formatı, valid/enable sırası ve 30,72 MSPS profili ILA + DMA ile doğrulanacak.
+2. [ ] RX-only başlatmada TX attenuation 89.750 mdB ve tüm AXI DAC source'ları ZERO yapılıp readback alınacak.
+3. [ ] Mevcut RX DMAC yolunu durdurmayan 2048-sample store-and-forward capture geliştirilecek.
+4. [ ] Tek Vivado FFT v9.1 core; rectangular/Hann, `SCALE_SCH=0x6AB` ve magnitude-square Python/C modeliyle bit-doğru doğrulanacak.
+5. [ ] CW için yapılandırılmış pencerede ortak maximum peak ve ±2 komşu-bin gücü üretilecek.
+6. [ ] 5-10 MHz modülasyonlu sinyal için configured band-power modu eklenecek.
+7. [ ] Harici SPDT ile `ΔAZ/ΔEL` ve 0°/180° bi-phase kontrolünün pin, voltaj, aktif seviye ve settle sözleşmesi gerçek donanımla doğrulanacak.
+8. [ ] Tek AD9364 RX'te sırayla `Σ+ΔAZ`, `Σ-ΔAZ`, `Σ+ΔEL`, `Σ-ΔEL` frame'leri yakalanacak.
+9. [ ] Dört güçten signed Q1.31 `AZ_ERROR` ve `EL_ERROR` scalar oranları PL'de üretilecek; küçük payda geçersiz sayılacak.
+10. [ ] SMW200A ve yankısız oda ile mekanik sıfır, `-θ/0/+θ`, simetri ve tekrar edilebilirlik kalibrasyonu yapılacak.
+11. [ ] Golden AD9364 init/DMA regresyonu, timing/DRC ve fiziksel kabul geçmeden Candidate release terfi ettirilmeyecek.
+
+AD9364 1x1 olduğundan iki dijital RX kanalının eşzamanlı okunması kapsam dışıdır. Fotoğraftaki AD-FMCOMMS3-EBZ/AD9361 iki-kanallı sistem yalnız laboratuvar/referans kayıt olarak değerlendirilir ve hedef kartı değiştirmez.
 
 ## 13. Opsiyonel Linux/PetaLinux aşaması
 
@@ -343,3 +351,24 @@ Operatör sırası:
 6. Aday aynı UART/DMA kabulünü geçmeden terfi/seçim yapma.
 
 Otomatik bütünlük, kuru çalışma ve sıralama testleri geçmiştir. Golden `.cmd` dosyası hiçbir manuel XSCT komutu olmadan çalıştırılmış; PMUFW, FPGA, doğrudan PS/DDR/PS–PL hazırlığı, DDR `A5A5A5A5` kapısı, AD9364 Rev 2 başlatması ve DMA `Done.` sonucu 16 Temmuz 2026 tarihinde doğrulanmıştır. Kabul logu `20260716-120323-golden.log` dosyasıdır. PetaLinux aşamasında Golden XSA sabit donanım referansı, yeni Workspace XSA'ları ise aday olarak kullanılacaktır.
+
+## 18. Git kapanışı ve ana dal durumu
+
+Doğrulanmış AXU4EVB-P + AD9364 çalışması yerel `main` dalına çatışmasız fast-forward ile alındı. Merge sonrasında release, Golden/Workspace wrapper, XSCT sıra/yol ve Vitis handoff testlerinin beşi yeniden çalıştırılarak geçti. Yerel `main` ile doğrulanmış HEAD aynı `9d2f06a` commitine işaret etti.
+
+`main`, GitHub üzerindeki `origin/main` dalına başarıyla pushlandı:
+
+- Repo: `Maxixler/FPGA-Profen`
+- Uzak dal: `main`
+- Push aralığı: `6b78d06..9d2f06a`
+- Uzak HEAD: `9d2f06acca380778cae29ddaf4bbf327048e15b5`
+
+Çalışma alanındaki kullanıcıya ait 1081 staged dosya ile Vitis/Vivado üretim çıktıları merge veya push kapsamına alınmadı. Kirli çalışma ağacını taşımamak için checkout zorlanmadı; `codex/axu4ev-pmufw-bringup` dalı çalışma alanında korunurken yerel ve uzak `main` doğrulanmış committe sabitlendi.
+
+## 19. 20 Temmuz 2026 — monopulse ister ve tasarım kapanışı
+
+Proje sahibiyle yapılan ister görüşmesinde hedef platformun AXU4EVB-P + mevcut AD9364 olarak korunacağı kesinleştirildi. Bağlayıcı RF şeması; analog Σ hattı, SPDT ile seçilen ΔAZ/ΔEL, 0°/180° bi-phase switch, combiner ve AD9364'e gelen tek birleşik RX hattıdır. Referans makale donanım kaynağı değil, yalnız algoritma/test bağlamıdır.
+
+Onaylanan ilk Candidate; 30,72 MSPS, 10 MHz RX bandwidth readback hedefi, 2048 nokta tek FFT, CW ortak peak, modülasyonlu sinyal için band-power ve dört durumdan normalize AZ/EL hata üretir. Tam kompleks Σ/Δ faz açısı ve gerçek eşzamanlı çift RX, AD9364 sınırı nedeniyle ürün kapsamına alınmadı.
+
+R&S SMW200A, yankısız oda, verici/alıcı anten ve X-band BDC altyapısının hazır olduğu fotoğraflarla görüldü. Yakın çekimdeki AD-FMCOMMS3-EBZ kartının RX1A/RX2A bağlantıları AD9361 tabanlı eski/referans sisteme aittir; Candidate kaynak veya channel-count kanıtı değildir.

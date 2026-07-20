@@ -1,10 +1,10 @@
 # Proje Durum Raporu — AXU4EVB-P + AD9364
 
-**Son güncelleme:** 16 Temmuz 2026
+**Son güncelleme:** 20 Temmuz 2026
 
 **Ana hedef:** ALINX AXU4EVB-P üzerinde AD9364/FMCOMMS ailesi ile doğrulanmış FPGA donanım platformu ve bare-metal yazılım zinciri oluşturmak.
 
-**Mevcut aşama:** Vivado/Vitis kapanışı, PMUFW içeren JTAG başlatma ve temel bare-metal kart bring-up'ı tamamlandı; sıradaki ana aşama RF/IQ örnek doğrulamasıdır.
+**Mevcut aşama:** Vivado/Vitis kapanışı, PMUFW içeren JTAG başlatma ve temel bare-metal kart bring-up'ı tamamlandı. Tek AD9364 RX, dört analog Σ/Δ durumu ve tek FFT kullanan monopulse Candidate tasarımı onaylandı; sıradaki ana aşama kaynak/Golden regresyonu ile RX/IQ format kapısıdır.
 
 ## 1. Yönetici özeti
 
@@ -114,10 +114,15 @@ Vivado SDK, `PROJECT/verification` ve Vitis platformundaki XSA kopyaları bit d�
 
 ### Aşama 8 — RF işleme ve spektrum
 
-- [ ] Hedef örnekleme hızı, bant genişliği ve FFT boyutu netleştirilecek.
-- [ ] Önce yazılım tabanlı referans FFT/spektrum çıktısı oluşturulacak.
-- [ ] Gerekirse PL tarafında pencereleme/FFT/ortalama mimarisi tasarlanacak.
-- [ ] Gerçek zamanlı veri yolu ve DDR bant genişliği ölçülecek.
+- [x] Hedef mimari AXU4EVB-P + mevcut AD9364 olarak korundu; AD9361/FMCOMMS3'e geçiş reddedildi.
+- [x] İlk profil 30,72 MSPS, runtime 10 MHz RX bandwidth readback hedefi ve 2048-point tek FFT olarak seçildi.
+- [x] Analog durumlar `Σ+ΔAZ`, `Σ-ΔAZ`, `Σ+ΔEL`, `Σ-ΔEL` olarak tanımlandı.
+- [x] CW common-peak, modülasyonlu sinyal configured band-power ve Q1.31 AZ/EL normalize oran sözleşmesi tasarlandı.
+- [ ] AD9364 I0/Q0 formatı ve mevcut DMAC izolasyonu ILA/DMA ile doğrulanacak.
+- [ ] Store-and-forward capture, tek FFT, magnitude-square ve ortak peak yolu test-first uygulanacak.
+- [ ] SPDT/0°-180° phase switch pin, gerilim, polarite ve settle değerleri gerçek donanımla doğrulanacak.
+- [ ] SMW200A ile yankısız odada mekanik sıfır ve `-θ/0/+θ` kalibrasyonu yapılacak.
+- [ ] Timing/DRC, Golden DMA regresyonu ve kart kabulü tamamlanacak.
 
 ### Aşama 9 — İsteğe bağlı Linux/PetaLinux
 
@@ -202,3 +207,40 @@ Kabul edilen değişmez sürümün SHA-256 değerleri:
 | `ad9364app.elf` | `320F89C78E932125F5A198DFED96F5101D93D42C95B026216C5F844C5E676FDC` |
 
 Sonuç olarak bilgisayar/kart yeniden açıldıktan sonra kullanılacak normal yol Golden başlatıcıdır; XSCT komutlarının elle tekrarlanması gerekmemektedir.
+
+## 10. Main entegrasyonu ve GitHub yayını
+
+Durum: **Tamamlandı.**
+
+Golden kart kabulünden sonra `codex/axu4ev-pmufw-bringup` üzerindeki doğrulanmış 14 commit yerel `main` dalına fast-forward edildi. İşlem çatışmasız tamamlandı; `main` ve HEAD `9d2f06a` commitinde eşleşti. Entegrasyon sonrasında beş otomatik test yeniden geçti.
+
+Yerel `main`, `https://github.com/Maxixler/FPGA-Profen.git` deposundaki `origin/main` dalına pushlandı. GitHub doğrulamasında uzak referans şu değeri verdi:
+
+```text
+9d2f06acca380778cae29ddaf4bbf327048e15b5 refs/heads/main
+```
+
+Push aralığı `6b78d06..9d2f06a` oldu. Çalışma alanındaki kullanıcıya ait 1081 staged dosya, untracked Vitis/Vivado çıktıları ve runtime JTAG logu push kapsamına girmedi. Böylece GitHub `main`, kartta doğrulanmış Golden release, otomatik başlatıcılar, bütünlük testleri ve kabul raporlarını içerirken yerel geliştirme çıktıları korunmuştur.
+
+## 11. 20 Temmuz 2026 monopulse tasarım durumu
+
+Durum: **Tasarım onaylandı; uygulama başlamadı.**
+
+Yeni bağlayıcı tasarım belgesi:
+
+`PROJECT/designs/2026-07-20-axu4ev-ad9364-single-channel-monopulse-design.md`
+
+Kullanıcının paylaştığı şema ana ürün mimarisi, IEEE Access makalesi ise yalnız referans olarak kabul edildi. Şemadaki analog ön uç SPDT ile ΔAZ/ΔEL seçer, seçilen Δ yolunu 0°/180° çevirir ve Σ ile birleştirir. AD9364'e tek birleşik hat geldiği için dört finite-frame zaman bölüşümlü yakalanır; iki eşzamanlı dijital RX veya tam kompleks faz farkı iddiası yapılmaz.
+
+Yankısız oda fotoğrafları SMW200A, döner anten, X-band BDC ve önceki ADI düzenini gösterdi. Yakın çekimde `AD-FMCOMMS3-EBZ`, `RX1A` ve `RX2A` doğrulandı; bunun AD9361 tabanlı 2Rx referans sistem olduğu ve mevcut AD9364 hedefinin yerine geçmediği kayda alındı.
+
+Sıradaki güvenli iş sırası:
+
+1. Aktif Tcl/XDC ve Golden kaynak/artefakt regresyonu.
+2. I0/Q0, runtime RF metadata ve TX-safe readback kapısı.
+3. Non-blocking 2048-sample capture ve tek FFT sayısal kapanışı.
+4. Common peak/band-power motoru.
+5. Gerçek harici kontrol elektriksel sözleşmesi.
+6. Dört-durum FSM, PL scalar ratio ve yankısız oda kalibrasyonu.
+
+Sayısal açı RMSE limiti henüz ürün sahibi tarafından verilmedi. İlk açı süpürmesi ölçülmüş performans tabanını üretecek; kabul limiti anten HPBW'si ve kalibrasyon verisi görülmeden uydurulmayacaktır.
