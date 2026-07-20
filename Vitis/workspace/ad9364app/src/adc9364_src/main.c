@@ -61,6 +61,7 @@
 #include "axi_dac_core.h"
 #include "axi_dmac.h"
 #include "no_os_error.h"
+#include "monopulse_selftest.h"
 #include "wifi_rf_test.h"
 
 #ifdef IIO_SUPPORT
@@ -223,13 +224,13 @@ AD9361_InitParam default_init_param = {
 	/* Rate & BW Control */
 	{983040000, 245760000, 122880000, 61440000, 30720000, 30720000},// rx_path_clock_frequencies[6] *** adi,rx-path-clock-frequencies
 	{983040000, 122880000, 122880000, 61440000, 30720000, 30720000},// tx_path_clock_frequencies[6] *** adi,tx-path-clock-frequencies
-	18000000,//rf_rx_bandwidth_hz *** adi,rf-rx-bandwidth-hz
+	10000000,//rf_rx_bandwidth_hz *** adi,rf-rx-bandwidth-hz
 	18000000,//rf_tx_bandwidth_hz *** adi,rf-tx-bandwidth-hz
 	/* RF Port Control */
 	0,		//rx_rf_port_input_select *** adi,rx-rf-port-input-select
 	0,		//tx_rf_port_input_select *** adi,tx-rf-port-input-select
 	/* TX Attenuation Control */
-	10000,	//tx_attenuation_mdB *** adi,tx-attenuation-mdB
+	89750,	//tx_attenuation_mdB *** adi,tx-attenuation-mdB
 	0,		//update_tx_gain_in_alert_enable *** adi,update-tx-gain-in-alert-enable
 	/* Reference Clock Control */
 	0,		//xo_disable_use_ext_refclk_enable *** adi,xo-disable-use-ext-refclk-enable
@@ -627,6 +628,12 @@ int main(void)
 		printf("PLATFORM: FAIL stage=AD9364_INIT error=%"PRIi32"\n", status);
 		goto cleanup;
 	}
+
+#ifdef MONOPULSE_FOUNDATION_TEST
+	status = monopulse_selftest_run(ad9361_phy);
+	if (status < 0)
+		goto cleanup;
+#endif
 
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);
 	ad9361_set_rx_fir_config(ad9361_phy, rx_fir_config);

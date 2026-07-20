@@ -50,8 +50,15 @@
 //#define AXI_ADC_NOT_PRESENT
 //#define TDD_SWITCH_STATE_EXAMPLE
 
-#define WIFI_RF_TEST
+//#define WIFI_RF_TEST
+#define MONOPULSE_FOUNDATION_TEST
 
+#if defined(MONOPULSE_FOUNDATION_TEST) && defined(WIFI_RF_TEST)
+#error "MONOPULSE_FOUNDATION_TEST and WIFI_RF_TEST cannot be enabled together"
+#endif
+#if defined(MONOPULSE_FOUNDATION_TEST) && defined(DMA_EXAMPLE)
+#error "MONOPULSE_FOUNDATION_TEST and DMA_EXAMPLE cannot be enabled together"
+#endif
 #if defined(WIFI_RF_TEST) && defined(DMA_EXAMPLE)
 #error "WIFI_RF_TEST and DMA_EXAMPLE cannot be enabled together"
 #endif
