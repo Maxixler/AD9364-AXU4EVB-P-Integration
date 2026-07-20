@@ -25,9 +25,33 @@ if ($InstallDependencies) {
 
 Push-Location $root
 try {
-    & $pythonExe -m unittest PROJECT.tests.test_monopulse_reference -v
-    if ($LASTEXITCODE -ne 0) {
-        throw "Python monopulse tests failed with exit code $LASTEXITCODE."
+    $expectedCrosscheck = 'CROSSCHECK powers=300,100,100,300 q31=1073741824,-1073741824'
+    $pythonStdout = [System.IO.Path]::GetTempFileName()
+    $pythonStderr = [System.IO.Path]::GetTempFileName()
+    try {
+        $pythonProcess = Start-Process -FilePath $pythonExe -ArgumentList @(
+            '-B', '-m', 'unittest', 'PROJECT.tests.test_monopulse_reference', '-v'
+        ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $pythonStdout -RedirectStandardError $pythonStderr
+        $pythonExitCode = $pythonProcess.ExitCode
+        $pythonOutput = (Get-Content -LiteralPath $pythonStderr -Raw) + (Get-Content -LiteralPath $pythonStdout -Raw)
+    } finally {
+        Remove-Item -LiteralPath $pythonStdout, $pythonStderr -Force -ErrorAction SilentlyContinue
+    }
+    Write-Output $pythonOutput
+    if ($pythonExitCode -ne 0) {
+        throw "Python monopulse tests failed with exit code $pythonExitCode."
+    }
+    $foundationScript = Join-Path $PSScriptRoot 'Test-Axu4evMonopulseFoundation.ps1'
+    $foundationOutput = (& powershell -NoProfile -ExecutionPolicy Bypass -File $foundationScript 2>&1 | Out-String)
+    $foundationExitCode = $LASTEXITCODE
+    Write-Output $foundationOutput
+    if ($foundationExitCode -ne 0) {
+        throw "C monopulse foundation tests failed with exit code $foundationExitCode."
+    }
+    $pythonMarkers = @($pythonOutput -split "`r?`n" | Where-Object { $_ -eq $expectedCrosscheck })
+    $foundationMarkers = @($foundationOutput -split "`r?`n" | Where-Object { $_ -eq $expectedCrosscheck })
+    if ($pythonMarkers.Count -ne 1 -or $foundationMarkers.Count -ne 1) {
+        throw 'Python and C test runners must each emit exactly one matching CROSSCHECK marker.'
     }
 } finally {
     Pop-Location

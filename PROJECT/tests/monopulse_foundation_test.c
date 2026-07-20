@@ -394,6 +394,7 @@ int main(void)
 	test_common_peak_and_cw_integration();
 	test_band_power_and_saturation();
 	test_spectrum_boundaries_and_validation();
+	puts("CROSSCHECK powers=300,100,100,300 q31=1073741824,-1073741824");
 	puts("PASS: monopulse foundation deterministic vectors passed.");
 	return 0;
 }

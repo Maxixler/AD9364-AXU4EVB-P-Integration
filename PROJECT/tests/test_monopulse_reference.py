@@ -63,11 +63,13 @@ class MonopulseReferenceTests(unittest.TestCase):
 
         self.assertEqual(find_common_peak(spectra, (8, 1023), dc_guard=4), (100, 100.0))
 
-    def test_off_bin_tone_keeps_its_common_peak(self) -> None:
-        frames = np.stack([bin_tone(123, power) for power in (1, 2, 3, 4)])
+    def test_fractional_bin_tone_has_deterministic_peak_and_leakage(self) -> None:
+        frames = np.stack([bin_tone(123.25, power) for power in (1, 2, 3, 4)])
         spectra = spectra_from_frames(frames)
 
         self.assertEqual(find_common_peak(spectra, (8, 1023), dc_guard=4)[0], 123)
+        self.assertGreater(spectra[:, 123].sum(), spectra[:, 124].sum())
+        self.assertGreater(spectra[:, 124].sum(), spectra[:, 122].sum())
 
     def test_cw_and_band_intervals_are_inclusive(self) -> None:
         spectra = np.zeros((4, FFT_SIZE), dtype=float)
