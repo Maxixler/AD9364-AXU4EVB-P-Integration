@@ -104,6 +104,7 @@ $result = [ordered]@{
     log = $logPath
     artifacts = $artifacts
 }
+$artifactManifest = ConvertTo-Json -InputObject @($artifacts) -Depth 4 -Compress
 
 if ($DryRun) {
     $result | ConvertTo-Json -Depth 6
@@ -124,7 +125,7 @@ foreach ($name in $environment.Keys) {
 
 try {
     "Mode=$Mode" | Set-Content -LiteralPath $logPath -Encoding Unicode
-    $artifacts | Format-Table -AutoSize | Out-String | Add-Content -LiteralPath $logPath -Encoding Unicode
+    "ARTIFACT_MANIFEST_JSON=$artifactManifest" | Add-Content -LiteralPath $logPath -Encoding Unicode
     & $xsct $launchTcl 2>&1 | Tee-Object -FilePath $logPath -Append
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {

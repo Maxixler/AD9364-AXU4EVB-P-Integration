@@ -6,6 +6,22 @@ $testSource = Join-Path $PSScriptRoot 'monopulse_foundation_test.c'
 $mathSource = Join-Path $includeDir 'monopulse_math.c'
 $sequenceSource = Join-Path $includeDir 'monopulse_sequence.c'
 $spectrumSource = Join-Path $includeDir 'monopulse_spectrum.c'
+$selftestSource = Join-Path $includeDir 'monopulse_selftest.c'
+
+$selftestContent = Get-Content -LiteralPath $selftestSource -Raw
+foreach ($fragment in @(
+    'monopulse_find_common_peak(',
+    'monopulse_integrate_cw(',
+    'monopulse_integrate_band(',
+    'SPECTRUM_PEAK',
+    'SPECTRUM_CW',
+    'SPECTRUM_BAND',
+    'SPECTRUM_SATURATION'
+)) {
+    if (-not $selftestContent.Contains($fragment)) {
+        throw "Cortex-A53 self-test is missing spectrum coverage: $fragment"
+    }
+}
 
 if ($env:MONOPULSE_GCC) {
     $gcc = $env:MONOPULSE_GCC

@@ -1,6 +1,6 @@
 # ZX80-DR230-S+ ve EV1HMC936ALP6 RF Kontrol Sözleşmesi
 
-**Tarih:** 20 Temmuz 2026  
+**Tarih:** 20 Temmuz 2026
 **Durum:** Parça kimliği ve üretici elektriksel verileri doğrulandı; BDC IF frekansı, RF1/RF2 kablo eşlemesi, FPGA konnektör/pinleri ve seviye dönüştürücü devresi henüz kapatılmadı.
 
 ## 1. Doğrulanan parçalar

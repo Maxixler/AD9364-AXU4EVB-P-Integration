@@ -404,6 +404,12 @@ ve `MONOPULSE_FOUNDATION: PASS` verdi. Yasaklı `DMA_EXAMPLE:`, `WIFI_RF_TEST:`,
 `Read Error`, `Write Error` ve `PLATFORM: FAIL` işaretleri yoktur. Kanıt dosyası:
 `PROJECT/tests/evidence/axu4ev-ad9364-monopulse-foundation-pass.txt`.
 
+Post-review note: the two runs above are historical acceptance evidence only for
+launch commit `53f74d9` and ELF SHA-256 `B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2`.
+The rebuilt review-fix ELF is not accepted by those runs and requires a fresh
+two-run AXU4EVB-P validation, including one cold power cycle, before this branch
+is merge-ready.
+
 Bu adımda yalnız software/A53 foundation kabul edilmiştir. Sonraki plan ayrı
 kapılarla PL 2048-point FFT, ZX80/HMC936A fiziksel GPIO ve 5 V sürücü,
 ölçülmüş settle/discard, ardından chamber angle modeli ve ürün kabulünü ele

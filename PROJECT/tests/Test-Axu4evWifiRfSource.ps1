@@ -1277,20 +1277,83 @@ $cprojectPath = Join-Path $root 'Vitis\workspace\ad9364app\.cproject'
 
 foreach ($fragment in @(
     '#define WIFI_RF_TEST',
+    '#if !defined(WIFI_RF_TEST) && !defined(MONOPULSE_FOUNDATION_TEST)',
     '#if defined(WIFI_RF_TEST) && defined(DMA_EXAMPLE)',
-    '#error "WIFI_RF_TEST and DMA_EXAMPLE cannot be enabled together"'
+    '#error "WIFI_RF_TEST and DMA_EXAMPLE cannot be enabled together"',
+    '#define CANDIDATE_RX_BANDWIDTH_HZ 18000000UL',
+    '#define CANDIDATE_RX_BANDWIDTH_HZ 10000000UL'
 )) {
     if (-not $config.Contains($fragment)) { throw "Missing app config invariant: $fragment" }
 }
 foreach ($fragment in @(
     '#include "wifi_rf_test.h"',
     'status = ad9361_init(&ad9361_phy, &default_init_param);',
+    'CANDIDATE_RX_BANDWIDTH_HZ,//rf_rx_bandwidth_hz',
     '#ifndef WIFI_RF_TEST',
     'status = wifi_rf_test_run(ad9361_phy, rx_dmac,',
     'goto cleanup;',
     'cleanup:'
 )) {
     if (-not $main.Contains($fragment)) { throw "Missing main integration fragment: $fragment" }
+}
+
+$featureTempRoot = [IO.Path]::GetFullPath((Join-Path $tempBase "wifi-rf-feature-$([guid]::NewGuid())"))
+$featureSource = Join-Path $featureTempRoot 'feature_config_test.c'
+$featureDefault = Join-Path $featureTempRoot 'feature_default.exe'
+$featureWifi = Join-Path $featureTempRoot 'feature_wifi.exe'
+$featureBothObject = Join-Path $featureTempRoot 'feature_both.o'
+$featureHarness = @'
+#include "app_config.h"
+
+#if defined(EXPECT_WIFI)
+#if !defined(WIFI_RF_TEST) || defined(MONOPULSE_FOUNDATION_TEST)
+#error "Wi-Fi feature selection is not exclusive"
+#endif
+_Static_assert(CANDIDATE_RX_BANDWIDTH_HZ == 18000000UL,
+	"Wi-Fi mode must configure the bandwidth printed by its UART metadata");
+#else
+#if !defined(MONOPULSE_FOUNDATION_TEST) || defined(WIFI_RF_TEST)
+#error "Monopulse default feature selection is not exclusive"
+#endif
+_Static_assert(CANDIDATE_RX_BANDWIDTH_HZ == 10000000UL,
+	"Monopulse mode must retain the board-validated bandwidth");
+#endif
+
+int main(void) { return 0; }
+'@
+try {
+    New-Item -ItemType Directory -Path $featureTempRoot | Out-Null
+    Set-Content -LiteralPath $featureSource -Value $featureHarness -Encoding Ascii
+    & $gcc -std=c11 -Wall -Wextra -Werror -I $sourceRoot $featureSource -o $featureDefault
+    if ($LASTEXITCODE -ne 0) { throw 'Default monopulse feature configuration failed to compile.' }
+    & $featureDefault
+    if ($LASTEXITCODE -ne 0) { throw 'Default monopulse feature configuration failed.' }
+
+    & $gcc -std=c11 -Wall -Wextra -Werror -I $sourceRoot -DWIFI_RF_TEST -DEXPECT_WIFI `
+        $featureSource -o $featureWifi
+    if ($LASTEXITCODE -ne 0) { throw 'Wi-Fi feature configuration failed to compile.' }
+    & $featureWifi
+    if ($LASTEXITCODE -ne 0) { throw 'Wi-Fi feature configuration failed.' }
+
+    $savedErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $gcc -std=c11 -Wall -Wextra -Werror -I $sourceRoot -DWIFI_RF_TEST `
+            -DMONOPULSE_FOUNDATION_TEST -c $featureSource -o $featureBothObject 2>$null
+        $bothExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedErrorActionPreference
+    }
+    if ($bothExitCode -eq 0) {
+        throw 'Simultaneous Wi-Fi and monopulse feature configuration unexpectedly compiled.'
+    }
+}
+finally {
+    if ((Test-Path -LiteralPath $featureTempRoot) -and
+        ([IO.Path]::GetFullPath($featureTempRoot)).StartsWith($tempBase, [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $featureTempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 $mainLines = @($main -split "`r?`n")

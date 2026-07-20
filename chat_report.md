@@ -409,6 +409,12 @@ bw=10000000 lo=2400000000 gain=71 tx_att=89750` ve
 `Read Error`, `Write Error` veya `PLATFORM: FAIL` görünmedi. Kalıcı sanitize
 kanıt: `PROJECT/tests/evidence/axu4ev-ad9364-monopulse-foundation-pass.txt`.
 
+Post-review status: those two runs accept only launch commit `53f74d9` and ELF
+SHA-256 `B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2`.
+They do not accept the rebuilt review-fix ELF. A fresh two-run AXU4EVB-P
+validation, including one cold power cycle, is required before the current
+branch is merge-ready.
+
 Bu, A53 software foundation kabulüdür; tamamlanmış monopulse ürünü iddiası
 değildir. PL FFT, dış switch pinleri, HMC için 5 V buffer/safe OE, ölçülmüş
 settle/discard ve chamber angle modeli sonraki kapılı işlerdir. Devam eden

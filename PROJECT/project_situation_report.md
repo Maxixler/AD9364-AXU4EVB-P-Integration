@@ -295,6 +295,12 @@ gain=71 tx_att=89750` readback'ini verdi; ardından tam bir
 kanıt `PROJECT/tests/evidence/axu4ev-ad9364-monopulse-foundation-pass.txt`
 içindedir.
 
+Post-review status: this is historical acceptance evidence only for launch
+commit `53f74d9` and ELF SHA-256
+`B4BA1BDE40AA4CDE10A6C370C7CFAEDCD0FB9CFED3A510501BA7C015C05CF6B2`.
+The rebuilt review-fix ELF still needs a fresh two-run AXU4EVB-P validation,
+including one cold power cycle, before the current branch is merge-ready.
+
 Bu kabul yalnız A53 C foundation, AD9364 runtime sözleşmesi ve dört-durum
 aritmetiğini kapatır. PL 2048-point FFT, sekiz fiziksel switch pini, 5 V
 level-shifter/buffer, ölçülmüş settle/discard değerleri ve chamber angle modeli

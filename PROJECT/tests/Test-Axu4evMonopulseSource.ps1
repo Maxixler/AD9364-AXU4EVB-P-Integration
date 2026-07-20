@@ -22,7 +22,15 @@ $required = @(
     'monopulse_selftest_run(ad9361_phy)',
     'MONOPULSE_RF: PASS',
     'MONOPULSE_FOUNDATION: PASS',
-    'MONOPULSE_FOUNDATION: FAIL'
+    'MONOPULSE_FOUNDATION: FAIL',
+    '#include "monopulse_spectrum.h"',
+    'monopulse_find_common_peak(',
+    'monopulse_integrate_cw(',
+    'monopulse_integrate_band(',
+    'SPECTRUM_PEAK',
+    'SPECTRUM_CW',
+    'SPECTRUM_BAND',
+    'SPECTRUM_SATURATION'
 )
 
 foreach ($fragment in $required) {

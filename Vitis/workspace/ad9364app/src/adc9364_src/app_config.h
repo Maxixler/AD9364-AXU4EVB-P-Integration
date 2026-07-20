@@ -51,7 +51,15 @@
 //#define TDD_SWITCH_STATE_EXAMPLE
 
 //#define WIFI_RF_TEST
+#if !defined(WIFI_RF_TEST) && !defined(MONOPULSE_FOUNDATION_TEST)
 #define MONOPULSE_FOUNDATION_TEST
+#endif
+
+#if defined(WIFI_RF_TEST)
+#define CANDIDATE_RX_BANDWIDTH_HZ 18000000UL
+#else
+#define CANDIDATE_RX_BANDWIDTH_HZ 10000000UL
+#endif
 
 #if defined(MONOPULSE_FOUNDATION_TEST) && defined(WIFI_RF_TEST)
 #error "MONOPULSE_FOUNDATION_TEST and WIFI_RF_TEST cannot be enabled together"

@@ -8,11 +8,16 @@ if (-not (Test-Path -LiteralPath $orchestrator -PathType Leaf)) {
 $orchestratorContent = Get-Content -LiteralPath $orchestrator -Raw
 foreach ($fragment in @(
     'Set-Content -LiteralPath $logPath -Encoding Unicode',
-    'Add-Content -LiteralPath $logPath -Encoding Unicode'
+    'Add-Content -LiteralPath $logPath -Encoding Unicode',
+    'ConvertTo-Json -InputObject @($artifacts) -Depth 4 -Compress',
+    'ARTIFACT_MANIFEST_JSON=$artifactManifest'
 )) {
     if (-not $orchestratorContent.Contains($fragment)) {
         throw "Launch orchestrator does not keep the XSCT log in one Windows PowerShell encoding: $fragment"
     }
+}
+if ($orchestratorContent.Contains('Format-Table')) {
+    throw 'Launch orchestrator still writes a truncating artifact table to real launch logs.'
 }
 
 function Invoke-DryRun {
