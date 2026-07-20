@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "monopulse_math.h"
+#include "monopulse_sequence.h"
 
 static void test_axis_vectors(void)
 {
@@ -108,6 +109,37 @@ static void test_independent_axes(void)
 	assert(result.el.valid == 1U);
 }
 
+static void test_state_sequence(void)
+{
+	static const struct monopulse_switch_outputs expected[MONOPULSE_STATE_COUNT] = {
+		{0U, 0U}, {0U, 1U}, {1U, 0U}, {1U, 1U}
+	};
+	struct monopulse_switch_outputs actual;
+	enum monopulse_state_id state = MONOPULSE_AZ_PLUS;
+
+	for (uint32_t n = 0; n < MONOPULSE_STATE_COUNT; ++n) {
+		assert(monopulse_state_outputs(state, &actual) == 0);
+		assert(actual.delta_select == expected[n].delta_select);
+		assert(actual.phase_180 == expected[n].phase_180);
+		state = monopulse_next_state(state);
+	}
+	assert(state == MONOPULSE_AZ_PLUS);
+}
+
+static void test_invalid_sequence_arguments(void)
+{
+	struct monopulse_switch_outputs actual;
+	const enum monopulse_state_id invalid_high = MONOPULSE_STATE_COUNT;
+	const enum monopulse_state_id invalid_low =
+		(enum monopulse_state_id)-1;
+
+	assert(monopulse_state_outputs(invalid_high, &actual) == -EINVAL);
+	assert(monopulse_state_outputs(invalid_low, &actual) == -EINVAL);
+	assert(monopulse_state_outputs(MONOPULSE_AZ_PLUS, NULL) == -EINVAL);
+	assert(monopulse_next_state(invalid_high) == MONOPULSE_AZ_PLUS);
+	assert(monopulse_next_state(invalid_low) == MONOPULSE_AZ_PLUS);
+}
+
 int main(void)
 {
 	test_axis_vectors();
@@ -115,6 +147,8 @@ int main(void)
 	test_axis_boundaries();
 	test_q31_rounding();
 	test_independent_axes();
+	test_state_sequence();
+	test_invalid_sequence_arguments();
 	puts("PASS: monopulse foundation deterministic vectors passed.");
 	return 0;
 }

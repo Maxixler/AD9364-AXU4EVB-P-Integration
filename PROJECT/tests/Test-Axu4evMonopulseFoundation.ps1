@@ -4,6 +4,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $includeDir = Join-Path $root 'Vitis\workspace\ad9364app\src\adc9364_src'
 $testSource = Join-Path $PSScriptRoot 'monopulse_foundation_test.c'
 $mathSource = Join-Path $includeDir 'monopulse_math.c'
+$sequenceSource = Join-Path $includeDir 'monopulse_sequence.c'
 
 if ($env:MONOPULSE_GCC) {
     $gcc = $env:MONOPULSE_GCC
@@ -22,7 +23,7 @@ $executable = Join-Path ([System.IO.Path]::GetTempPath()) (
     'monopulse_foundation_' + [guid]::NewGuid().ToString('N') + '.exe')
 
 try {
-    & $gcc -std=c11 -Wall -Wextra -Werror -I $includeDir $testSource $mathSource -o $executable
+    & $gcc -std=c11 -Wall -Wextra -Werror -I $includeDir $testSource $mathSource $sequenceSource -o $executable
     if ($LASTEXITCODE -ne 0) {
         throw "Compilation failed with exit code $LASTEXITCODE."
     }
