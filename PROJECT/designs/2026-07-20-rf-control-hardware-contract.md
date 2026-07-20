@@ -44,6 +44,8 @@ Hedef IF 1.2-1.4 GHz dışında ise HMC936A bu mimaride kabul edilemez; yazılı
 - `J1/J2/J3` RF portlarının DC seviyesi 0 V olmalıdır; zincirde DC bias varsa uygun DC block zorunludur
 - Kontrol pinleri: `P1=Control1`, `P3=Control2`, `P5=VDD`; `P2/P4=GND`
 
+Kullanıcı fotoğrafında, etiket yüzüne bakıldığında RF SMA portları soldan sağa `RF2`, `RF COM`, `RF1`; sol taraftaki kontrol uçları yukarıdan aşağı `Control2`, `GND`, `Control1`; sağ taraftaki uçlar yukarıdan aşağı `GND`, `VDD` olarak okunur. Bu görsel yön bilgisi elektriksel süreklilik kontrolünün yerine geçmez, fakat kablo etiketleme formunun başlangıç referansıdır.
+
 3.3 V GPIO, switch `VDD` değeri 3.3 V veya 5 V seçildiğinde datasheet HIGH eşiğini karşılar. Buna rağmen switch beslemesi FPGA pininden sağlanmaz; harici regüle besleme ve ortak ground kullanılır.
 
 ### 3.2 Doğruluk tablosu
@@ -74,7 +76,7 @@ AXU4EVB-P'nin 3.3 V veya 1.8 V GPIO'su HMC936A HIGH şartını karşılamaz. Alt
 
 ### 4.2 Aktif-düşük faz kodu
 
-HMC936A truth table'ında bir faz ağırlığı kontrol biti LOW yapıldığında seçilir. Fotoğraftaki değerlendirme kartı başlığı `5,4,3,2,1,0` olarak görünür ve tasarımda sırasıyla 180, 90, 45, 22.5, 11.25 ve 5.625 derece ağırlıkları için kullanılacaktır. Bu sıralama, fiziksel bağlantıdan önce süreklilik testiyle eval-header pad -> HMC `BIT6..BIT1` -> kablo rengi -> FPGA pini tablosuna dönüştürülür; tablo kapanmadan `011111` fiziksel pine uygulanmaz.
+HMC936A truth table'ında bir faz ağırlığı kontrol biti LOW yapıldığında seçilir. Yeni yakın plan fotoğraf, komponent yüzünden ve `RF1` solda/`RF2` sağda olacak yönde bakıldığında kullanılan sekiz başlık konumunun soldan sağa `VDD`, `5.625`, `11.25`, `22.5`, `VSS`, `45`, `90`, `180` olarak etiketlendiğini gösterir. Üretici datasheet'i bunları sırasıyla `BIT1..BIT6` faz ağırlıklarıyla doğrular; J3 ise fiziksel olarak 2 mm, 16 pin başlıktır. Fotoğraf kablo renklerinin uçtan uca net elektriksel eşlemesini kanıtlamaz. Fiziksel bağlantıdan önce süreklilik testiyle eval-header etiketi -> HMC `BIT1..BIT6` -> kablo rengi -> level-shifter kanalı -> FPGA pini tablosu oluşturulur; tablo kapanmadan `011111` fiziksel pine uygulanmaz.
 
 RTL içinde doğal bir `phase_index[5:0]` kullanılır:
 
@@ -113,7 +115,7 @@ Monopulse kalibrasyonu yalnız sabit 0/180 koduna kilitlenmez. Her eksen için �
 - ZX80 `VDD` 3.3 V mu 5 V mu olacak ve hangi regüle kaynaktan beslenecek?
 - HMC936A için kullanılacak 5 V level-shifter/buffer şeması ve güvenli `OE` durumu nedir?
 - Sekiz kontrol çıkışı için AXU4EVB-P konnektör/pin/bank voltajı nedir?
-- Eval-header `5..0` -> HMC `BIT6..BIT1` -> kablo rengi -> FPGA pini süreklilik tablosu nedir?
+- Eval-header `5.625..180` -> HMC `BIT1..BIT6` -> kablo rengi -> level-shifter kanalı -> FPGA pini süreklilik tablosu nedir?
 - HMC `RF1 -> RF2` yönü ile analog zincirdeki giriş/çıkış yönü nasıl bağlanacak?
 - SPDT ve HMC sonrası gerçek settle/discard değerleri kaçtır?
 
