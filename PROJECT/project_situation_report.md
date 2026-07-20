@@ -244,3 +244,15 @@ Sıradaki güvenli iş sırası:
 6. Dört-durum FSM, PL scalar ratio ve yankısız oda kalibrasyonu.
 
 Sayısal açı RMSE limiti henüz ürün sahibi tarafından verilmedi. İlk açı süpürmesi ölçülmüş performans tabanını üretecek; kabul limiti anten HPBW'si ve kalibrasyon verisi görülmeden uydurulmayacaktır.
+
+## 12. Monopulse foundation uygulama hazırlığı
+
+Durum: **Uygulama planı hazır; temiz Candidate branch birleştirmesi sıradaki adımdır.**
+
+Kartta doğrulanmış RX/Wi-Fi kaynaklarının `codex/wifi-rf-detection` branch'inde, yeni monopulse tasarım belgelerinin ise `codex/axu4ev-pmufw-bringup` branch'inde bulunduğu teyit edildi. İki tarih yeni `codex/axu4ev-ad9364-monopulse` branch'inde, bağımsız worktree kullanılarak birleştirilecek; masaüstündeki kirli Vitis/Vivado çalışma ağacına dokunulmayacaktır.
+
+İlk uygulanabilir dilim; Q1.31 scalar AZ/EL aritmetiği, dört durum sırası, 2048-bin ortak peak/CW/band-power referansı ve Cortex-A53 self-test'idir. PL FFT ve switch GPIO bağlantısı bu dilimin dışında tutulmuştur. Bu işler için `docs/superpowers/plans/2026-07-20-axu4ev-ad9364-monopulse-foundation.md` oluşturuldu.
+
+Python doğrulama katmanında NumPy bağımsız oracle olarak kullanılacaktır. `analogdevicesinc/pyadi-iio` AD936X ailesini destekler; ancak mevcut JTAG/bare-metal Candidate IIO context/IIOD sunmadığından bugün karta doğrudan bağlanmayacaktır. Gerçek `adi.ad9361(uri=...).rx()` otomasyonu PetaLinux/IIOD aşamasında etkinleşecektir.
+
+Harici kontrol entegrasyonu için SPDT ve 0°/180° phase-switch'in tam üretici/model numaraları veya bunları süren hazır kontrol kartının giriş sözleşmesi gereklidir. Kontrol gerilimi, VIH/VIL, aktif polarite, güvenli açılış durumu ve switching/settling süreleri doğrulanmadan RTL/XDC pin varsayımı yapılmayacaktır.

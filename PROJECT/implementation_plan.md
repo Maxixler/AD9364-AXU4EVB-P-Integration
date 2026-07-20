@@ -258,6 +258,8 @@ Bare-metal bring-up başarıyla tamamlandıktan sonra:
 3. [ ] Kernel ve rootfs seçenekleri doğrulanacak.
 4. [ ] `iio_info` ile cihaz keşfi yapılacak.
 5. [ ] `libiio`/IIO Oscilloscope ile RX/TX testi gerçekleştirilecek.
+6. [ ] `analogdevicesinc/pyadi-iio` ile AD936X sınıfı üzerinden `adi.ad9361(uri=...)` bağlantısı kurulacak; AD9364 sample rate, RX bandwidth, LO, MGC ve 2048 örneklik RX buffer otomasyonu NumPy monopulse oracle'ına bağlanacak.
+7. [ ] Bare-metal/JTAG Candidate'ın IIO context sunmadığı açıkça korunacak; `pyadi-iio` kart erişim testi yalnız PetaLinux/IIOD hazır olduğunda etkinleştirilecek.
 
 ## 14. Kalıcı doğrulama araçları
 

@@ -305,6 +305,14 @@ Hatalı çevrimde önceki geçerli AZ/EL sonucu yeniymiş gibi yayımlanmaz. Sta
 
 Açı RMSE için yönetici tarafından sayısal sınır verilmemiştir. İlk yankısız oda süpürmesi ölçülmüş tabanı üretir; ürün kabul limiti bu veri ve anten HPBW'siyle yazılı olarak onaylanır.
 
+### 12.3 Python ve IIO doğrulama katmanı
+
+`analogdevicesinc/pyadi-iio` AD936X ailesini desteklediği için Linux/IIOD aşamasında `adi.ad9361(uri=...)` sınıfı üzerinden AD9364 RX yapılandırması ve kompleks örnek yakalama otomasyonu kullanılacaktır. Bu katman NumPy ile ortak peak, CW/bant gücü ve normalize AZ/EL sonuçlarını bağımsız bir referans olarak hesaplar; C ve ilerideki RTL sonuçları aynı test vektörleriyle karşılaştırılır.
+
+Mevcut JTAG/bare-metal Candidate bir IIO context veya IIOD sunmadığından `pyadi-iio` bugün doğrudan karta bağlanma yöntemi değildir. İlk aşamada NumPy oracle ve taklit edilmiş `adi` nesnesiyle test edilir. Gerçek `adi.ad9361(...).rx()` çağrısı PetaLinux/IIOD veya eşdeğer IIO sunucusu ayağa kalktıktan sonra kabul testine eklenir.
+
+SPDT ve 0°/180° phase-switch entegrasyonu için her iki parçanın tam üretici/model numarası zorunludur. Model bilgisi; kontrol gerilimi ve VIH/VIL eşikleri, aktif polarite, güvenli açılış durumu, switching/settling süresi, frekans aralığı, insertion loss, isolation, return loss, güç limiti ve gerekli level-shifter/buffer seçimini belirler. Bu bilgiler olmadan FPGA pini veya bekleme süresi varsayımı XDC/RTL'e yazılmaz.
+
 ## 13. Uygulama sırası
 
 1. Golden kaynak/artefakt ve aktif FMCOMMS2 Tcl/XDC güvenini yeniden doğrula.

@@ -920,7 +920,7 @@ Aşağıdaki tablo eksik bilgi yüzünden yanlış donanım geliştirilmesini en
 | İlk oran hesabı | PS/Python | Faz 4 | 64-bit/floating referans raporu |
 | PL divider | Ölçülmüş performans ihtiyacı olmadan eklenmez | Faz 6 | Latency/throughput gerekçesi |
 | A/B karşılaştırma | Ardışık power/magnitude; koherent faz değil | Faz 5 | Sistem test raporu |
-| RF switch | Model/pin/gerilim seçilmeden RTL kontrolü eklenmez | Faz 5 | Datasheet + şema + XDC incelemesi |
+| RF switch | SPDT ve 0°/180° phase-switch tam üretici/modeli, kontrol gerilimi, aktif polaritesi ve settle süresi doğrulanmadan RTL kontrolü eklenmez | Faz 5 | İki datasheet + kontrol şeması + XDC incelemesi |
 | İlk nicel RF kaynağı | CW generator; yoksa güvenli attenuator'lı loopback | Faz 2/5 | Frekans ve güç bütçesi kaydı |
 | Hotspot/ortam RF | İsteğe bağlı aktivite demonstrasyonu | Herhangi | UART/evidence; nicel kabul sayılmaz |
 | Gain | A/B için ortak MGC | Faz 5 | Gain readback |
@@ -937,7 +937,9 @@ Projeyi ürün seviyesinde genişletmeden önce proje sahibinin ayrıca belirlem
 - Sonucun tam spektrum mu, seçilmiş bin/bant gücü mü, yoksa yalnız scalar oran mı olması gerekir?
 - Absolute power doğruluğu gerekiyor mu; gerekiyorsa izin verilen dB hatası ve kalibrasyon standardı nedir?
 - A/B ratio dinamik aralığı ve izin verilen minimum payda seviyesi nedir?
-- Harici switch kartı hazır mı; değilse satın alma, breakout/PCB ve konektör sorumluluğu kimdedir?
+- Harici SPDT ve 0°/180° phase-switch'in üretici/model numaraları nedir; kontrol doğrudan FPGA'dan mı yoksa ayrı sürücü/kontrol kartından mı yapılacaktır?
+- Her iki anahtarın kontrol gerilimi, VIH/VIL seviyesi, aktif polaritesi, güvenli power-up durumu ve switching/settling süresi nedir?
+- Harici switch kartı hazır mı; değilse satın alma, level-shifter/buffer, breakout/PCB ve konektör sorumluluğu kimdedir?
 - Nihai çalışma bare-metal Vitis mi, PetaLinux sürücüsü/IIO mu olacaktır?
 
 Bu sorular ilk tek-girişli FFT Candidate'ı engellemez. İlgili ürün özelliğine geçilmeden önce cevapları ölçülebilir gereksinim olarak bu belgeye işlenecektir.
@@ -974,7 +976,7 @@ Vitis/workspace/ad9364app/src/adc9364_src/
 - [ ] **Paket 1 — Kaynak güveni + temiz build:** Aktif Tcl/XDC listesini doğrula; JESD204 export/legacy XDC'yi dışla; temiz Vivado 2020.1 XPR/bitstream/XSA üret; FMCOMMS2 BD export kimlik testini, Golden part/address/timing/DRC regresyonunu ve manifest hash kontrolünden sonra annotated bringup tag'ını tamamla.
 - [ ] **Paket 2 — Referans C portu, arayüz ve RX-only güvenlik kanıtı:** `d264bddd` commit'indeki Wi-Fi/RF kaynaklarını dosya bazında taşı ve test/build/kart regresyonunu geçir; ILA ile FIFO çıkışında I0/Q0/I1/Q1, valid/enable/sample sırasını ve `clk_out` frekansını ölç; runtime Fs/BW/LO readback ile TX DAC ZERO/89.750 mdB readback testini geçir; `frame_id`, ilk-8-sample imzası ve CRC-32 sözleşmesini dondur.
 - [ ] **Paket 3 — Adapter + deterministik capture:** Önce başarısız self-checking RTL testinde ADI-native valid boşlukları, AXI `TREADY` stall, command/metadata handshake, busy-start rejection, abort, tek-taraflı reset ve epoch recovery uygula; sonra 2048-word dual-clock store-and-forward bridge, AXI4-Stream replay ve AXI BRAM readout'u geçir.
-- [ ] **Paket 4 — FFT sayısal kapanış:** Python bit-true vektörlerini üret; rectangular, Hann, FFT ve magnitude-square bloklarını test-first ekle.
+- [ ] **Paket 4 — FFT sayısal kapanış:** NumPy bit-true vektörlerini üret; rectangular, Hann, FFT ve magnitude-square bloklarını test-first ekle. Linux/IIOD aşamasında AD936X desteği bulunan `analogdevicesinc/pyadi-iio` ile `adi.ad9361(uri=...)` RX yakalama adaptörünü aynı vektör sözleşmesine bağla.
 - [ ] **Paket 5 — Kart çapraz doğrulama:** DMA buffer içindeki tek imza+CRC eşleşmesiyle aynı 2048 örneği bul; PL ve Python ile karşılaştır; DMA regresyonu ile AD9364 Golden testini yeniden çalıştır.
 - [ ] **Paket 6 — A/B gereksinim kapısı:** Switch datasheet/pin/güç ve kontrollü RF kaynağı kanıtlarını tamamla.
 - [ ] **Paket 7 — A/B güç ölçümü:** FSM, settle/discard, PA/PB buffer, kalibrasyon ve PS power-ratio readout'unu ekle.
@@ -1001,7 +1003,7 @@ Her pakette sırasıyla başarısız test, en küçük uygulama, geçen test, ti
 | Kompleks ardışık A/B işlemleri fiziksel olarak anlamsız | Kabul | Kompleks ADD/SUB/MUL/DIV mevcut fazlardan çıkarıldı; yalnız PA/PB sum/diff/ratio tutuldu. |
 | Runtime Fs/BW/LO metni hardcoded olabilir | Kabul | API readback başarısızsa capture başlamaz; aynı snapshot PL metadata'ya gider. |
 | TX DDS güvenliği | Güncel kaynakta doğrulandı | Mevcut `main.c` DDS seçebiliyor ve default attenuation 10.000 mdB; Candidate için DAC ZERO + 89.750 mdB + readback bloklayıcı kapı oldu. |
-| Auditin kullandığı Wi-Fi/RF C dosyaları current branch'te yok | Doğrulandı | Dosyalar `d264bddd` commit'inden kontrollü port + diff review + test/build/kart regresyonuyla alınacak; mevcutmuş gibi varsayılmayacak. |
+| Auditin kullandığı Wi-Fi/RF C dosyaları current branch'te yok | Doğrulandı | Dosyalar `d264bdd` commit'indeki `codex/wifi-rf-detection` branch'inden kontrollü merge + diff review + test/build/kart regresyonuyla alınacak; mevcutmuş gibi varsayılmayacak. |
 | Bringup Git tag'ı yok | Doğrulandı | Manifest hash doğrulamasından sonra `0cc0cf8f...` commit'inde annotated tag zorunlu. |
 | Hotspot zorunluluğu | Zaten çözülmüş | Hotspot yalnız demonstrasyon; dijital vektör/CW/attenuator/noise/loopback seçenekleri korunuyor. |
 | `gpio_ctl` veya PS MIO'yu switch için kullanma | Reddedildi | `gpio_ctl` AD9364 CTRL_IN'e bağlıdır; PS MIO doğrudan PL FSM kontrolü sağlamaz. CAM_GPIO/ayrı uygun PL pin kararı korunuyor. |
@@ -1065,6 +1067,8 @@ Sonuçlar signed Q1.31'dir. Divider yalnız dört scalar güç üzerinde düşü
 Bu karar, önceki “PL divider yalnız Faz 6'da” varsayımını ürün isterine göre dar kapsamda değiştirir: spectrum-bin oranı hâlâ kapsam dışıdır, ancak peak/band-power tabanlı scalar AZ/EL normalize divider dört-durum Candidate'ın parçasıdır. Divider uygulanmadan önce aynı aritmetik PS/Python referansıyla bit-doğru doğrulanacaktır.
 
 ### 21.5 Güncel iş paketleri
+
+Python doğrulama iki katmanlıdır. Bare-metal/JTAG aşamasında NumPy oracle C/RTL ile aynı 2048-bin vektörleri işler; `pyadi-iio` gerçek donanım erişimi için kullanılmaz çünkü mevcut Candidate IIO context/IIOD sunmaz. PetaLinux veya eşdeğer IIOD ayağa kalktığında `adi.ad9361(uri=...)` üzerinden AD9364 RX parametreleri ve kompleks örnek yakalama otomatikleştirilir.
 
 - [ ] **Paket M0 — Kaynak ve Golden regresyonu:** Paket 1'deki aktif Tcl/XDC, clean build, manifest/tag ve Golden doğrulamalarını tamamla.
 - [ ] **Paket M1 — RX/TX güvenlik ve format kapısı:** Paket 2'deki I0/Q0, runtime Fs/BW/LO/gain, TX DAC ZERO/89.750 mdB ve DMA regresyon kanıtlarını tamamla.

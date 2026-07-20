@@ -363,3 +363,17 @@ Bağımsız bağlayıcı tasarım belgesi oluşturuldu:
 `PROJECT/designs/2026-07-20-axu4ev-ad9364-single-channel-monopulse-design.md`
 
 Mevcut nihai planın eski anten A/B terminolojisi yeni Σ/Δ mimarisiyle çeliştiği için bağlayıcı düzeltme ve güncel iş paketleri eklendi. Bu aşamada RTL, Vivado BD veya Vitis uygulama kaynakları değiştirilmedi.
+
+## 21. Foundation planı, pyadi-iio ve RF switch bilgi kapısı — 20 Temmuz 2026
+
+Kullanıcı tasarımı onaylayıp geliştirmeye devam edilmesini istedi. Repo incelemesinde kartta doğrulanmış RX/Wi-Fi uygulamasının `codex/wifi-rf-detection`, yeni monopulse belgelerinin ise `codex/axu4ev-pmufw-bringup` branch'inde olduğu bulundu. Çalışan RX kaynağını kaybetmemek için iki geçmişin temiz `codex/axu4ev-ad9364-monopulse` Candidate branch'inde birleştirilmesi ilk uygulama kapısı yapıldı.
+
+Detaylı foundation planı şu dosyada hazırlandı:
+
+`docs/superpowers/plans/2026-07-20-axu4ev-ad9364-monopulse-foundation.md`
+
+Plan; portable C11 Q1.31 monopulse matematiği, dört durum sırası, ortak peak/CW/band-power referansı, NumPy oracle, Cortex-A53 self-test ve kart kabul kanıtını kapsar. PL FFT ile harici switch pin bağlantısı, elektriksel sözleşme gelene kadar ayrı follow-on faz olarak bırakıldı.
+
+Kullanıcının önerdiği `analogdevicesinc/pyadi-iio` incelendi. Resmî proje AD936X ailesini desteklemekte ve örnek kullanımda `adi.ad9361(uri=...).rx()` sağlamaktadır. Buna karşılık `pyadi-iio`, libIIO ve erişilebilir IIO context ister. Mevcut bare-metal/JTAG Candidate IIOD sunmadığından ilk testlerde NumPy oracle ve mock `adi` nesnesi kullanılacak; gerçek kart yakalama PetaLinux/IIOD aşamasında açılacaktır.
+
+RF switch için yalnız “SPDT” veya “phase switch” adı yeterli değildir. SPDT ve 0°/180° phase-switch'in tam üretici/model numarası; kontrol gerilimi, VIH/VIL, aktif polarite, power-up durumu, switching/settling süresi, frekans aralığı ve level-shifter ihtiyacını belirlemek için zorunlu bilgi olarak kaydedildi. Ayrı bir sürücü/kontrol kartı kullanılacaksa onun doğrulanmış dijital giriş sözleşmesi model bilgisinin FPGA tarafındaki karşılığı olabilir.
