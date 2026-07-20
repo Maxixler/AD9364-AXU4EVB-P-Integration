@@ -5,6 +5,248 @@
 
 #include "monopulse_math.h"
 #include "monopulse_sequence.h"
+#include "monopulse_spectrum.h"
+
+static struct monopulse_spectrum_config valid_spectrum_config(void)
+{
+	return (struct monopulse_spectrum_config){
+		.fft_size = MONOPULSE_FFT_SIZE,
+		.search_bin_start = 8U,
+		.search_bin_stop = 1023U,
+		.dc_guard_bins = 4U,
+		.cw_half_width = 2U,
+		.band_bin_start = 64U,
+		.band_bin_stop = 511U
+	};
+}
+
+static struct monopulse_spectra spectra_from_arrays(
+	const uint64_t *az_plus, const uint64_t *az_minus,
+	const uint64_t *el_plus, const uint64_t *el_minus)
+{
+	struct monopulse_spectra spectra = {
+		.state = { az_plus, az_minus, el_plus, el_minus }
+	};
+
+	return spectra;
+}
+
+static void assert_powers(const struct monopulse_power_set *powers,
+	uint64_t az_plus, uint64_t az_minus, uint64_t el_plus,
+	uint64_t el_minus)
+{
+	assert(powers->az_plus == az_plus);
+	assert(powers->az_minus == az_minus);
+	assert(powers->el_plus == el_plus);
+	assert(powers->el_minus == el_minus);
+}
+
+static void test_common_peak_and_cw_integration(void)
+{
+	static uint64_t az_plus[MONOPULSE_FFT_SIZE];
+	static uint64_t az_minus[MONOPULSE_FFT_SIZE];
+	static uint64_t el_plus[MONOPULSE_FFT_SIZE];
+	static uint64_t el_minus[MONOPULSE_FFT_SIZE];
+	struct monopulse_spectrum_config cfg = valid_spectrum_config();
+	struct monopulse_spectra spectra = spectra_from_arrays(az_plus, az_minus,
+		el_plus, el_minus);
+	struct monopulse_power_set powers;
+	uint32_t peak_bin;
+	uint64_t peak_power;
+
+	/* A large one-state DC spur must not participate in common-peak search. */
+	cfg.search_bin_start = 0U;
+	cfg.search_bin_stop = 101U;
+	az_plus[3] = 1000U;
+
+	/* Both totals are 100; the deterministic tie-break chooses bin 100. */
+	az_plus[100] = 10U;
+	az_minus[100] = 20U;
+	el_plus[100] = 30U;
+	el_minus[100] = 40U;
+	az_plus[101] = 1U;
+	az_minus[101] = 2U;
+	el_plus[101] = 3U;
+	el_minus[101] = 94U;
+
+	/* dc_guard_bins excludes [0, 4), leaving the boundary bin eligible. */
+	az_plus[4] = 101U;
+	assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin,
+					  &peak_power) == 0);
+	assert(peak_bin == 4U);
+	assert(peak_power == 101U);
+
+	az_plus[4] = 0U;
+	assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin,
+					  &peak_power) == 0);
+	assert(peak_bin == 100U);
+	assert(peak_power == 100U);
+
+	az_plus[98] = 1U;
+	az_plus[99] = 2U;
+	az_plus[102] = 4U;
+	az_minus[98] = 2U;
+	az_minus[99] = 3U;
+	az_minus[102] = 5U;
+	el_plus[98] = 3U;
+	el_plus[99] = 4U;
+	el_plus[102] = 6U;
+	el_minus[98] = 4U;
+	el_minus[99] = 5U;
+	el_minus[102] = 7U;
+	assert(monopulse_integrate_cw(&spectra, &cfg, 100U, &powers) == 0);
+	assert_powers(&powers, 18U, 32U, 46U, 150U);
+}
+
+static void test_band_power_and_saturation(void)
+{
+	static uint64_t az_plus[MONOPULSE_FFT_SIZE];
+	static uint64_t az_minus[MONOPULSE_FFT_SIZE];
+	static uint64_t el_plus[MONOPULSE_FFT_SIZE];
+	static uint64_t el_minus[MONOPULSE_FFT_SIZE];
+	struct monopulse_spectrum_config cfg = valid_spectrum_config();
+	struct monopulse_spectra spectra = spectra_from_arrays(az_plus, az_minus,
+		el_plus, el_minus);
+	struct monopulse_power_set powers;
+
+	az_plus[63] = 100U;
+	az_plus[64] = 1U;
+	az_plus[65] = 2U;
+	az_plus[511] = 4U;
+	az_plus[512] = 100U;
+	az_minus[64] = 3U;
+	az_minus[511] = 5U;
+	el_plus[64] = 7U;
+	el_plus[511] = 11U;
+	el_minus[64] = 13U;
+	el_minus[511] = 17U;
+	assert(monopulse_integrate_band(&spectra, &cfg, &powers) == 0);
+	assert_powers(&powers, 7U, 8U, 18U, 30U);
+
+	az_plus[64] = UINT64_MAX;
+	az_plus[65] = 1U;
+	az_minus[64] = UINT64_MAX;
+	az_minus[65] = 1U;
+	el_plus[64] = UINT64_MAX;
+	el_plus[65] = 1U;
+	el_minus[64] = UINT64_MAX;
+	el_minus[65] = 1U;
+	assert(monopulse_integrate_band(&spectra, &cfg, &powers) == 0);
+	assert_powers(&powers, UINT64_MAX, UINT64_MAX, UINT64_MAX,
+		      UINT64_MAX);
+	az_plus[100] = UINT64_MAX;
+	az_plus[101] = 1U;
+	az_minus[100] = UINT64_MAX;
+	az_minus[101] = 1U;
+	el_plus[100] = UINT64_MAX;
+	el_plus[101] = 1U;
+	el_minus[100] = UINT64_MAX;
+	el_minus[101] = 1U;
+	assert(monopulse_integrate_cw(&spectra, &cfg, 100U, &powers) == 0);
+	assert_powers(&powers, UINT64_MAX, UINT64_MAX, UINT64_MAX,
+		      UINT64_MAX);
+
+	cfg.search_bin_start = 100U;
+	cfg.search_bin_stop = 101U;
+	az_plus[100] = UINT64_MAX;
+	az_minus[100] = UINT64_MAX;
+	el_plus[100] = UINT64_MAX;
+	el_minus[100] = UINT64_MAX;
+	az_plus[101] = UINT64_MAX;
+	az_minus[101] = UINT64_MAX;
+	el_plus[101] = UINT64_MAX;
+	el_minus[101] = UINT64_MAX;
+	{
+		uint32_t peak_bin;
+		uint64_t peak_power;
+
+		assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin,
+						  &peak_power) == 0);
+		assert(peak_bin == 100U);
+		assert(peak_power == UINT64_MAX);
+	}
+}
+
+static void test_spectrum_boundaries_and_validation(void)
+{
+	static uint64_t az_plus[MONOPULSE_FFT_SIZE];
+	static uint64_t az_minus[MONOPULSE_FFT_SIZE];
+	static uint64_t el_plus[MONOPULSE_FFT_SIZE];
+	static uint64_t el_minus[MONOPULSE_FFT_SIZE];
+	struct monopulse_spectrum_config cfg = valid_spectrum_config();
+	struct monopulse_spectra spectra = spectra_from_arrays(az_plus, az_minus,
+		el_plus, el_minus);
+	struct monopulse_power_set powers;
+	uint32_t peak_bin;
+	uint64_t peak_power;
+
+	assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin,
+					  &peak_power) == 0);
+	assert(peak_bin == 8U);
+	assert(peak_power == 0U);
+
+	az_plus[0] = 1U;
+	az_minus[0] = 2U;
+	el_plus[0] = 3U;
+	el_minus[0] = 4U;
+	assert(monopulse_integrate_cw(&spectra, &cfg, 2U, &powers) == 0);
+	assert_powers(&powers, 1U, 2U, 3U, 4U);
+	az_plus[MONOPULSE_FFT_SIZE - 1U] = 5U;
+	az_minus[MONOPULSE_FFT_SIZE - 1U] = 6U;
+	el_plus[MONOPULSE_FFT_SIZE - 1U] = 7U;
+	el_minus[MONOPULSE_FFT_SIZE - 1U] = 8U;
+	assert(monopulse_integrate_cw(&spectra, &cfg,
+					 MONOPULSE_FFT_SIZE - 3U, &powers) == 0);
+	assert_powers(&powers, 5U, 6U, 7U, 8U);
+	assert(monopulse_integrate_cw(&spectra, &cfg, 1U, &powers) == -EINVAL);
+	assert(monopulse_integrate_cw(&spectra, &cfg,
+					 MONOPULSE_FFT_SIZE - 2U, &powers) == -EINVAL);
+	assert(monopulse_integrate_cw(&spectra, &cfg, 2U, NULL) == -EINVAL);
+	assert(monopulse_integrate_band(&spectra, &cfg, NULL) == -EINVAL);
+
+	assert(monopulse_find_common_peak(NULL, &cfg, &peak_bin, &peak_power) ==
+		-EINVAL);
+	assert(monopulse_find_common_peak(&spectra, NULL, &peak_bin, &peak_power) ==
+		-EINVAL);
+	assert(monopulse_find_common_peak(&spectra, &cfg, NULL, &peak_power) ==
+		-EINVAL);
+	assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin, NULL) ==
+		-EINVAL);
+	spectra.state[MONOPULSE_EL_MINUS] = NULL;
+	assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin, &peak_power) ==
+		-EINVAL);
+	assert(monopulse_integrate_cw(&spectra, &cfg, 2U, &powers) == -EINVAL);
+	assert(monopulse_integrate_band(&spectra, &cfg, &powers) == -EINVAL);
+	spectra.state[MONOPULSE_EL_MINUS] = el_minus;
+
+	cfg.fft_size = MONOPULSE_FFT_SIZE - 1U;
+	assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin, &peak_power) ==
+		-EINVAL);
+	cfg = valid_spectrum_config();
+	cfg.search_bin_start = 9U;
+	cfg.search_bin_stop = 8U;
+	assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin, &peak_power) ==
+		-EINVAL);
+	cfg = valid_spectrum_config();
+	cfg.search_bin_stop = MONOPULSE_FFT_SIZE;
+	assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin, &peak_power) ==
+		-EINVAL);
+	cfg = valid_spectrum_config();
+	cfg.band_bin_start = 512U;
+	cfg.band_bin_stop = 511U;
+	assert(monopulse_integrate_band(&spectra, &cfg, &powers) == -EINVAL);
+	cfg = valid_spectrum_config();
+	cfg.band_bin_stop = MONOPULSE_FFT_SIZE;
+	assert(monopulse_integrate_band(&spectra, &cfg, &powers) == -EINVAL);
+	cfg = valid_spectrum_config();
+	cfg.dc_guard_bins = MONOPULSE_FFT_SIZE;
+	assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin, &peak_power) ==
+		-EINVAL);
+	cfg = valid_spectrum_config();
+	cfg.cw_half_width = MONOPULSE_FFT_SIZE;
+	assert(monopulse_find_common_peak(&spectra, &cfg, &peak_bin, &peak_power) ==
+		-EINVAL);
+}
 
 static void test_axis_vectors(void)
 {
@@ -149,6 +391,9 @@ int main(void)
 	test_independent_axes();
 	test_state_sequence();
 	test_invalid_sequence_arguments();
+	test_common_peak_and_cw_integration();
+	test_band_power_and_saturation();
+	test_spectrum_boundaries_and_validation();
 	puts("PASS: monopulse foundation deterministic vectors passed.");
 	return 0;
 }
