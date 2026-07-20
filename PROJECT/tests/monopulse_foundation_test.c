@@ -67,6 +67,33 @@ static void test_axis_boundaries(void)
 	assert((r.flags & MONOPULSE_AXIS_POWER_OVERFLOW) != 0U);
 }
 
+static void test_q31_rounding(void)
+{
+	struct monopulse_axis_result r;
+	const uint64_t half_scale = UINT64_C(1) << 32;
+
+	assert(monopulse_compute_axis(2, 1, 1, &r) == 0);
+	assert(r.error_q31 == INT32_C(715827883));
+	assert(monopulse_compute_axis(1, 2, 1, &r) == 0);
+	assert(r.error_q31 == -INT32_C(715827883));
+
+	/* 0.5 rounds down to the even integer zero. */
+	assert(monopulse_compute_axis(half_scale + 1U, half_scale - 1U, 1,
+				      &r) == 0);
+	assert(r.error_q31 == 0);
+	assert(monopulse_compute_axis(half_scale - 1U, half_scale + 1U, 1,
+				      &r) == 0);
+	assert(r.error_q31 == 0);
+
+	/* 1.5 rounds up to the even integer two. */
+	assert(monopulse_compute_axis(half_scale + 3U, half_scale - 3U, 1,
+				      &r) == 0);
+	assert(r.error_q31 == 2);
+	assert(monopulse_compute_axis(half_scale - 3U, half_scale + 3U, 1,
+				      &r) == 0);
+	assert(r.error_q31 == -2);
+}
+
 static void test_independent_axes(void)
 {
 	struct monopulse_power_set powers = { 600, 200, 100, 300 };
@@ -86,6 +113,7 @@ int main(void)
 	test_axis_vectors();
 	test_invalid_arguments();
 	test_axis_boundaries();
+	test_q31_rounding();
 	test_independent_axes();
 	puts("PASS: monopulse foundation deterministic vectors passed.");
 	return 0;

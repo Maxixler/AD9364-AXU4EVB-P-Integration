@@ -98,6 +98,24 @@ static int32_t monopulse_q31_error(uint64_t plus, uint64_t minus)
 		remainder_high = shifted_high;
 		q31_magnitude = (q31_magnitude << 1) | quotient_bit;
 	}
+	{
+		uint64_t doubled_remainder_low = remainder_low << 1;
+		uint8_t doubled_remainder_high =
+			(uint8_t)((remainder_high << 1) | (remainder_low >> 63));
+		uint8_t round_up = 0U;
+
+		if ((doubled_remainder_high > denominator_high) ||
+		    ((doubled_remainder_high == denominator_high) &&
+		     (doubled_remainder_low > denominator_low))) {
+			round_up = 1U;
+		} else if ((doubled_remainder_high == denominator_high) &&
+			   (doubled_remainder_low == denominator_low) &&
+			   ((q31_magnitude & UINT32_C(1)) != 0U)) {
+			/* Exact half: round toward the adjacent even magnitude. */
+			round_up = 1U;
+		}
+		q31_magnitude += round_up;
+	}
 	if (q31_magnitude > (uint32_t)INT32_MAX) {
 		return (negative != 0U) ? INT32_MIN : INT32_MAX;
 	}
