@@ -4,7 +4,7 @@
 
 **Goal:** Build the deterministic, bit-true software foundation that converts four sequential monopulse spectra into a common carrier selection, four scalar powers, and signed Q1.31 AZ/EL errors without changing the verified Golden release.
 
-**Architecture:** Consolidate the board-verified RX Candidate branch with the approved single-channel monopulse design in an isolated Candidate branch. Add three portable C units—spectrum selection, scalar error arithmetic, and four-state sequencing—then exercise the same units on the Windows host and Cortex-A53. The PL FFT, external switch GPIO binding, and chamber calibration remain separate follow-on plans because their electrical inputs are not yet available.
+**Architecture:** Consolidate the board-verified RX Candidate branch with the approved single-channel monopulse design in an isolated Candidate branch. Add three portable C units—spectrum selection, scalar error arithmetic, and four-state sequencing—then exercise the same units on the Windows host and Cortex-A53. The PL FFT, physical GPIO binding, level shifting, and chamber calibration remain separate follow-on plans because the BDC IF, cable mapping, connector pins, and driver circuit are not yet closed.
 
 **Tech Stack:** Git worktrees, C11, MinGW GCC, PowerShell 5.1, Python 3.8+, NumPy, pyadi-iio/libIIO, Xilinx Vitis 2020.1, ADI no-OS AD9361/AD9364 drivers.
 
@@ -20,7 +20,8 @@
 - Band-power mode integrates one configured inclusive bin interval for every state.
 - AZ and EL outputs are signed Q1.31; a denominator below the configured threshold invalidates the corresponding axis.
 - No per-bin divider, simultaneous digital dual RX, 90°/270° phase state, or full complex phase estimator is added.
-- No external switch pin is assigned until the SPDT and bi-phase-switch part numbers, logic levels, active polarities, and settle times are verified.
+- The verified control parts are Mini-Circuits `ZX80-DR230-S+` and Analog Devices `EV1HMC936ALP6/HMC936ALP6E`.
+- No external control pin is assigned until the 1.2-1.4 GHz phase-coherent BDC IF, ZX80 RF-port 0 VDC condition, RF1/RF2 cable mapping, eight GPIO pins, 5 V HMC level-shifter, safe power-up state, and measured settle time are verified.
 - Every source change is test-first and committed independently; generated Vitis metadata, logs, binaries, and Golden artifacts are excluded.
 
 ---
@@ -53,6 +54,8 @@
 - Import from `codex/wifi-rf-detection`: `Vitis/workspace/ad9364app/src/adc9364_src/wifi_rf_*.{c,h}`
 - Import from `codex/wifi-rf-detection`: `PROJECT/tests/Test-Axu4evWifiRf*.ps1`
 - Import from `codex/wifi-rf-detection`: `PROJECT/tests/wifi_rf_metrics_test.c`
+- Modify: `PROJECT/tests/Update-Axu4evVitisPlatform.tcl`
+- Modify: `PROJECT/tests/Fix-Axu4evFsblBuild.tcl`
 
 **Interfaces:**
 - Consumes: the current `codex/axu4ev-pmufw-bringup` HEAD containing design commit `96db472` plus this implementation plan, and branch `codex/wifi-rf-detection` at `d264bdd`.
@@ -87,17 +90,40 @@ git diff --name-only --diff-filter=U
 
 Expected: `git diff --check` prints nothing and the unresolved-file command prints nothing.
 
-- [ ] **Step 4: Run the imported host regression**
+- [ ] **Step 4: Preserve explicit-root portability in the clean worktree**
+
+Both `Update-Axu4evVitisPlatform.tcl` and `Fix-Axu4evFsblBuild.tcl` must start from the caller-supplied Windows root rather than `[info script]`:
+
+```tcl
+if {![info exists ::env(FPGA_PROFEN_ROOT)]} {
+  error "FPGA_PROFEN_ROOT environment variable is required."
+}
+
+set workspace_root [string map {\\ /} $::env(FPGA_PROFEN_ROOT)]
+```
+
+Run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evXsctScriptPaths.ps1
+```
+
+Expected: `PASS: XSCT scripts use explicit Windows roots or verified artifact inputs.`
+
+- [ ] **Step 5: Run the imported host regression**
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evWifiRfMetrics.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evWifiRfSource.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evLaunchWrappers.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evJtagLaunchScript.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evRelease.ps1
 ```
 
 Expected: each script exits `0`; the metrics test prints `PASS: Wi-Fi RF metrics deterministic vectors passed.`
 
-- [ ] **Step 5: Commit the consolidated Candidate baseline**
+`Test-Axu4evHandoffArtifacts.ps1` and the Workspace half of `Test-Axu4evLaunchWrappers.ps1` are not baseline tests in a fresh worktree because they require generated Vivado/Vitis BIT, XSA, FSBL, and ELF files. Run them only after those workspace artifacts are built or synchronized; Golden release integrity remains covered by `Test-Axu4evRelease.ps1`.
+
+- [ ] **Step 6: Commit the consolidated Candidate baseline**
 
 ```powershell
 git add PROJECT/implementation_plan.md PROJECT/project_situation_report.md chat_report.md `
@@ -109,6 +135,8 @@ git add PROJECT/implementation_plan.md PROJECT/project_situation_report.md chat_
   PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt `
   PROJECT/tools/Invoke-Axu4evAd9364Launch.ps1 `
   PROJECT/tools/Start-Axu4evAd9364Candidate.cmd `
+  PROJECT/tests/Update-Axu4evVitisPlatform.tcl `
+  PROJECT/tests/Fix-Axu4evFsblBuild.tcl `
   Vitis/workspace/ad9364app/.cproject `
   Vitis/workspace/ad9364app/src/adc9364_src
 git commit -m "merge: consolidate verified RX and monopulse design"
@@ -255,7 +283,8 @@ git commit -m "feat: add bit-true monopulse scalar arithmetic"
 
 **Interfaces:**
 - Consumes: `enum monopulse_state_id`.
-- Produces: `monopulse_state_outputs(enum monopulse_state_id state, struct monopulse_switch_outputs *out)` and `monopulse_next_state(enum monopulse_state_id state)`.
+- Produces: logical, board-independent `monopulse_state_outputs(enum monopulse_state_id state, struct monopulse_switch_outputs *out)` and `monopulse_next_state(enum monopulse_state_id state)`.
+- Does not encode raw ZX80/HMC pins. A later board adapter maps `delta_select` to the ZX80 two-pin truth table and `phase_180` to calibrated HMC936A six-bit codes.
 
 - [ ] **Step 1: Write failing state-map tests**
 
@@ -612,13 +641,20 @@ git commit -m "test: validate monopulse foundation on AXU4EV"
 
 ## Follow-On Plan Gates
 
-This foundation plan intentionally ends before PL or external-control implementation. The next plan starts only after the following signed electrical contract is available:
+This foundation plan intentionally ends before PL or physical external-control implementation. The exact parts are now verified:
 
-- SPDT manufacturer and exact part number
-- 0°/180° phase-switch manufacturer and exact part number
-- Control voltage, VIH/VIL limits, active polarities, and safe power-up states
-- Switching/settling time at the actual RF/IF frequency
+- SPDT: Mini-Circuits `ZX80-DR230-S+`, DC-3 GHz, `00=both off`, `10=RF1`, `01=RF2`, `11=forbidden`, typical switching 2 us.
+- Phase shifter: Analog Devices `EV1HMC936ALP6/HMC936ALP6E`, 1.2-1.4 GHz, six active-low 0/+5 V phase bits, 5.625-degree LSB, typical switching 250 ns.
+
+The next physical-control plan starts only after the following remaining signed contract is available:
+
+- BDC RF/LO/IF plan proving that the phase-shifter path is within 1.2-1.4 GHz
+- Shared BDC LO/reference and bounded relative phase drift across Σ, ΔAZ, and ΔEL paths
+- ZX80 J1/J2/J3 0 VDC verification or documented DC-block placement
+- ZX80 RF1/RF2 to Delta AZ/Delta EL cable mapping and chosen VDD
+- Six-channel 5 V HMC level-shifter/buffer schematic and safe output-enable state
+- Eval-header `5..0` to HMC `BIT6..BIT1`, wire color, and FPGA-pin continuity table
 - AXU4EVB-P connector/pin allocation and I/O-bank voltage confirmation
-- BDC RF/LO/IF frequency plan and gain values
+- Measured switching/settling and discard time at the actual IF, power, and temperature
 
-With those inputs, the next plan will instantiate the 2048-point FFT Candidate, map the two switch controls, implement settle/discard/capture/replay, compare RTL against the C oracle from this plan, and run chamber calibration.
+With those inputs, the next plan will instantiate the 2048-point FFT Candidate, map two ZX80 and six HMC control lines, implement settle/discard/capture/replay, compare RTL against the C oracle from this plan, and run chamber calibration.

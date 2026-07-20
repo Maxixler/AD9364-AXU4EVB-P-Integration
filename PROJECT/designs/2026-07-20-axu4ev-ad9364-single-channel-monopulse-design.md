@@ -2,7 +2,7 @@
 
 **Tarih:** 20 Temmuz 2026
 
-**Durum:** Kullanıcı tarafından mimari, DSP ve kalibrasyon bölümleri onaylandı; RTL henüz uygulanmadı.
+**Durum:** Kullanıcı tarafından mimari, DSP ve kalibrasyon bölümleri onaylandı; ZX80-DR230-S+ ile EV1HMC936ALP6 parça kimlikleri doğrulandı; fiziksel pin/level-shifter/IF sözleşmesi henüz tamamlanmadı ve RTL uygulanmadı.
 
 **Hedef platform:** ALINX AXU4EVB-P + mevcut AD9364 tabanlı RF kartı
 
@@ -52,6 +52,18 @@ P_plus - P_minus = 4 * Re{Σ * conjugate(Δ)}
 
 Tam kompleks faz farkı veya quadrature kalibrasyonu istenirse 90°/270° durumları veya gerçek eşzamanlı ikinci RX içeren ayrı mimari gerekir.
 
+### 2.4 Doğrulanan harici kontrol donanımı
+
+Harici yol seçici Mini-Circuits `ZX80-DR230-S+`, phase shifter ise Analog Devices `EV1HMC936ALP6` üzerindeki `HMC936ALP6E`dir. Ayrıntılı elektriksel sözleşme `PROJECT/designs/2026-07-20-rf-control-hardware-contract.md` dosyasındadır.
+
+Kritik sonuçlar:
+
+- ZX80 iki kontrol pinli, absorptive SPDT'dir; `00` iki yolu kapatır, `10` RF1'i, `01` RF2'yi seçer ve `11` yasaktır.
+- HMC936A 1.2-1.4 GHz için 6-bit, 5.625° adımlı phase shifter'dır; basit tek-bit 0/180 switch değildir.
+- HMC kontrolü aktif-düşüktür: referans faz `111111`, nominal 180° `011111` fiziksel kodudur.
+- HMC kontrol HIGH seviyesi yaklaşık 5 V istediği için AXU4EVB-P GPIO doğrudan bağlanmaz; altı bitlik 5 V level-shifter/buffer zorunludur.
+- HMC'nin çalışma bandı nedeniyle seçilebilir Delta yolu BDC sonrası 1.2-1.4 GHz IF olmalıdır; gerçek BDC IF frekansı ayrı kabul kapısıdır.
+
 ## 3. Bağlayıcı sistem mimarisi
 
 ```text
@@ -59,20 +71,20 @@ R&S SMW200A
   -> verici anten
   -> yankısız oda
   -> monopulse alıcı anten / comparator
-       -> Σ ------------------------------+
-       -> ΔAZ --+                         |
-       -> ΔEL --+-> SPDT -> 0°/180° ------+-> combiner -> BDC/IF -> AD9364 RX
-                                                        |
-                                                        v
-                                           AXU4EVB-P finite-frame DSP
+       -> Σ   -> coherent BDC Σ ------------------------------+
+       -> ΔAZ -> coherent BDC ΔAZ --+                         |
+       -> ΔEL -> coherent BDC ΔEL --+-> SPDT -> HMC936A ------+-> IF combiner -> AD9364 RX
+                                                                  |
+                                                                  v
+                                                     AXU4EVB-P finite-frame DSP
 ```
 
-Analog ön uç AD9364'e tek bir birleşik IF/RF hattı verir. FPGA iki dış kontrol üretir:
+Üç BDC ortak LO/referans kullanmalı ve göreli fazları ölçüm çevrimi boyunca kararlı kalmalıdır; aksi halde `Σ±Δ` işareti ve `phase_base` kalibrasyonu fiziksel anlamını kaybeder. Analog ön uç AD9364'e tek bir birleşik IF hattı verir. DSP/FSM iki mantıksal kontrol üretir:
 
 - `delta_select`: `AZ` veya `EL`
-- `phase_180`: `0°` veya `180°`
+- `phase_180`: kalibre edilmiş PLUS veya yaklaşık `+180°` MINUS durumu
 
-Bu sinyallerin FPGA pinleri, I/O voltajları, aktif seviyeleri, güç-açılış varsayılanları ve yerleşme süreleri ancak gerçek SPDT/phase-switch datasheet'i ile kart şeması incelendikten sonra XDC'ye bağlanır. Mevcut AD9364 `gpio_ctl` hatları serbest FPGA pini sayılmaz.
+Fiziksel adaptör mantıksal `delta_select` değerini ZX80 `Control1/Control2` çiftine, mantıksal faz durumunu ise altı HMC bitine çevirir. `phase_base` kalibrasyon kodu desteklenir; nominal MINUS kodu `phase_base+32 (mod 64)` olur. SPDT RF1/RF2 kablo yönü, sekiz FPGA kontrol pini, I/O bankları ve 5 V level-shifter tamamlanmadan XDC yazılmaz. Mevcut AD9364 `gpio_ctl` hatları serbest FPGA pini sayılmaz.
 
 ## 4. Vitis ve PL görev ayrımı
 
@@ -89,7 +101,7 @@ Bu sinyallerin FPGA pinleri, I/O voltajları, aktif seviyeleri, güç-açılış
 
 ### Vivado / PL
 
-- SPDT ve 0°/180° kontrol FSM'i
+- ZX80 iki-hat yol seçimi ve HMC936A altı-bit phase-code kontrol FSM'i
 - Yerleşme bekleme ve geçiş örneklerini discard etme
 - ADI-native I/Q çıkışından 2048 örneklik non-blocking capture
 - CDC-safe store-and-forward replay
@@ -141,7 +153,7 @@ SET_PATH
 -> NEXT_STATE
 ```
 
-`settling_cycles` processing-clock cycle, `discard_samples` ise kabul edilen kompleks ADC örneği cinsindedir. Gerçek değerler datasheet başlangıç tahmini ve SMW200A ile yapılan kararlılık ölçümü sonucunda seçilir.
+`settling_cycles` processing-clock cycle, `discard_samples` ise kabul edilen kompleks ADC örneği cinsindedir. ZX80 tipik switching süresi 2 us, HMC936A tipik switching süresi 250 ns'dir; bunlar garanti edilen maksimum değildir. İlk laboratuvar başlangıcı 10 us settle'dır ve nihai değer SMW200A ile yapılan geçiş-kararlılığı ölçümünden seçilir.
 
 Capture store-and-forward'dır. FFT `TREADY` durumu canlı ADC veya mevcut RX DMAC yoluna backpressure uygulayamaz. Tek buffer Candidate'da capture ve FFT replay aynı anda yapılmaz.
 
@@ -206,6 +218,7 @@ RF açılmadan önce test kaydı şunları içermelidir:
 - Antenler arası mesafe, anten açıklığı, polarizasyon ve mekanik sıfır
 - Uzak alan koşulunun anten ölçülerine göre hesabı
 - BDC RF/LO/IF frekansları, kazançları ve seri numaraları
+- Üç BDC'nin ortak LO/referans bağlantısı, göreli faz drift ölçümü ve kanal kalibrasyonu
 - Kablo/combiner kayıpları
 - SPDT/phase-switch kontrol polaritesi
 - AD9364 runtime LO, bandwidth, sample rate ve sabit MGC değeri
@@ -311,7 +324,7 @@ Açı RMSE için yönetici tarafından sayısal sınır verilmemiştir. İlk yan
 
 Mevcut JTAG/bare-metal Candidate bir IIO context veya IIOD sunmadığından `pyadi-iio` bugün doğrudan karta bağlanma yöntemi değildir. İlk aşamada NumPy oracle ve taklit edilmiş `adi` nesnesiyle test edilir. Gerçek `adi.ad9361(...).rx()` çağrısı PetaLinux/IIOD veya eşdeğer IIO sunucusu ayağa kalktıktan sonra kabul testine eklenir.
 
-SPDT ve 0°/180° phase-switch entegrasyonu için her iki parçanın tam üretici/model numarası zorunludur. Model bilgisi; kontrol gerilimi ve VIH/VIL eşikleri, aktif polarite, güvenli açılış durumu, switching/settling süresi, frekans aralığı, insertion loss, isolation, return loss, güç limiti ve gerekli level-shifter/buffer seçimini belirler. Bu bilgiler olmadan FPGA pini veya bekleme süresi varsayımı XDC/RTL'e yazılmaz.
+SPDT ve phase-shifter modelleri doğrulanmıştır. Kalan donanım kapısı; BDC IF planı, RF1/RF2 kablo eşlemesi, ZX80 beslemesi, HMC936A 5 V level-shifter/buffer şeması, sekiz FPGA kontrol pininin bank gerilimleri ve ölçülmüş settle/discard değerleridir. Bu bilgiler olmadan FPGA pini XDC/RTL'e yazılmaz.
 
 ## 13. Uygulama sırası
 
@@ -320,7 +333,7 @@ SPDT ve 0°/180° phase-switch entegrasyonu için her iki parçanın tam üretic
 3. Non-blocking 2048-sample capture + AXI replay adapter'ını test-first geliştir.
 4. Tek FFT, magnitude-square ve spectrum BRAM'i bit-doğru doğrula.
 5. CW peak ve band-power motorunu ekle.
-6. Gerçek SPDT/phase-switch elektriksel sözleşmesini ve PL pinlerini doğrula.
+6. BDC IF/koherensini, ZX80/HMC936A sürücü sözleşmesini ve PL pinlerini doğrula.
 7. Dört-durum FSM, ortak peak ve scalar PL oran motorunu ekle.
 8. SMW200A ile yankısız oda sıfır/açı kalibrasyonunu yap.
 9. Golden DMA regresyonu, timing/DRC ve fiziksel kabulden sonra Candidate release üret.

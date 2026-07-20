@@ -416,18 +416,18 @@ Bir adım hata verirse yazılım sonraki RF/DMA/PL capture adımlarına geçmez.
 
 ## 10. RF switch controller
 
-RF switch fazı aşağıdaki donanım sözleşmesi sağlanmadan başlatılmayacaktır:
+RF switch parçaları `ZX80-DR230-S+` ve `EV1HMC936ALP6/HMC936ALP6E` olarak doğrulanmıştır. Fiziksel faz aşağıdaki kalan donanım sözleşmesi sağlanmadan başlatılmayacaktır:
 
-- Seçilen SPDT modelinin üretici datasheet'i ve satın alınabilir parça numarası
-- Hedef RF frekans aralığı; ilk laboratuvar hedefi için en az 2,4 GHz bandını kapsama
+- BDC sonrası hedef IF'nin 1.2-1.4 GHz içinde olduğunun doğrulanması; HMC936A bu bant dışında kullanılmayacaktır
 - 50 Ω RF portları, insertion loss, isolation, return loss, P1dB/IP3 ve maksimum RF giriş gücü
-- Besleme ve kontrol gerilimi, kontrol akımı, logic-high/logic-low eşikleri
-- Switching time, kontrol polaritesi ve varsa break-before-make davranışı
+- ZX80 için `VDD=2.7-5.0 V`, LOW `0-0.4 V`, HIGH `2.4 V..VDD`, `00=OFF`, `10=RF1`, `01=RF2`, `11=yasak` sözleşmesi
+- HMC936A için +5 V besleme/kontrol, altı aktif-düşük faz biti ve zorunlu 5 V level-shifter/buffer
+- ZX80 tipik 2 us ile HMC936A tipik 250 ns switching değerlerinden başlayıp ölçümle kapatılan settle/discard süresi
 - Ortak ground, RF kablo/konnektör planı ve switch'in FPGA pininden beslenmediğinin teyidi
 - FPGA konfigürasyonu öncesi güvenli varsayılan A/B seçimi için harici pull-up/pull-down veya eşdeğer donanım
 - Seçilen FPGA pininin konnektör, I/O bank voltage ve XDC eşlemesi
 
-Mevcut `gpio_ctl[3:0]` switch kontrolü için serbest pin kabul edilmeyecektir; bu sinyaller PS GPIO üzerinden AD9364 kontrol girişlerine bağlıdır. MIPI kullanılmıyorsa J23 üzerindeki 3,3 V `CAM_GPIO` birincil adaydır, fakat kesin pin seçimi switch datasheet'i ve kart şemasıyla elektriksel inceleme tamamlandıktan sonra kilitlenecektir. FMC bankları 1,8 V olduğundan doğrudan 3,3 V kontrol varsayılmayacaktır.
+Mevcut `gpio_ctl[3:0]` switch kontrolü için serbest pin kabul edilmeyecektir; bu sinyaller PS GPIO üzerinden AD9364 kontrol girişlerine bağlıdır. Toplam sekiz fiziksel çıkış gerekir: ZX80 için iki, HMC936A için altı. MIPI kullanılmıyorsa J23 üzerindeki 3,3 V `CAM_GPIO` adaydır, fakat pin sayısı/bank/XDC ve 5 V level-shifter şeması tamamlanmadan kilitlenmeyecektir. FMC bankları 1,8 V olduğundan doğrudan kontrol varsayılmayacaktır.
 
 FSM:
 
@@ -688,8 +688,7 @@ Harici RF kaynağı bağlanmadan önce frekans, beklenen güç, toplam kablo/att
 
 - İlk ürün işlemi frekans alanında magnitude-square ve PA/PB üretimi olarak sabitlenmiştir.
 - İlk A/B oranı PS/Python tarafında power ratio olarak hesaplanacaktır; kompleks ratio ilk ürün kapsamı dışındadır.
-- Harici SPDT switch modeli seçilecek.
-- Kontrol voltajı ve FPGA bağlantısı belirlenecek.
+- Seçilen `ZX80-DR230-S+` ve `EV1HMC936ALP6` için BDC IF/koherens, DC-port, 5 V level-shifter ve FPGA pin sözleşmesi kapatılacak.
 - 30,72 MSPS zorunlu başlangıç profili olarak doğrulanacak; 61,44 MSPS ayrı deneysel kapıdır.
 - Ortak MGC gain politikası belirlenecek.
 - Kabul test kaynağı ve bilinen giriş seviyeleri seçilecek; hotspot zorunlu olmayacaktır.
@@ -920,7 +919,7 @@ Aşağıdaki tablo eksik bilgi yüzünden yanlış donanım geliştirilmesini en
 | İlk oran hesabı | PS/Python | Faz 4 | 64-bit/floating referans raporu |
 | PL divider | Ölçülmüş performans ihtiyacı olmadan eklenmez | Faz 6 | Latency/throughput gerekçesi |
 | A/B karşılaştırma | Ardışık power/magnitude; koherent faz değil | Faz 5 | Sistem test raporu |
-| RF switch | SPDT ve 0°/180° phase-switch tam üretici/modeli, kontrol gerilimi, aktif polaritesi ve settle süresi doğrulanmadan RTL kontrolü eklenmez | Faz 5 | İki datasheet + kontrol şeması + XDC incelemesi |
+| RF switch | ZX80/HMC936A modelleri doğrulandı; BDC IF/koherens, RF-port 0 VDC, level-shifter, kablo/pin eşlemesi ve ölçülmüş settle kapanmadan RTL kontrolü eklenmez | Faz 5 | İki datasheet + kontrol şeması + XDC incelemesi |
 | İlk nicel RF kaynağı | CW generator; yoksa güvenli attenuator'lı loopback | Faz 2/5 | Frekans ve güç bütçesi kaydı |
 | Hotspot/ortam RF | İsteğe bağlı aktivite demonstrasyonu | Herhangi | UART/evidence; nicel kabul sayılmaz |
 | Gain | A/B için ortak MGC | Faz 5 | Gain readback |
@@ -937,8 +936,8 @@ Projeyi ürün seviyesinde genişletmeden önce proje sahibinin ayrıca belirlem
 - Sonucun tam spektrum mu, seçilmiş bin/bant gücü mü, yoksa yalnız scalar oran mı olması gerekir?
 - Absolute power doğruluğu gerekiyor mu; gerekiyorsa izin verilen dB hatası ve kalibrasyon standardı nedir?
 - A/B ratio dinamik aralığı ve izin verilen minimum payda seviyesi nedir?
-- Harici SPDT ve 0°/180° phase-switch'in üretici/model numaraları nedir; kontrol doğrudan FPGA'dan mı yoksa ayrı sürücü/kontrol kartından mı yapılacaktır?
-- Her iki anahtarın kontrol gerilimi, VIH/VIL seviyesi, aktif polaritesi, güvenli power-up durumu ve switching/settling süresi nedir?
+- HMC936A için altı kanallı 5 V level-shifter/buffer hangi devre olacak ve güvenli `OE` durumu nedir?
+- Üç BDC ortak LO/referans kullanıyor mu; gerçek IF ve göreli faz drift'i nedir?
 - Harici switch kartı hazır mı; değilse satın alma, level-shifter/buffer, breakout/PCB ve konektör sorumluluğu kimdedir?
 - Nihai çalışma bare-metal Vitis mi, PetaLinux sürücüsü/IIO mu olacaktır?
 
@@ -1024,6 +1023,8 @@ Audit raporundaki süre, tipik switch izolasyonu ve kesin FFT latency gibi datas
 - Alıcı anten, BDC ve analog monopulse ön uç donanımının hazır sağlanacağı bildirilmiştir.
 - Fotoğraftaki `AD-FMCOMMS3-EBZ`, `RX1A` ve `RX2A` bağlantıları AD9361 tabanlı eski/referans düzendir; hedef transceiver değildir.
 - AD9364 tek gerçek RX içerdiği için eşzamanlı iki dijital kanal, kompleks kanal oranı veya doğrudan iki-kanal faz farkı mevcut kapsamda yoktur.
+- Harici yol seçici `ZX80-DR230-S+`, phase shifter `EV1HMC936ALP6/HMC936ALP6E` olarak fotoğraf ve üretici datasheet'leriyle doğrulanmıştır.
+- HMC936A yalnız 1.2-1.4 GHz'de derecelidir. BDC IF bu aralıkta doğrulanmadan harici RF zinciri uygun sayılmaz.
 
 ### 21.2 Bağlayıcı analog durumlar
 
@@ -1075,7 +1076,7 @@ Python doğrulama iki katmanlıdır. Bare-metal/JTAG aşamasında NumPy oracle C
 - [ ] **Paket M2 — Non-blocking finite capture:** Paket 3'teki CDC mailbox, store-and-forward capture, AXI replay ve backpressure testlerini tamamla.
 - [ ] **Paket M3 — Tek FFT sayısal kapanışı:** Rectangular/Hann, FFT `0x6AB`, magnitude-square ve spectrum BRAM'i Python/C modeliyle bit-doğru kapat.
 - [ ] **Paket M4 — Peak/band-power motoru:** Beklenen pencere, DC guard, ortak `P_REF`, ±2 bin CW integrasyonu ve configured band-power testlerini ekle.
-- [ ] **Paket M5 — Harici kontrol elektriksel kapısı:** Gerçek SPDT, 0°/180° phase switch, combiner/BDC portları, pin/gerilim/polarite ve settle değerlerini datasheet/şema/fotoğrafla doğrula.
+- [ ] **Paket M5 — Harici kontrol elektriksel kapısı:** ZX80 ve HMC936A model doğrulaması tamamlandı. BDC IF, RF1/RF2 kablo eşlemesi, ZX80 beslemesi, HMC altı-bit 5 V level-shifter, sekiz FPGA pini ve ölçülmüş settle/discard değerlerini kapat.
 - [ ] **Paket M6 — Dört durumlu FSM ve scalar oran:** S0-S3 kontrolü, settle/discard, dört spectrum/güç sonucu, Q1.31 AZ/EL divider ve hata status'larını ekle.
 - [ ] **Paket M7 — Yankısız oda kalibrasyonu:** SMW200A CW ile güç doğruluğu, mekanik sıfır, `-θ/0/+θ`, simetri, eğim ve tekrar edilebilirlik raporunu üret.
 - [ ] **Paket M8 — Candidate release:** Timing/DRC, Golden DMA regresyonu ve fiziksel kabul geçince yeni değişmez release üret; eski Golden üzerine yazma.

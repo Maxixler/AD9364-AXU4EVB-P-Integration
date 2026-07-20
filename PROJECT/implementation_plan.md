@@ -239,7 +239,7 @@ Bağlayıcı tasarım: `PROJECT/designs/2026-07-20-axu4ev-ad9364-single-channel-
 4. [ ] Tek Vivado FFT v9.1 core; rectangular/Hann, `SCALE_SCH=0x6AB` ve magnitude-square Python/C modeliyle bit-doğru doğrulanacak.
 5. [ ] CW için yapılandırılmış pencerede ortak maximum peak ve ±2 komşu-bin gücü üretilecek.
 6. [ ] 5-10 MHz modülasyonlu sinyal için configured band-power modu eklenecek.
-7. [ ] Harici SPDT ile `ΔAZ/ΔEL` ve 0°/180° bi-phase kontrolünün pin, voltaj, aktif seviye ve settle sözleşmesi gerçek donanımla doğrulanacak.
+7. [ ] ZX80/HMC936A için BDC IF/koherens, RF-port 0 VDC, altı-bit 5 V level-shifter, pin/kablo eşlemesi ve settle sözleşmesi gerçek donanımla doğrulanacak.
 8. [ ] Tek AD9364 RX'te sırayla `Σ+ΔAZ`, `Σ-ΔAZ`, `Σ+ΔEL`, `Σ-ΔEL` frame'leri yakalanacak.
 9. [ ] Dört güçten signed Q1.31 `AZ_ERROR` ve `EL_ERROR` scalar oranları PL'de üretilecek; küçük payda geçersiz sayılacak.
 10. [ ] SMW200A ve yankısız oda ile mekanik sıfır, `-θ/0/+θ`, simetri ve tekrar edilebilirlik kalibrasyonu yapılacak.
@@ -374,3 +374,18 @@ Proje sahibiyle yapılan ister görüşmesinde hedef platformun AXU4EVB-P + mevc
 Onaylanan ilk Candidate; 30,72 MSPS, 10 MHz RX bandwidth readback hedefi, 2048 nokta tek FFT, CW ortak peak, modülasyonlu sinyal için band-power ve dört durumdan normalize AZ/EL hata üretir. Tam kompleks Σ/Δ faz açısı ve gerçek eşzamanlı çift RX, AD9364 sınırı nedeniyle ürün kapsamına alınmadı.
 
 R&S SMW200A, yankısız oda, verici/alıcı anten ve X-band BDC altyapısının hazır olduğu fotoğraflarla görüldü. Yakın çekimdeki AD-FMCOMMS3-EBZ kartının RX1A/RX2A bağlantıları AD9361 tabanlı eski/referans sisteme aittir; Candidate kaynak veya channel-count kanıtı değildir.
+
+## 20. 20 Temmuz 2026 — harici RF kontrol donanımı doğrulaması
+
+Kullanıcı fotoğrafı ve üretici dokümanlarıyla harici parçalar kesinleştirildi:
+
+- SPDT: Mini-Circuits `ZX80-DR230-S+`
+- Phase shifter: Analog Devices `EV1HMC936ALP6`, üzerinde `HMC936ALP6E`
+
+ZX80 `00=iki yol OFF`, `10=RF1`, `01=RF2`, `11=geçersiz` doğruluk tablosunu kullanır; tipik switching süresi 2 us'dir. HMC936A 1.2-1.4 GHz için altı bit, 5.625° adımlı ve aktif-düşük 0/+5 V kontrollüdür. AXU4EVB-P GPIO bu 5 V HIGH şartını doğrudan karşılamadığı için altı kanallı level-shifter/buffer zorunludur. Nominal 0° fiziksel kodu `111111`, nominal 180° kodu `011111`dir; kalibrasyon için bütün altı bit erişilebilir tutulacaktır.
+
+Yeni bağlayıcı donanım belgesi:
+
+`PROJECT/designs/2026-07-20-rf-control-hardware-contract.md`
+
+Kalan fiziksel kapılar: BDC IF'nin 1.2-1.4 GHz içinde doğrulanması, AZ/EL kablolarının ZX80 RF1/RF2 eşlemesi, ZX80 VDD kaynağı, HMC 5 V sürücü şeması, sekiz FPGA çıkış pininin bank/XDC eşlemesi ve ölçülmüş settle/discard değerleridir. Foundation C/Python işi bu pinlerden bağımsız sürdürülecektir; fiziksel RTL/XDC entegrasyonu bu kapılar kapanmadan yapılmayacaktır.

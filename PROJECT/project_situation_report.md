@@ -255,4 +255,20 @@ Kartta doğrulanmış RX/Wi-Fi kaynaklarının `codex/wifi-rf-detection` branch'
 
 Python doğrulama katmanında NumPy bağımsız oracle olarak kullanılacaktır. `analogdevicesinc/pyadi-iio` AD936X ailesini destekler; ancak mevcut JTAG/bare-metal Candidate IIO context/IIOD sunmadığından bugün karta doğrudan bağlanmayacaktır. Gerçek `adi.ad9361(uri=...).rx()` otomasyonu PetaLinux/IIOD aşamasında etkinleşecektir.
 
-Harici kontrol entegrasyonu için SPDT ve 0°/180° phase-switch'in tam üretici/model numaraları veya bunları süren hazır kontrol kartının giriş sözleşmesi gereklidir. Kontrol gerilimi, VIH/VIL, aktif polarite, güvenli açılış durumu ve switching/settling süreleri doğrulanmadan RTL/XDC pin varsayımı yapılmayacaktır.
+Harici kontrol entegrasyonu için model kapısı kapanmıştır: `ZX80-DR230-S+` ve `EV1HMC936ALP6/HMC936ALP6E`. BDC IF/koherens, RF-port DC seviyesi, 5 V level-shifter, kablo/pin eşlemesi, güvenli açılış durumu ve ölçülmüş switching/settling süreleri doğrulanmadan RTL/XDC pin varsayımı yapılmayacaktır.
+
+## 13. Harici kontrol donanımı durumu — 20 Temmuz 2026
+
+Durum: **Parça modelleri doğrulandı; elektriksel/pin entegrasyonu kısmen açık.**
+
+Fotoğraftaki SPDT `ZX80-DR230-S+`, phase-shifter kartı ise `EV1HMC936ALP6/HMC936ALP6E` olarak okundu ve üretici datasheet'leriyle eşleştirildi. HMC kart etiketi üzerindeki `2017 120557 163` seri/üretim bilgisidir; modeldeki doğru sayı `936`dır.
+
+Uygulanabilirlik sonucu:
+
+- ZX80, hedef 1.2-1.4 GHz IF'yi kapsayan DC-3 GHz SPDT'dir.
+- HMC936A yalnız 1.2-1.4 GHz için derecelidir; bu nedenle X-band anten sinyali BDC'den geçmeden HMC'ye uygulanamaz.
+- HMC'nin altı kontrol hattı 5 V ve aktif-düşüktür; doğrudan FPGA bağlantısı reddedildi.
+- ZX80 için iki, HMC için altı olmak üzere sekiz güvenli kontrol çıkışı gerekir.
+- İlk settle başlangıç değeri 10 us olacaktır; datasheet süreleri yalnız tipik olduğundan nihai değer laboratuvarda ölçülecektir.
+
+Sonraki donanım kararı için BDC IF etiketi/datasheet'i, RF1/RF2 kablo takibi, seviye dönüştürücü şeması ve AXU4EVB-P pin listesi gereklidir. Bu sırada board-independent monopulse math/spectrum/sequence foundation geliştirilebilir.

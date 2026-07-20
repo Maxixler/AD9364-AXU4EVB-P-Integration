@@ -377,3 +377,17 @@ Plan; portable C11 Q1.31 monopulse matematiği, dört durum sırası, ortak peak
 Kullanıcının önerdiği `analogdevicesinc/pyadi-iio` incelendi. Resmî proje AD936X ailesini desteklemekte ve örnek kullanımda `adi.ad9361(uri=...).rx()` sağlamaktadır. Buna karşılık `pyadi-iio`, libIIO ve erişilebilir IIO context ister. Mevcut bare-metal/JTAG Candidate IIOD sunmadığından ilk testlerde NumPy oracle ve mock `adi` nesnesi kullanılacak; gerçek kart yakalama PetaLinux/IIOD aşamasında açılacaktır.
 
 RF switch için yalnız “SPDT” veya “phase switch” adı yeterli değildir. SPDT ve 0°/180° phase-switch'in tam üretici/model numarası; kontrol gerilimi, VIH/VIL, aktif polarite, power-up durumu, switching/settling süresi, frekans aralığı ve level-shifter ihtiyacını belirlemek için zorunlu bilgi olarak kaydedildi. Ayrı bir sürücü/kontrol kartı kullanılacaksa onun doğrulanmış dijital giriş sözleşmesi model bilgisinin FPGA tarafındaki karşılığı olabilir.
+
+## 22. ZX80 ve HMC936A model kapanışı — 20 Temmuz 2026
+
+Kullanıcı harici SPDT'yi `ZX80-DR230-S+`, phase-shifter'ı önce `EV1HMC946ALP6` olarak bildirdi. Paylaşılan yakın fotoğraf incelendiğinde kart etiketi `EV1HMC936ALP6`, entegre baskısı `H936A` olarak net okundu. Resmî Analog Devices datasheet'i de eval kart malzeme listesini `EV1HMC936ALP6` olarak doğruladı.
+
+Üretici verilerinden çıkarılan bağlayıcı sonuçlar:
+
+- ZX80: DC-3 GHz, 2.7-5 V besleme, iki kontrol pini, `00=OFF`, `10=RF1`, `01=RF2`, `11=N/A`, tipik 2 us switching.
+- HMC936A: 1.2-1.4 GHz, 6-bit/5.625°, nominal +5 V, aktif-düşük faz bitleri, tipik 250 ns switching.
+- HMC referans fazı bütün kontrol bitleri HIGH iken oluşur; 180° ağırlığı ilgili en yüksek bit LOW yapılarak seçilir.
+- FPGA 3.3 V/1.8 V çıkışları HMC'nin `VDD±0.2 V` HIGH koşuluna doğrudan bağlanmayacaktır; 5 V level-shifter/buffer zorunludur.
+- HMC bandı nedeniyle BDC sonrası gerçek IF 1.2-1.4 GHz içinde kanıtlanmalıdır.
+
+Bu bilgiler `PROJECT/designs/2026-07-20-rf-control-hardware-contract.md` dosyasına, ana tasarıma, nihai plana ve foundation uygulama planına işlendi. Fiziksel GPIO/XDC için hâlâ BDC IF, RF1/RF2 kablo eşlemesi, sekiz pin ve sürücü şeması gereklidir.
