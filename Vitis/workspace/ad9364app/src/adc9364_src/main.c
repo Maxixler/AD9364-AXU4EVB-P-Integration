@@ -631,8 +631,7 @@ int main(void)
 
 #ifdef MONOPULSE_FOUNDATION_TEST
 	status = monopulse_selftest_run(ad9361_phy);
-	if (status < 0)
-		goto cleanup;
+	goto cleanup;
 #endif
 
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);

@@ -37,3 +37,11 @@ if ($selftestContent -match 'axi_dac_set_datasel' -or
     $selftestContent -match 'no_os_gpio_(direction_output|set_value)') {
     throw 'Monopulse self-test contains prohibited TX DAC/DMAC or external switch GPIO writes.'
 }
+
+$mainContent = Get-Content -LiteralPath $main -Raw
+$cleanupPattern = '(?s)#ifdef\s+MONOPULSE_FOUNDATION_TEST\s+' +
+    'status\s*=\s*monopulse_selftest_run\s*\(\s*ad9361_phy\s*\)\s*;\s*' +
+    'goto\s+cleanup\s*;\s*#endif'
+if ($mainContent -notmatch $cleanupPattern) {
+    throw 'MONOPULSE_FOUNDATION_TEST must unconditionally route from self-test to cleanup before TX DMAC/DDS setup.'
+}
