@@ -389,3 +389,67 @@ Yeni bağlayıcı donanım belgesi:
 `PROJECT/designs/2026-07-20-rf-control-hardware-contract.md`
 
 Kalan fiziksel kapılar: BDC IF'nin 1.2-1.4 GHz içinde doğrulanması, AZ/EL kablolarının ZX80 RF1/RF2 eşlemesi, ZX80 VDD kaynağı, HMC 5 V sürücü şeması, sekiz FPGA çıkış pininin bank/XDC eşlemesi ve ölçülmüş settle/discard değerleridir. Foundation C/Python işi bu pinlerden bağımsız sürdürülecektir; fiziksel RTL/XDC entegrasyonu bu kapılar kapanmadan yapılmayacaktır.
+## 19. 16 Temmuz 2026 — AD9364 2.4 GHz Wi-Fi RF algılama adayı
+
+İlk gerçek RF doğrulaması için çalışma `codex/wifi-rf-detection` dalındaki bağımsız worktree'de sürdürüldü. Amaç Wi-Fi paketlerini çözmek değil; AXU4EVB-P + AD9364 alıcı yolunun kontrollü telefon hotspot'u ile oluşan 2.4 GHz RF enerji ve burst değişimini güvenilir biçimde ölçtüğünü kanıtlamaktır.
+
+Donanım kararı:
+
+- AD9364 `1x1` transceiver'dır; RXA ve RXB iki eşzamanlı anten kanalı değildir.
+- İlk kabul testinde yalnızca 2.4 GHz, 50 ohm anten RXB'ye bağlanacaktır.
+- Yazılım `B_BALANCED / RXB` girişini seçer; RXA, TXA ve TXB boş bırakılır.
+- `REF_CLK` anten girişi değildir.
+- TX DMAC, DAC ve DDS Wi-Fi RF test yolunda devre dışıdır; TX maksimum attenuation ve RX ENSM readback kontrolleri zorunludur.
+
+Tamamlanan geliştirme kapıları:
+
+1. Golden BIT/PMUFW/`psu_init.tcl` ile yalnız Release uygulama ELF'ini birleştiren `Candidate` başlatıcı eklendi. Candidate modu Debug ELF'e düşmez.
+2. Host üzerinde test edilen saf I/Q metrik motoru eklendi: güç, peak, clipping, medyan, delta ve PASS/INCONCLUSIVE sınıflandırması.
+3. RXB-only, finite ve non-cyclic DMA capture katmanı eklendi. Tekrarlı DMA completion, 32-bit adres sınırı, cache ownership, sabit gain reuse ve sayaç taşmaları davranış testleriyle korundu.
+4. UART baseline/active kanal taraması, kanal seçimi, 20 monitor penceresi ve final verdict state machine'i eklendi.
+5. `WIFI_RF_TEST` Release uygulamasına entegre edildi. Wi-Fi yolu TX başlatmaz; hata yolları cleanup üzerinden gerçek status döndürür.
+6. Vitis 2020.1 Release build wrapper'ı izole kısa temp workspace ve Windows Job Object ile güvenli hâle getirildi. Launcher askıda kalsa veya child process detach olsa bile timeout/cleanup yalnız wrapper'ın job ağacını etkiler.
+
+Son Release adayı:
+
+- Yol: `Vitis/workspace/ad9364app/Release/ad9364app.elf`
+- Boyut: `855568` bayt
+- SHA-256: `C95CD5478275F2CA7911D1984D544AECEE44034BF368FF238221957BA4A500B1`
+- Doğrulanan semboller: `wifi_rf_test_run`, `wifi_rf_prepare_rx_only`, `wifi_rf_capture_channel`, `wifi_rf_analyze_block`
+
+Task 6 kart öncesi kapıları iki kez geçmiştir: metrics, source/host, Candidate launcher, JTAG sırası, Golden release bütünlüğü ve handoff artifact bütünlüğü PASS. Candidate kuru çalışması Golden BIT, PMUFW ve `psu_init.tcl` hash'lerini aynen korurken uygulama olarak yukarıdaki Release ELF'i seçmiştir.
+
+### Yarın devam edilecek fiziksel kabul
+
+- JTAG ve PS_UART bağlanacak; PuTTY `115200-8-N-1` açılacak.
+- Tek 2.4 GHz anten RXB'ye bağlanacak; hotspot başlangıçta kapalı ve telefondan RXB'ye mesafe 1-3 metre olacak.
+- `Start-Axu4evAd9364Candidate.cmd` ile ilk koşu yapılacak.
+- Baseline hotspot kapalı, active scan ve 10 saniyelik monitor süresince hotspot açık ve gerçek istemci trafiği var olacak.
+- İki ardışık koşuda `RX_ONLY: PASS`, `PLATFORM: PASS`, `RF_ACTIVITY: PASS` ve `WIFI_RF_TEST: PASS` aranacak.
+- İki gerçek PASS görülmeden evidence dosyası oluşturulmayacak, eşikler değiştirilmeyecek ve yeni Golden terfisi yapılmayacak.
+
+Bu oturumun sonunda Task 1-5 tamamlanmış ve bağımsız review'ları CLEAN durumundadır. Task 6 `READY_FOR_HARDWARE` durumunda bırakılmıştır. Feature dalı yereldir; `main`, `origin/main`, mevcut Golden release ve `CURRENT` değiştirilmemiştir. Push/merge yarınki kart kabulünden sonra ayrıca kararlaştırılacaktır.
+
+## 20. 17 Temmuz 2026 — FDD düzeltmesi ve fiziksel RF kabulü
+
+İlk Candidate kart koşusunda AD9364 başarıyla başlatıldıktan sonra `PLATFORM: FAIL stage=RX_ONLY error=-5` görüldü. Kök neden donanım veya SPI değildi: uygulama FDD modunda yapılandırılmışken RX güvenlik kapısı ENSM readback'inin yalnızca `ENSM_MODE_RX` olmasını bekliyordu. Hata önce host regresyonunda `FDD prepare (actual=-5 expected=0)` olarak yeniden üretildi.
+
+Düzeltmede RXB seçimi ve 89.75 dB TX attenuation korunarak mevcut ENSM durumu önce okunur hâle getirildi. `ENSM_MODE_FDD` ve `ENSM_MODE_PINCTRL_FDD_INDEP` güvenli FDD durumları olarak kabul edildi; FDD dışındaki çalışma için `ENSM_MODE_RX` geçişi ve ikinci readback doğrulaması aynen korundu. Sürücünün özel `pdata` alanına bağımlılık eklenmedi.
+
+Yeni Release uygulaması:
+
+- Yol: `Vitis/workspace/ad9364app/Release/ad9364app.elf`
+- Boyut: `855568` bayt
+- SHA-256: `7E89D1A7D912661FD9843CFDAF48D4A81135EBE632FDF3E93B178CE01D92C2F0`
+- Global text sembolleri: `wifi_rf_test_run`, `wifi_rf_prepare_rx_only`, `wifi_rf_capture_channel`, `wifi_rf_analyze_block`
+
+Yeni ELF ile altı yazılım/preflight kapısı yeniden PASS verdi ve Candidate kuru çalışması doğrulanmış Golden BIT, PMUFW ve `psu_init.tcl` ile tam olarak bu Release ELF'i seçti.
+
+Fiziksel kabul, tek 2.4 GHz anten RXB'ye bağlıyken ve telefon hotspot'u gerçek istemci trafiği üretirken iki ardışık Candidate koşusuyla tamamlandı:
+
+1. Koşu: CH6 / 2437 MHz seçildi; delta power `+3.14 dB`, delta burst `+32 pp`.
+2. Koşu: CH5 / 2432 MHz seçildi; delta power `+4.77 dB`, delta burst `+49 pp`.
+
+Her iki koşuda `RX_ONLY: PASS`, tüm bloklarda `DMA=OK` ve `CLIP=0`, ardından `PLATFORM: PASS`, `RF_ACTIVITY: PASS` ve `WIFI_RF_TEST: PASS` elde edildi. CH5/CH6 komşuluğu, 20 MHz Wi-Fi enerjisinin 5 MHz aralıklı ölçüm noktalarına yayılmasıyla uyumludur; bu aşamada paket veya payload çözümü iddia edilmez.
+
+Task 6 fiziksel kabulü tamamlanmıştır. Kanıt: `PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt`. Sonraki geliştirme fazları FFT/grafik, sürekli I/Q streaming ve PetaLinux/IIO entegrasyonudur. Golden `CURRENT` bu kabul sırasında değiştirilmemiştir.

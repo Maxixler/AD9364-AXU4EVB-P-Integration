@@ -50,6 +50,12 @@
 //#define AXI_ADC_NOT_PRESENT
 //#define TDD_SWITCH_STATE_EXAMPLE
 
+#define WIFI_RF_TEST
+
+#if defined(WIFI_RF_TEST) && defined(DMA_EXAMPLE)
+#error "WIFI_RF_TEST and DMA_EXAMPLE cannot be enabled together"
+#endif
+
 //#define IIO_SUPPORT
 
 #ifndef IIO_SUPPORT

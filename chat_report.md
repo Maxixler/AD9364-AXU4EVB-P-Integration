@@ -391,3 +391,66 @@ Kullanıcı harici SPDT'yi `ZX80-DR230-S+`, phase-shifter'ı önce `EV1HMC946ALP
 - HMC bandı nedeniyle BDC sonrası gerçek IF 1.2-1.4 GHz içinde kanıtlanmalıdır.
 
 Bu bilgiler `PROJECT/designs/2026-07-20-rf-control-hardware-contract.md` dosyasına, ana tasarıma, nihai plana ve foundation uygulama planına işlendi. Fiziksel GPIO/XDC için hâlâ BDC IF, RF1/RF2 kablo eşlemesi, sekiz pin ve sürücü şeması gereklidir.
+## 20. AD9364 2.4 GHz Wi-Fi RF algılama geliştirmesi — gün sonu kaydı
+
+Kullanıcı, kartın gerçek RF sinyali alabildiğini önce kontrollü ve güvenli biçimde kanıtlamak; daha sonra FFT/grafik, continuous streaming ve PetaLinux/IIO fazlarına geçmek istedi. İlk RF kaynağı olarak 2.4 GHz'e zorlanan telefon hotspot'u seçildi. Bu aşamada Wi-Fi paketleri veya kullanıcı verisi çözülmeyecek; yalnız RF enerji, burst, RSSI ve DMA örnek istatistikleri ölçülecektir.
+
+Donanım teyidi:
+
+- AD9364 RF `1x1` transceiver'dır.
+- RXA ve RXB iki eşzamanlı alıcı kanal değil, tek RX zincirinin seçilebilir girişleridir.
+- Kart eşleşmesine göre ilk 2.4 GHz testinde `RXB / B_BALANCED` kullanılacaktır.
+- Kullanıcının iki Wi-Fi anteninden yalnız biri RXB'ye bağlanacak; ikinci anten ilk testte boşta kalacaktır.
+- TXA/TXB boş, `REF_CLK` anten bağlantısından bağımsız kalacaktır.
+
+Bu konuşma kapsamında tamamlanan teknik işler:
+
+1. RF kabul tasarımı ve altı görevli implementasyon planı yazıldı.
+2. Kirli ana çalışma ağacından bağımsız `codex/wifi-rf-detection` worktree'si oluşturuldu.
+3. Candidate launcher eklendi; Golden donanım hash'leri korunurken yalnız Release ELF seçildi ve Debug fallback yasaklandı.
+4. Saf C I/Q metrik motoru TDD ile geliştirildi. Signed overflow, `INT16_MIN`, 32-bit size sınırı, exact clipping/eşik sınırları ve compiler discovery sorunları review turlarında giderildi.
+5. RX-only capture katmanı geliştirildi. Tekrarlı IRQ DMA flag'i, 64-bit pointer'ın 32-bit DMA adresine kesilmesi, aggregate sayaç taşması, cache ownership ve invalid mode/error yolları host harness ile düzeltildi.
+6. UART baseline/active scan ve verdict state machine'i geliştirildi. Kanal-baseline ilişkisi, CRLF/drain davranışı, exact çıktı sırası ve clipping warning'i davranış testleriyle korundu.
+7. Feature Release uygulamasına bağlandı. Wi-Fi yolunda TX DMAC ve DAC/DDS başlatılmıyor; RX DMAC ve cleanup akışı doğrulandı.
+8. Vitis 2020.1'in stale metadata, asenkron import, uzun Windows yolu ve detached process sorunları sistematik olarak ayrıştırıldı. Son wrapper izole kısa temp platform/app oluşturuyor ve `CreateProcessW` ile suspended başlattığı launcher'ı çalışmadan önce Windows Job Object'a atıyor. Başarı için root exit code sıfır, job process sayısı sıfır, fresh Release ELF ve dört gerçek `nm` sembolü zorunlu.
+9. Job Object fake suite success, nonzero root, detached child, timeout, unrelated process, stale ELF, Debug-only, missing symbol, cleanup aggregation ve Tcl escaping senaryolarında art arda PASS verdi.
+10. Tek final gerçek Vitis build PASS verdi; hiçbir generated artifact commit kapsamına alınmadı.
+
+Son Release ELF:
+
+```text
+Path: Vitis/workspace/ad9364app/Release/ad9364app.elf
+Size: 855568 bytes
+SHA256: C95CD5478275F2CA7911D1984D544AECEE44034BF368FF238221957BA4A500B1
+Symbols: wifi_rf_test_run, wifi_rf_prepare_rx_only,
+         wifi_rf_capture_channel, wifi_rf_analyze_block
+```
+
+Task 6 preflight'ta şu altı test iki kez PASS verdi: metrics, source/host, launcher provenance, JTAG ordering, Golden release integrity ve Vitis handoff integrity. Candidate kuru çalışması Golden BIT/PMUFW/`psu_init.tcl` ile exact Release ELF'i birleştirdi. Donanım programlanmadı ve gerçek RF evidence dosyası oluşturulmadı.
+
+Yarın devam planı:
+
+1. Tek 2.4 GHz anteni RXB'ye bağla; RXA/TXA/TXB boş kalsın.
+2. JTAG + PS_UART bağlantısını ve PuTTY `115200-8-N-1` ayarını hazırla.
+3. Hotspot kapalıyken Candidate'ı başlat ve baseline prompt'unu tamamla.
+4. Hotspot'u 2.4 GHz aç; ikinci cihazla sürekli trafik oluştur ve active/monitor prompt'unu tamamla.
+5. `RX_ONLY: PASS`, `PLATFORM: PASS`, `RF_ACTIVITY: PASS`, `WIFI_RF_TEST: PASS` satırlarını kaydet.
+6. Aynı kabulü ikinci kez tekrarla. İki PASS sonrası sanitize evidence ve rapor kapanışı yapılacak.
+
+Gün sonu durumu: Task 1-5 tamamlandı ve bağımsız review'ları CLEAN; Task 6 `READY_FOR_HARDWARE`. Feature branch yerel tutuldu. `main`, `origin/main`, Golden `CURRENT` ve mevcut bring-up fallback değiştirilmedi; push/merge yarınki kart testi sonrasına bırakıldı.
+
+## 21. 17 Temmuz 2026 — FDD hata düzeltmesi ve iki koşulu kart kabulü
+
+İlk fiziksel Candidate çalıştırmasında AD9364 Rev 2 init başarılı olmasına rağmen `PLATFORM: FAIL stage=RX_ONLY error=-5` alındı. Kod geriye doğru izlendiğinde `-5` değerinin `-EIO` olduğu ve FDD yapılandırılmış AD9364'ün ENSM readback'ini `FDD` döndürmesine karşın uygulamanın yalnız `RX` beklediği doğrulandı. Aynı anda kaynakta bulunan tamamlanmamış `pdata->fdd` denemesi host stub'ıyla derlenmediği için kullanılmadı.
+
+TDD akışında önce FDD senaryosu eklendi ve eski kodun `FDD prepare (actual=-5 expected=0)` ile düştüğü görüldü. Üretim kodu mevcut ENSM'yi önce okuyacak şekilde değiştirildi: FDD ve independent-FDD kabul edilirken FDD dışındaki yol RX'e geçirilip tekrar okunuyor. RXB seçimi, 89.75 dB TX attenuation ve hata kapıları korundu.
+
+Kaynak/host testleri, altı preflight kapısı ve gerçek Vitis Release build PASS verdi. Yeni ELF `855568` bayt ve SHA-256 değeri `7E89D1A7D912661FD9843CFDAF48D4A81135EBE632FDF3E93B178CE01D92C2F0` oldu. Candidate dry-run tam olarak bu ELF'i, mevcut Golden BIT/PMUFW/`psu_init.tcl` ile eşledi.
+
+Kullanıcı tek 2.4 GHz anteni RXB'ye bağlayıp hotspot kapalı baseline ve gerçek istemci trafiğiyle active/monitor aşamalarını iki kez tamamladı:
+
+- İlk koşu CH6 / 2437 MHz'i seçti; delta power `+3.14 dB`, delta burst `+32 pp`.
+- İkinci koşu CH5 / 2432 MHz'i seçti; delta power `+4.77 dB`, delta burst `+49 pp`.
+- Her iki koşu `RX_ONLY: PASS`, `DMA=OK`, `CLIP=0`, `PLATFORM: PASS`, `RF_ACTIVITY: PASS` ve `WIFI_RF_TEST: PASS` ile bitti.
+
+İki ardışık gerçek kart PASS sonucu `PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt` içine sanitize edilerek kaydedildi. Bu kabul RF enerji/aktivite algılamasını doğrular; paket veya payload decode edildiği anlamına gelmez. Task 6 fiziksel kabulü tamamlandı, Golden `CURRENT` değiştirilmedi.

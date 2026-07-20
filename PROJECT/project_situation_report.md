@@ -272,3 +272,68 @@ Uygulanabilirlik sonucu:
 - İlk settle başlangıç değeri 10 us olacaktır; datasheet süreleri yalnız tipik olduğundan nihai değer laboratuvarda ölçülecektir.
 
 Sonraki donanım kararı için BDC IF etiketi/datasheet'i, RF1/RF2 kablo takibi, seviye dönüştürücü şeması ve AXU4EVB-P pin listesi gereklidir. Bu sırada board-independent monopulse math/spectrum/sequence foundation geliştirilebilir.
+## 11. Wi-Fi RF detection feature durumu — 16 Temmuz 2026 kapanışı
+
+Durum: **Task 1-5 tamamlandı ve review CLEAN; Task 6 READY_FOR_HARDWARE.**
+
+Geliştirme, ana kirli çalışma ağacını ve mevcut Golden geri dönüş noktasını etkilememek için `codex/wifi-rf-detection` dalındaki bağımsız worktree'de yapıldı. GitHub'a push, `main` merge veya Golden `CURRENT` değişikliği yapılmadı.
+
+### Tamamlanan fonksiyonlar
+
+- Candidate launcher: doğrulanmış Golden donanım teslimleri + exact Release uygulama ELF'i; Debug fallback yok.
+- Saf I/Q metrikleri: mean power, dBFS16, peak, clipping, medyan, delta ve aktivite verdict'i.
+- RX-only capture: `B_BALANCED / RXB`, maksimum TX attenuation, ENSM RX readback, finite DMA, 500 ms timeout, cache ownership ve baseline gain reuse.
+- UART akışı: hotspot kapalı baseline, 13 kanal active scan, deterministik kanal seçimi, 20 monitor penceresi ve PASS/INCONCLUSIVE sonucu.
+- Release entegrasyonu: `WIFI_RF_TEST`, TX DMAC/DAC/DDS dışlama, temiz cleanup ve Release `libm` bağlantısı.
+- Tekrarlanabilir Vitis build: kısa izole temp workspace, fresh platform/app üretimi, Windows Job Object ile process containment, gerçek `nm` sembol kapısı ve doğrulanmış cleanup.
+
+### Son doğrulanmış aday
+
+| Teslim | Değer |
+|---|---|
+| Branch | `codex/wifi-rf-detection` |
+| Feature HEAD | `0042e820957442f957d881f207090b3c608be789` |
+| Release ELF | `Vitis/workspace/ad9364app/Release/ad9364app.elf` |
+| ELF boyutu | `855568` bayt |
+| ELF SHA-256 | `C95CD5478275F2CA7911D1984D544AECEE44034BF368FF238221957BA4A500B1` |
+| Golden BIT SHA-256 | `AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4` |
+| Golden PMUFW SHA-256 | `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB` |
+| Golden `psu_init.tcl` SHA-256 | `CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B` |
+
+ELF içinde `wifi_rf_test_run`, `wifi_rf_prepare_rx_only`, `wifi_rf_capture_channel` ve `wifi_rf_analyze_block` global text sembolleri doğrulandı. Metrics, source/host, Candidate launcher, JTAG order, release integrity ve handoff testlerinin altısı son preflight'ta PASS verdi. `P:` eşlemesi ve güncel-format geçici build kökü kalmadı.
+
+### Donanım kabulü bekleyen maddeler
+
+- Tek 2.4 GHz anten yalnız RXB'ye bağlanacak. İkinci anten ilk testte kullanılmayacak; AD9364 1x1 olduğu için RXA/RXB eşzamanlı iki kanal değildir.
+- Telefon hotspot'u 2.4 GHz'e zorlanacak; baseline sırasında kapalı, active/monitor sırasında bağlı istemci trafiğiyle açık olacak.
+- Candidate iki kez başlatılacak ve iki ardışık `WIFI_RF_TEST: PASS` sonucu aranacak.
+- Gerçek PASS oluşmadan `PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt` oluşturulmayacak ve raporlara RF kabulü tamamlandı yazılmayacak.
+- Kart kabulünden sonra FFT/grafik, continuous streaming, PL hızlandırma ve PetaLinux/IIO ayrı fazlar olarak kalacaktır.
+
+Bugünkü kapanışta donanım programlanmadı. Yarın başlangıç noktası `PROJECT/tools/Start-Axu4evAd9364Candidate.cmd` ve Task 6 fiziksel checklist'idir.
+
+## 12. Wi-Fi RF fiziksel kabulü — 17 Temmuz 2026
+
+Durum: **TAMAMLANDI — iki ardışık fiziksel `WIFI_RF_TEST: PASS`.**
+
+İlk kart denemesinde görülen `PLATFORM: FAIL stage=RX_ONLY error=-5`, AD9364 arızası değil FDD ENSM readback sözleşmesindeki yazılım hatasıydı. AD9364 init ve SPI başarılıydı. FDD/independent-FDD durumlarını maksimum TX attenuation sonrasında güvenli kabul eden, FDD dışındaki RX geçişini koruyan düzeltme TDD ile uygulandı.
+
+| Teslim | Değer |
+|---|---|
+| Branch | `codex/wifi-rf-detection` |
+| Release ELF | `Vitis/workspace/ad9364app/Release/ad9364app.elf` |
+| ELF boyutu | `855568` bayt |
+| ELF SHA-256 | `7E89D1A7D912661FD9843CFDAF48D4A81135EBE632FDF3E93B178CE01D92C2F0` |
+| Golden BIT SHA-256 | `AFC016C6594F2103B854A4EA3B13FFF023452F1D6340CC0E7D8225515EFCFCD4` |
+| Golden PMUFW SHA-256 | `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB` |
+| Golden `psu_init.tcl` SHA-256 | `CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B` |
+
+Kart kabul özeti:
+
+- Tek 2.4 GHz anten yalnız RXB'de; RXA/TXA/TXB boş.
+- Baseline hotspot kapalı, active/monitor sırasında 2.4 GHz hotspot ve gerçek istemci trafiği aktif.
+- Koşu 1: CH6 / 2437 MHz, `DELTA_PWR=+3.14dB`, `DELTA_BURST=+32pp`.
+- Koşu 2: CH5 / 2432 MHz, `DELTA_PWR=+4.77dB`, `DELTA_BURST=+49pp`.
+- İki koşunun tamamında RX-only güvenlik kapısı PASS, DMA OK, clipping sıfır, platform PASS ve RF activity PASS.
+
+Kabul kanıtı `PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt` dosyasındadır. Sistem RF enerji ve burst aktivitesini algılar; Wi-Fi paketlerini veya kullanıcı verisini çözmez. Task 6 kapanmıştır. Mevcut Golden fallback ve `CURRENT` değiştirilmemiştir; FFT/grafik, continuous streaming ve PetaLinux/IIO sonraki fazlardır.

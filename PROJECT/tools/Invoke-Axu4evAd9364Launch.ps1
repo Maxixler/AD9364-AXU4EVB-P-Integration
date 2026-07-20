@@ -1,9 +1,11 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Golden', 'Workspace')]
+    [ValidateSet('Golden', 'Workspace', 'Candidate')]
     [string]$Mode = 'Golden',
 
     [string]$WorkspaceRoot,
+
+    [string]$CandidateApplication,
 
     [switch]$DryRun
 )
@@ -29,13 +31,24 @@ foreach ($required in @($module, $launchTcl, $xsct)) {
 Import-Module $module -Force
 $paths = [ordered]@{}
 
-if ($Mode -eq 'Golden') {
-    $releaseBase = Join-Path $WorkspaceRoot 'PROJECT\releases\axu4ev-ad9364'
+$releaseBase = Join-Path $WorkspaceRoot 'PROJECT\releases\axu4ev-ad9364'
+
+if ($Mode -in @('Golden', 'Candidate')) {
     $release = Resolve-Axu4evCurrentRelease $releaseBase
     $manifest = Read-Axu4evReleaseManifest $release.FullName
     $verified = @(Test-Axu4evReleaseArtifacts $release.FullName $manifest)
     foreach ($item in $verified) {
         $paths[$item.Name] = $item.Path
+    }
+
+    if ($Mode -eq 'Candidate') {
+        if ([string]::IsNullOrWhiteSpace($CandidateApplication)) {
+            $CandidateApplication = Join-Path $WorkspaceRoot 'Vitis\workspace\ad9364app\Release\ad9364app.elf'
+        }
+        if (-not (Test-Path -LiteralPath $CandidateApplication -PathType Leaf)) {
+            throw "Missing Release candidate application ELF: $CandidateApplication"
+        }
+        $paths.application = (Resolve-Path -LiteralPath $CandidateApplication).Path
     }
 }
 else {
@@ -47,7 +60,7 @@ else {
     if ($LASTEXITCODE -ne 0) {
         throw "Workspace handoff verification failed.`r`n$($handoffOutput -join "`r`n")"
     }
-    Write-Verbose ($handoffOutput -join "`r`n")
+    Write-Verbose ($handoffOutput -join [Environment]::NewLine)
 
     $appRoot = Join-Path $WorkspaceRoot 'Vitis\workspace\ad9364app'
     $application = @('Release', 'Debug') |
