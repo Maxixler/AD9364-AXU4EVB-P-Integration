@@ -54,6 +54,23 @@ $tests = [ordered]@{
         )
         Marker = 'PASS: spectrum_pingpong'
     }
+    cdc = @{
+        Top = 'tb_fft_cdc'
+        Sources = @(
+            (Join-Path $tbRoot 'tb_fft_cdc.sv'),
+            (Join-Path $rtlRoot 'fft_command_cdc.v'),
+            (Join-Path $rtlRoot 'fft_result_cdc.v')
+        )
+        Marker = 'PASS: fft_cdc'
+    }
+    regs = @{
+        Top = 'tb_fft_regs'
+        Sources = @(
+            (Join-Path $tbRoot 'tb_fft_regs.sv'),
+            (Join-Path $rtlRoot 'axi_ad9364_fft_regs.v')
+        )
+        Marker = 'PASS: fft_regs'
+    }
 }
 
 $requested = @($Test -split ',' | ForEach-Object { $_.Trim().ToLowerInvariant() } |
