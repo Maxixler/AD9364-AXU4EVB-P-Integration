@@ -493,3 +493,24 @@ Fiziksel kabul, tek 2.4 GHz anten RXB'ye bağlıyken ve telefon hotspot'u gerçe
 Her iki koşuda `RX_ONLY: PASS`, tüm bloklarda `DMA=OK` ve `CLIP=0`, ardından `PLATFORM: PASS`, `RF_ACTIVITY: PASS` ve `WIFI_RF_TEST: PASS` elde edildi. CH5/CH6 komşuluğu, 20 MHz Wi-Fi enerjisinin 5 MHz aralıklı ölçüm noktalarına yayılmasıyla uyumludur; bu aşamada paket veya payload çözümü iddia edilmez.
 
 Task 6 fiziksel kabulü tamamlanmıştır. Kanıt: `PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt`. Sonraki geliştirme fazları FFT/grafik, sürekli I/Q streaming ve PetaLinux/IIO entegrasyonudur. Golden `CURRENT` bu kabul sırasında değiştirilmemiştir.
+
+## 22. 21 Temmuz 2026 — PL FFT Tasks 1-5 kapanışı
+
+Bağlayıcı PL FFT planının ilk beş görevi Candidate dalında tamamlandı:
+
+1. Xilinx FFT bit-doğru oracle ve ölçek sözleşmesi kilitlendi.
+2. Deterministik 2048-sample test vektörü ve metadata biçimleri donduruldu.
+3. ADI DMA yoluna backpressure vermeyen 2048-sample capture/replay RTL'i eklendi.
+4. Tam 33-bit `Re²+Im²`, ortak peak seçimi ve iki adet 2048×64 ping-pong spectrum bankası eklendi.
+5. CPU↔ADC bundled-data CDC mailbox'ları ile sabit `0x00..0x40` AXI-Lite control/status haritası eklendi.
+
+Task 5 bağımsız incelemesinde üç reset-sınırı yarışı bulundu ve TDD ile kapatıldı: reset kaynaklı toggle/payload bozulması, uzak reset görünür olmadan kabul edilen transferin kaybolması ve hedefte teslim edilmiş fakat ack kaynağa dönmemiş transferin reset sonrası tekrar yayınlanması. Her iki mailbox yönü için toggle=1, in-flight, uzak-ready gecikmesi ve post-delivery/pre-source-ack reset senaryoları kalıcı regresyon testidir.
+
+Doğrulama kapıları:
+
+- Altı RTL hedefi PASS: capture, replay, magnitude, spectrum bank, CDC ve AXI-Lite registers.
+- Spectrum bank sentezi tam `RAMB36=8`, `RAMB18=0`, `LUT_AS_MEMORY=0` verdi.
+- Task 5 bağımsız re-review sonucu Critical/Important/Minor bulgusuz `Approved` oldu.
+- Golden bitstream/XSA/ELF değiştirilmedi.
+
+İlgili commitler: `95b0c19`, `19d7e65`, `072cdf6`. Sıradaki geliştirme adımı Task 6: Vivado FFT v9.1 IP konfigürasyonunu üretmek ve `NFFT=2048`, natural order, 16-bit fixed point, 24-bit twiddle, convergent rounding ve `SCALE_SCH=0x6AB` ayarlarını kaynak kontrollü biçimde kilitlemektir.

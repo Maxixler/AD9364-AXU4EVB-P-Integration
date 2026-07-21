@@ -493,3 +493,11 @@ Kullanıcı tek 2.4 GHz anteni RXB'ye bağlayıp hotspot kapalı baseline ve ger
 - Her iki koşu `RX_ONLY: PASS`, `DMA=OK`, `CLIP=0`, `PLATFORM: PASS`, `RF_ACTIVITY: PASS` ve `WIFI_RF_TEST: PASS` ile bitti.
 
 İki ardışık gerçek kart PASS sonucu `PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt` içine sanitize edilerek kaydedildi. Bu kabul RF enerji/aktivite algılamasını doğrular; paket veya payload decode edildiği anlamına gelmez. Task 6 fiziksel kabulü tamamlandı, Golden `CURRENT` değiştirilmedi.
+
+## 24. 21 Temmuz 2026 — PL FFT magnitude/bank ve CDC/register kapanışı
+
+Bugünkü geliştirmede PL FFT planının Task 4 ve Task 5 adımları tamamlandı. Task 4 ile exact 33-bit FFT gücü, lower-bin tie-break kullanan peak seçimi ve iki adet 2048×64 ping-pong spectrum bankası eklendi. Vivado sentezi iki bankayı tam sekiz RAMB36'ya eşledi; RAMB18 ve LUTRAM kullanımı sıfırdır.
+
+Task 5 ile CPU↔ADC command/result mailbox'ları ve sabit AXI-Lite register haritası test-first geliştirildi. İlk sürüm altı RTL testini geçmesine rağmen bağımsız inceleme reset sınırında kayıp, stale/phantom ve duplicate transfer pencereleri buldu. Her bulgu önce iki yönlü başarısız testle yeniden üretildi; mailbox request/ack paritesi, payload retention, async ready gating ve recovery kararı düzeltilerek kapatıldı. Son bağımsız re-review Critical/Important/Minor bulgusuz `Approved` verdi.
+
+Kalıcı doğrulama artık şu altı PASS hedefini kapsar: `adc_frame_capture`, `adc_frame_replay`, `magnitude_peak`, `spectrum_pingpong`, `fft_cdc`, `fft_regs`. Task 5 commitleri `95b0c19`, `19d7e65` ve `072cdf6`'dır. Kullanıcının raporları `PROJECT/reports/` altında toplama kararı uygulandı; bundan sonraki proje raporu güncellemeleri bu klasörden yapılacaktır.

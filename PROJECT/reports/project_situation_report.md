@@ -409,3 +409,16 @@ Sıradaki uygulanabilir işler:
 1. Temiz Candidate Vivado kaynak/build güvenini kapatmak.
 2. ILA/DMA ile I0/Q0 formatı, valid/enable ve gerçek tap clock'unu ölçmek.
 3. 2048-point bit-true model ve non-blocking capture sözleşmesini test-first uygulamak.
+
+## 17. PL FFT uygulama durumu — 21 Temmuz 2026 gün sonu
+
+Yukarıdaki ilk üç iş tamamlandı ve uygulama Task 5 seviyesine ulaştı. Mevcut Candidate kaynak durumu:
+
+- Bit-doğru FFT oracle ve dondurulmuş 2048-sample vektörler hazırdır.
+- Non-blocking capture/replay, exact magnitude/peak ve atomik ping-pong spectrum bank RTL'i hazırdır.
+- İki spectrum bankası Vivado sentezinde sekiz RAMB36 kullanmakta, LUTRAM kullanmamaktadır.
+- CPU↔ADC komut ve sonuçları 16-bit reset epoch içeren bundled-data toggle mailbox'larıyla atomik taşınmaktadır.
+- AXI-Lite kontrol/status bloğu sabit `0x00..0x40` haritasını; bağımsız AW/W, WSTRB, backpressure, RO koruması, pulse, W1C ve invalid-config reddini uygulamaktadır.
+- Tek-taraflı resetlerde stale, kayıp veya duplicate transfer üretmemek için reset-at-toggle-one, in-flight, remote-ready latency ve post-ack reset testleri iki yönde geçmektedir.
+
+Son Task 5 commit zinciri `95b0c19` → `19d7e65` → `072cdf6` olup bağımsız RTL review sonucu `Approved` durumundadır. Golden artefaktlar korunmuştur. Bir sonraki açık iş FFT v9.1 IP konfigürasyonunun üretilmesi ve ardından üst-seviye Candidate entegrasyonudur.

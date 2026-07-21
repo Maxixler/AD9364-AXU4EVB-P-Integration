@@ -1103,3 +1103,11 @@ Python doğrulama iki katmanlıdır. Bare-metal/JTAG aşamasında NumPy oracle C
 - Mekanik `+θ` ile `-θ` düzeltilmiş hata işaretleri ters olmalıdır.
 - Sıfır biası ve AZ/EL eğimleri yankısız oda kalibrasyon artefaktında saklanmalıdır.
 - Sayısal açı RMSE limiti ilk kalibrasyon verisi ve anten HPBW'si görülmeden uydurulmayacaktır; proje sahibi ölçülebilir kabul sınırını ayrıca onaylayacaktır.
+
+## 22. PL FFT uygulama ilerlemesi — 21 Temmuz 2026
+
+Bağlayıcı PL FFT alt-planında Tasks 1-5 tamamlanmıştır. Artık Candidate kaynak ağacında bit-doğru oracle, dondurulmuş vektörler, non-blocking 2048-sample capture/replay, exact magnitude/peak, sekiz RAMB36 kullanan çift spectrum bankası, reset-epoch korumalı command/result CDC mailbox'ları ve sabit AXI-Lite control/status bloğu bulunmaktadır.
+
+CDC kabulü yalnız nominal transferle sınırlı değildir. Her iki yönde toggle wrap, epoch mismatch/recovery, reset-at-toggle-one, reset sırasında in-flight transfer, uzak resetin ready'ye yansıma gecikmesi ve hedef tesliminden sonra source ack öncesi reset senaryoları exactly-once davranışıyla geçmektedir. AXI-Lite kabulü bağımsız AW/W, byte strobe, B/R backpressure, RO koruması, one-shot pulse, persistent mode, W1C ve coincident event-wins-clear davranışlarını kapsar.
+
+Bu kapanış analog S0-S3 kontrolünü veya harici ZX80/HMC936A sürüşünü uygulamaz; onlar mevcut nihai plandaki sonraki iş paketlerinde kalır. Bir sonraki dijital adım FFT v9.1 IP ayarlarını kaynak kontrollü Candidate üretimine bağlamak, ardından üst seviye shadow-path entegrasyonu ve bit-doğru uçtan uca regresyondur.

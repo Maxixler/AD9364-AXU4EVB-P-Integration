@@ -263,19 +263,19 @@ Expected: both testbenches print their `PASS` markers.
 - Create: `PROJECT/verification/fft/rtl/tb_fft_cdc.sv`
 - Create: `PROJECT/verification/fft/rtl/tb_fft_regs.sv`
 
-- [ ] **Step 1: Write asynchronous-clock and reset tests**
+- [x] **Step 1: Write asynchronous-clock and reset tests**
 
 Run CPU and ADC clocks at non-integer-related periods. Randomize start timing, assert one-sided resets, wrap mailbox toggles, and prove every accepted command/result transfers exactly once with an intact payload. Old epochs must be discarded.
 
-- [ ] **Step 2: Implement bundled-data mailboxes**
+- [x] **Step 2: Implement bundled-data mailboxes**
 
 Hold command payload stable from request toggle until synchronized acknowledgement. Mirror the pattern for results. Synchronize only toggles/status bits individually; do not synchronize a changing multi-bit bus bit-by-bit. Mark synchronizer registers `ASYNC_REG`.
 
-- [ ] **Step 3: Write AXI-Lite protocol/register tests**
+- [x] **Step 3: Write AXI-Lite protocol/register tests**
 
 Test independent AW/W arrival, byte strobes, held B/R responses under backpressure, read-only protection, pulse generation, W1C status, invalid configuration rejection, and the exact fixed register map.
 
-- [ ] **Step 4: Implement AXI-Lite slave and run tests**
+- [x] **Step 4: Implement AXI-Lite slave and run tests**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evFftRtl.ps1 -Test cdc,regs
@@ -283,7 +283,7 @@ powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evFftRtl.ps1 -Te
 
 Expected: `PASS: fft_cdc` and `PASS: fft_regs`.
 
-- [ ] **Step 5: Commit Task 5**
+- [x] **Step 5: Commit Task 5**
 
 ```powershell
 git add Related-Docs/hdl-main/library/axi_ad9364_fft_capture PROJECT/verification/fft/rtl
