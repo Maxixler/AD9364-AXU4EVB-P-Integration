@@ -148,19 +148,19 @@ git commit -m "test: add Xilinx FFT bit-accurate oracle"
 - Create: `PROJECT/verification/fft/vectors/*.power.hex`
 - Create: `PROJECT/tests/test_fft_vectors.py`
 
-- [ ] **Step 1: Write failing manifest tests**
+- [x] **Step 1: Write failing manifest tests**
 
 Require six named cases: `zeros`, `impulse`, `tone_bin_137`, `tone_bin_1901`, `two_tone_tie`, and `near_full_scale`. Verify each case records `nfft`, scaling, input CRC, expected overflow, search range, DC guard, peak bin, peak complex value, and peak power.
 
-- [ ] **Step 2: Implement reproducible generation**
+- [x] **Step 2: Implement reproducible generation**
 
 Use fixed integer samples and the Task 1 oracle. Store input words as 8-hex-digit `{Q,I}`, FFT words as `{Im,Re}`, and power words as 16-hex-digit zero-extended unsigned values. Use uppercase hex, one word per line, LF endings, and deterministic JSON ordering.
 
-- [ ] **Step 3: Validate tie and guard behavior**
+- [x] **Step 3: Validate tie and guard behavior**
 
 For equal peak power choose the lower eligible bin. Verify the DC guard removes both wrapped natural-order DC neighborhoods defined in the register contract.
 
-- [ ] **Step 4: Run and commit**
+- [x] **Step 4: Run and commit**
 
 ```powershell
 python PROJECT/verification/fft/model/generate_vectors.py --check
