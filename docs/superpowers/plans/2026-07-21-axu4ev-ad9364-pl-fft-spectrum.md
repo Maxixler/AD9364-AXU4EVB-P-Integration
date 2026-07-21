@@ -68,7 +68,7 @@ The two AXI BRAM Controller segments each expose 2048 64-bit read-only spectrum 
 - Create: `PROJECT/tests/test_xilinx_fft_cmodel.py`
 - Modify: `PROJECT/tests/Test-Axu4evMonopulsePython.ps1`
 
-- [ ] **Step 1: Write failing discovery and schedule tests**
+- [x] **Step 1: Write failing discovery and schedule tests**
 
 Add `unittest` cases that require:
 
@@ -86,7 +86,7 @@ python -m unittest PROJECT.tests.test_xilinx_fft_cmodel -v
 
 Expected: `ImportError` or missing-module failure because the wrapper does not exist.
 
-- [ ] **Step 2: Implement DLL discovery and typed API binding**
+- [x] **Step 2: Implement DLL discovery and typed API binding**
 
 Implement `discover_xfft_library()` using, in order, `XILINX_VIVADO`, `XILINX_VITIS`, then `C:\Xilinx\Vivado\2020.1`. Define local `ctypes.Structure` declarations for the documented generics, input, and output structures. Bind:
 
@@ -99,7 +99,7 @@ xilinx_ip_xfft_v9_1_bitacc_simulate
 
 Use generics `C_NFFT_MAX=11`, `C_ARCH=3`, `C_HAS_NFFT=0`, `C_USE_FLT_PT=0`, `C_INPUT_WIDTH=16`, `C_TWIDDLE_WIDTH=24`, `C_HAS_SCALING=1`, `C_HAS_BFP=0`, and `C_HAS_ROUNDING=1`. Always destroy state in `finally` or a context manager.
 
-- [ ] **Step 3: Add Q1.15 conversion and deterministic simulation API**
+- [x] **Step 3: Add Q1.15 conversion and deterministic simulation API**
 
 Expose:
 
@@ -116,11 +116,11 @@ def simulate_fft(i: np.ndarray, q: np.ndarray, scale_schedule: int = 0x6AB) -> F
 
 Reject arrays not exactly 2048 long or values outside signed 16-bit range. Convert integers to the normalized doubles expected by the C model, call forward transform, and require every returned value to quantize exactly onto the signed 16-bit grid.
 
-- [ ] **Step 4: Test numerical invariants**
+- [x] **Step 4: Test numerical invariants**
 
 Add impulse, DC, positive-bin complex tone, negative-bin complex tone, near-full-scale, and zero tests. Check natural-order peak index, output type/range, overflow propagation, and repeated-call identity. The test suite may skip only when the official DLL is absent; on the project machine its absence is a hard failure in the PowerShell gate.
 
-- [ ] **Step 5: Add the oracle to the existing Python gate**
+- [x] **Step 5: Add the oracle to the existing Python gate**
 
 Update the PowerShell test to reject a skipped C-model suite on the project machine, then run:
 
@@ -130,7 +130,7 @@ powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evMonopulsePytho
 
 Expected: existing 10 tests plus all FFT oracle tests pass.
 
-- [ ] **Step 6: Commit Task 1**
+- [x] **Step 6: Commit Task 1**
 
 ```powershell
 git add PROJECT/verification/fft/model PROJECT/tests/test_xilinx_fft_cmodel.py PROJECT/tests/Test-Axu4evMonopulsePython.ps1

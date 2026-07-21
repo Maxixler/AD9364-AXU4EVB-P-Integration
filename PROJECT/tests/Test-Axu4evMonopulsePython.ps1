@@ -30,7 +30,7 @@ try {
     $pythonStderr = [System.IO.Path]::GetTempFileName()
     try {
         $pythonProcess = Start-Process -FilePath $pythonExe -ArgumentList @(
-            '-B', '-m', 'unittest', 'PROJECT.tests.test_monopulse_reference', '-v'
+            '-B', '-m', 'unittest', 'discover', '-s', 'PROJECT/tests', '-p', 'test_*.py', '-v'
         ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $pythonStdout -RedirectStandardError $pythonStderr
         $pythonExitCode = $pythonProcess.ExitCode
         $pythonOutput = (Get-Content -LiteralPath $pythonStderr -Raw) + (Get-Content -LiteralPath $pythonStdout -Raw)
@@ -40,6 +40,9 @@ try {
     Write-Output $pythonOutput
     if ($pythonExitCode -ne 0) {
         throw "Python monopulse tests failed with exit code $pythonExitCode."
+    }
+    if ($pythonOutput -match '(?im)\bskipped\b') {
+        throw 'Python verification must not skip the installed Xilinx FFT C-model tests.'
     }
     $foundationScript = Join-Path $PSScriptRoot 'Test-Axu4evMonopulseFoundation.ps1'
     $foundationOutput = (& powershell -NoProfile -ExecutionPolicy Bypass -File $foundationScript 2>&1 | Out-String)
