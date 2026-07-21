@@ -181,11 +181,11 @@ Expected: generator reports `PASS: 6 FFT vector sets are reproducible` and tests
 - Create: `PROJECT/verification/fft/rtl/tb_adc_frame_replay.sv`
 - Create: `PROJECT/tests/Test-Axu4evFftRtl.ps1`
 
-- [ ] **Step 1: Write capture tests before RTL**
+- [x] **Step 1: Write capture tests before RTL**
 
 The capture testbench must inject valid/enable gaps, try starts while busy, issue aborts at samples 1 and 2047, and prove that `frame_ready` asserts only after 2048 accepted samples. It must check first sample, sample count, dropped count, and CRC-32/ISO-HDLC against testbench values.
 
-- [ ] **Step 2: Prove the test fails**
+- [x] **Step 2: Prove the test fails**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evFftRtl.ps1 -Test capture
@@ -193,15 +193,15 @@ powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evFftRtl.ps1 -Te
 
 Expected: compilation fails because `adc_frame_capture.v` is absent.
 
-- [ ] **Step 3: Implement capture as a passive sink**
+- [x] **Step 3: Implement capture as a passive sink**
 
 Capture only on `adc_valid && adc_enable && armed`. Never expose a ready signal. Store exactly 2048 `{Q,I}` words in inferred true dual-port RAM, saturate the dropped counter, and freeze frame metadata at completion. `ABORT` invalidates the partial frame without publishing it.
 
-- [ ] **Step 4: Write replay stall tests before RTL**
+- [x] **Step 4: Write replay stall tests before RTL**
 
 Randomize `m_axis_tready`, verify all words remain stable under stall, verify exactly one `tlast` at word 2047, and ensure a new replay cannot begin before the previous handshake completes.
 
-- [ ] **Step 5: Implement replay and run both tests**
+- [x] **Step 5: Implement replay and run both tests**
 
 Replay stored data with AXI4-Stream-valid semantics. Run:
 
@@ -211,7 +211,7 @@ powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evFftRtl.ps1 -Te
 
 Expected: `PASS: adc_frame_capture` and `PASS: adc_frame_replay`.
 
-- [ ] **Step 6: Commit Task 3**
+- [x] **Step 6: Commit Task 3**
 
 ```powershell
 git add Related-Docs/hdl-main/library/axi_ad9364_fft_capture PROJECT/verification/fft/rtl PROJECT/tests/Test-Axu4evFftRtl.ps1
