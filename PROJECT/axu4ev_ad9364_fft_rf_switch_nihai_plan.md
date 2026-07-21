@@ -9,24 +9,26 @@
 
 > **2026-07-20 bağlayıcı mimari düzeltmesi:** `PROJECT/designs/2026-07-20-axu4ev-ad9364-single-channel-monopulse-design.md` bu planın RF switch, frame sıralaması, peak/band-power, oran ve kalibrasyon ayrıntıları için güncel kaynak-doğrusudur. Bu belgenin eski bölümlerindeki “RF kaynağı/anten A-B seçimi”, `PA/PB` ve “Spectrum-A/B” ifadeleri geçmiş tasarım aşamasını gösterir; uygulamada sırasıyla `ΔAZ/ΔEL + 0°/180°`, dört `P_*` spektrumu ve ortak peak sözleşmesi kullanılacaktır. Eski A/B ifadeleri yeni tasarımla çeliştiğinde uygulanmayacaktır.
 
+> **2026-07-21 inceleme uzlaştırması:** İki teknik inceleme raporu güncel dala göre değerlendirildi. Bağlayıcı PL FFT alt-tasarımı `docs/superpowers/specs/2026-07-21-axu4ev-ad9364-pl-fft-spectrum-design.md` dosyasındadır. İlk doğrulama tek-kare, ikinci alt aşama atomik ping-pong bankalı sürekli FFT frame modudur. Tam 2048-bin güç spektrumu AXI BRAM'den; peak bin/power ve diagnostik Re/Im AXI-Lite status'tan okunur. Ardışık S0-S3 frame'lerinden kompleks `Δ/Σ` ürün sonucu çıkarılmaz; ilk ürün güç tabanlı normalize AZ/EL oranıdır. `ZX80-DR230-S+` DC-3 GHz'dir. HMC936A BDC sonrası 1.2-1.4 GHz IF yolundadır; AD9364 LO, sabit 1.3 GHz varsayımıyla değil ölçülen IF merkezine göre ayarlanır.
+
 ## 1. Projenin hedefi
 
 Projenin hedefi, AXU4EVB-P ve AD9364 tabanlı RF platformuna FPGA içinde çalışan aşağıdaki işleme zincirini eklemektir:
 
-- Tek veya iki RF kaynağından kontrollü örnek alma
+- Tek AD9364 RX'e analog olarak yönlendirilmiş Σ/Δ durumlarından kontrollü örnek alma
 - I/Q frame yakalama
 - Pencereleme
 - FFT
 - Güç spektrumu hesaplama
-- Güç spektrumu toplama/farkı ve PS/Python üzerinde korumalı A/B güç oranı
-- A/B spektrum karşılaştırması
+- Tam 2048-bin güç spektrumu, peak ve dört-durum ortak taşıyıcı karşılaştırması
+- Güç tabanlı normalize AZ/EL hata oranı; kompleks frame-to-frame oran kapsam dışıdır
 - Spektrum sonuçlarının AXI BRAM veya ileride Result DMAC ile aktarılması; AXI-Lite'ın yalnız kontrol/status için kullanılması
 
 Gerçek zamanlı örnek işleme PL içinde yapılacak; PS/Vitis yalnız initialization, konfigürasyon, test ve sonuç okuma görevlerini üstlenecektir.
 
 Mevcut `fmcomms2_axu4ev.xpr` projesi referans alınacak ancak doğrudan Golden sürümün üzerinde çalışılmayacaktır. Yeni PL tasarımı ayrı bir Vivado Candidate dalında geliştirilecektir.
 
-İlk ürün hedefi sürekli ve kesintisiz spektrum akışı değil, tetiklemeli **finite-frame** işleme ve aynı frame üzerinde tekrarlanabilir doğrulamadır. Sürekli streaming, ilk Candidate başarıyla kabul edildikten sonra ayrı performans fazıdır.
+İlk doğrulama hedefi tetiklemeli **finite-frame** işleme ve aynı frame üzerinde tekrarlanabilir sonuçtur. Kullanıcının istediği sürekli FFT frame modu aynı arayüzde desteklenecek, ancak yalnız tek-kare kabulünden sonra ping-pong spectrum bankası, atomik ownership ve throughput/overrun testleriyle etkinleştirilecektir. Sürekli host/DDR spectrum streaming ayrı performans fazıdır.
 
 ---
 
@@ -286,7 +288,7 @@ B seç
 
 Bu tasarımda aynı anda iki ham frame ve iki FFT frame saklanmaz.
 
-2048 noktalı, 16-bit I + 16-bit Q ham kompleks frame payload'u tam olarak 65.536 bit, yani 8 KiB'dir; ek metadata ve RAM primitive yuvarlaması ayrıca bütçelenir. Spectrum-A buffer bin başına 64-bit word ile 16 KiB logical payload kullanır; bunun 33 biti magnitude-square, üst bitleri sıfırdır. Mevcut routed tasarımın BRAM kullanımı 4/128 olduğundan ilk sürüm için yeterli marj vardır; gerçek RAM primitive sayısı sentez sonrası rapordan alınacaktır.
+2048 noktalı, 16-bit I + 16-bit Q ham kompleks frame payload'u tam olarak 65.536 bit, yani 8 KiB'dir; ek metadata ve RAM primitive yuvarlaması ayrıca bütçelenir. Bir spectrum bankası bin başına 64-bit word ile 16 KiB logical payload kullanır; bunun 33 biti magnitude-square, üst bitleri sıfırdır. Bu genişlik/derinlik yaklaşık dört BRAM36 gerektirir; sürekli modun iki bankalı ping-pong spectrum belleği yaklaşık sekiz BRAM36 olarak bütçelenir. Capture RAM, Hann ROM ve FFT iç belleği buna dahil değildir. Mevcut routed tasarımın BRAM kullanımı 4/128 olduğundan başlangıç marjı vardır; bağlayıcı sayı sentez/implementation utilization raporudur.
 
 8192 veya daha uzun FFT'lerde sentez sonrası BRAM/URAM bütçesi değerlendirilir. 65.536 nokta ilk sürüm kapsamına alınmaz. Kesintisiz frame işleme istenirse tek buffer yeterli sayılmayacak; ping-pong capture buffer ve ölçülmüş throughput ayrı kabul kapısı olacaktır.
 
@@ -346,7 +348,7 @@ Profil A ilk Candidate'ın zorunlu profilidir. Profil B ilk Candidate kapsamına
 ```text
 Profil A:
 Fs = 30.72 MSPS
-RF BW ≈ 18 MHz
+RF BW = 10 MHz hedefi; runtime readback bağlayıcıdır
 FFT N = 2048
 Bin = 15 kHz
 Durum = mevcut Vitis/AD9364 akışında kart üzerinde doğrulanmış başlangıç profili
@@ -369,7 +371,7 @@ Vitis her ölçüm öncesinde gerçek:
 
 değerlerini readback ile okuyacak ve test metadata'sına yazacaktır.
 
-Terminalde veya raporda `30.72MSPS`, `18MHz` ve LO değeri hardcoded metin olarak basılmayacaktır. Vitis sırasıyla `ad9361_get_rx_sampling_freq()`, `ad9361_get_rx_rf_bandwidth()` ve `ad9361_get_rx_lo_freq()` dönüşlerini kontrol edecek; herhangi bir readback başarısızsa capture başlatılmayacaktır. Yazdırılan değerler ile PL'ye gönderilen `sample_rate_id/Fs` aynı readback snapshot'ından üretilecektir.
+Terminalde veya raporda `30.72MSPS`, `10MHz` ve LO değeri hardcoded başarılı ölçüm gibi basılmayacaktır. Vitis sırasıyla `ad9361_get_rx_sampling_freq()`, `ad9361_get_rx_rf_bandwidth()` ve `ad9361_get_rx_lo_freq()` dönüşlerini kontrol edecek; herhangi bir readback başarısızsa capture başlatılmayacaktır. Yazdırılan değerler ile PL'ye gönderilen `sample_rate_id/Fs` aynı readback snapshot'ından üretilecektir. Monopulse LO değeri gerçek BDC IF merkezine göre seçilir; HMC936A bandından doğrudan sabit değer türetilmez.
 
 PL'ye `sample_rate_id` veya gerçek `Fs` register değeri gönderilecektir. FFT matematiğinin kendisi Fs'den bağımsızdır; ancak bin-frekans dönüşümü ve test raporu gerçek Fs'ye göre yapılacaktır.
 
@@ -452,9 +454,8 @@ AXI-Lite register'ları:
 CONTROL
   start
   abort
-  single_input
-  dual_input
-  continuous
+  mode_single
+  mode_continuous
   soft_reset
 
 RF_SWITCH
@@ -486,6 +487,14 @@ ARITHMETIC
 STATUS
   busy
   done
+  spectrum_valid
+  active_bank
+  frame_id
+  rf_state
+  peak_bin
+  peak_power
+  peak_re
+  peak_im
   config_error
   cdc_ready
   cdc_fault
@@ -498,7 +507,12 @@ STATUS
   denominator_small
   clipping_detected
   dropped_samples
+  bank_overrun
 ```
+
+`peak_re/peak_im` tek tamamlanmış frame'in FFT peak katsayısını taşır; bit-doğru
+doğrulama ve diagnostik içindir. Ardışık RF durumları arasında kompleks koherens
+kanıtı olmadığı sürece monopulse ürün hesabında kullanılmaz.
 
 MVP'de `fft_length=2048`, forward transform ve `scaling_schedule=0x6AB` sabittir. Register alanı varsa readback/gelecek sürüm uyumluluğu içindir; farklı değer yazımı `config_error` üretmeli ve capture başlatmamalıdır.
 
@@ -903,7 +917,7 @@ Aşağıdaki tablo eksik bilgi yüzünden yanlış donanım geliştirilmesini en
 
 | İster | Güvenli başlangıç kararı | Hangi fazdan önce kanıtlanmalı? | Kanıt |
 |---|---|---|---|
-| Çalışma biçimi | Tetiklemeli finite-frame, sürekli streaming değil | Faz 2 | Register sözleşmesi ve simülasyon |
+| Çalışma biçimi | Önce tetiklemeli finite-frame; sonra ping-pong bankalı sürekli FFT frame. Sürekli host/DDR streaming değil | Faz 2/4 | Register sözleşmesi, bank ownership ve throughput testi |
 | Zorunlu sample rate | 30,72 MSPS | Faz 2 | AD9364 readback + ILA/DMA |
 | Deneysel sample rate | 61,44 MSPS yalnız ayrı kapıyla | Faz 6 | Overflow, throughput ve timing raporu |
 | FFT uzunluğu | 2048 | Faz 2 | IP config ve test vektörü |
@@ -915,7 +929,7 @@ Aşağıdaki tablo eksik bilgi yüzünden yanlış donanım geliştirilmesini en
 | DMA izolasyonu | FFT yolundan DMAC'a backpressure yasak | Faz 1 | Non-blocking test ve DMA regresyonu |
 | Frame eşliği | PL `frame_id` + ilk 8 örnek imzası + 2048-örnek CRC-32 ile DMA alt-dizi eşleşmesi | Faz 3 | DMA dump + PL metadata + tek CRC eşleşmesi |
 | İlk pencere | Rectangular bit-doğrulama, sonra Hann | Faz 2 | Bit-true model |
-| İlk çıktı | PA/PB magnitude-square spectrum | Faz 4 | BRAM dump + Python karşılaştırma |
+| İlk çıktı | Tam 2048-bin magnitude-square spectrum + peak bin/power + diagnostik peak Re/Im | Faz 4 | BRAM dump + Python karşılaştırma |
 | İlk oran hesabı | PS/Python | Faz 4 | 64-bit/floating referans raporu |
 | PL divider | Ölçülmüş performans ihtiyacı olmadan eklenmez | Faz 6 | Latency/throughput gerekçesi |
 | A/B karşılaştırma | Ardışık power/magnitude; koherent faz değil | Faz 5 | Sistem test raporu |
@@ -1074,8 +1088,8 @@ Python doğrulama iki katmanlıdır. Bare-metal/JTAG aşamasında NumPy oracle C
 - [ ] **Paket M0 — Kaynak ve Golden regresyonu:** Paket 1'deki aktif Tcl/XDC, clean build, manifest/tag ve Golden doğrulamalarını tamamla.
 - [ ] **Paket M1 — RX/TX güvenlik ve format kapısı:** Paket 2'deki I0/Q0, runtime Fs/BW/LO/gain, TX DAC ZERO/89.750 mdB ve DMA regresyon kanıtlarını tamamla.
 - [ ] **Paket M2 — Non-blocking finite capture:** Paket 3'teki CDC mailbox, store-and-forward capture, AXI replay ve backpressure testlerini tamamla.
-- [ ] **Paket M3 — Tek FFT sayısal kapanışı:** Rectangular/Hann, FFT `0x6AB`, magnitude-square ve spectrum BRAM'i Python/C modeliyle bit-doğru kapat.
-- [ ] **Paket M4 — Peak/band-power motoru:** Beklenen pencere, DC guard, ortak `P_REF`, ±2 bin CW integrasyonu ve configured band-power testlerini ekle.
+- [ ] **Paket M3 — Tek-kare FFT sayısal kapanışı:** Rectangular-first FFT `0x6AB`, magnitude-square, tam 2048-bin spectrum BRAM, `PEAK_BIN/POWER/RE/IM` ve metadata'yı Python/C modeliyle bit-doğru kapat.
+- [ ] **Paket M4 — Peak/band-power ve sürekli mod:** Beklenen pencere, DC guard, ortak `P_REF`, ±2 bin CW integrasyonu ve configured band-power testlerini ekle; ardından atomik ping-pong bank ownership, continuous frame ve overrun/throughput testlerini kapat.
 - [ ] **Paket M5 — Harici kontrol elektriksel kapısı:** ZX80 ve HMC936A model doğrulaması tamamlandı. BDC IF, RF1/RF2 kablo eşlemesi, ZX80 beslemesi, HMC altı-bit 5 V level-shifter, sekiz FPGA pini ve ölçülmüş settle/discard değerlerini kapat.
 - [ ] **Paket M6 — Dört durumlu FSM ve scalar oran:** S0-S3 kontrolü, settle/discard, dört spectrum/güç sonucu, Q1.31 AZ/EL divider ve hata status'larını ekle.
 - [ ] **Paket M7 — Yankısız oda kalibrasyonu:** SMW200A CW ile güç doğruluğu, mekanik sıfır, `-θ/0/+θ`, simetri, eğim ve tekrar edilebilirlik raporunu üret.

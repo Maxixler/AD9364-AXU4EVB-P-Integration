@@ -229,21 +229,24 @@ Durum: **Temel bring-up tamamlandı; RF/IQ veri doğrulaması sürüyor**
 
 ## 12. Aşama 8 — RF veri işleme ve spektrum
 
-Durum: **Tek kanallı monopulse tasarımı onaylandı; RTL uygulaması başlamadı.**
+Durum: **Tek kanallı monopulse tasarımı ve PL FFT tam-spektrum alt-sözleşmesi onaylandı; RTL uygulaması başlamadı.**
 
 Bağlayıcı tasarım: `PROJECT/designs/2026-07-20-axu4ev-ad9364-single-channel-monopulse-design.md`
+
+PL FFT alt-tasarımı: `docs/superpowers/specs/2026-07-21-axu4ev-ad9364-pl-fft-spectrum-design.md`
 
 1. [ ] AD9364 I0/Q0 sample formatı, valid/enable sırası ve 30,72 MSPS profili ILA + DMA ile doğrulanacak.
 2. [ ] RX-only başlatmada TX attenuation 89.750 mdB ve tüm AXI DAC source'ları ZERO yapılıp readback alınacak.
 3. [ ] Mevcut RX DMAC yolunu durdurmayan 2048-sample store-and-forward capture geliştirilecek.
-4. [ ] Tek Vivado FFT v9.1 core; rectangular/Hann, `SCALE_SCH=0x6AB` ve magnitude-square Python/C modeliyle bit-doğru doğrulanacak.
-5. [ ] CW için yapılandırılmış pencerede ortak maximum peak ve ±2 komşu-bin gücü üretilecek.
-6. [ ] 5-10 MHz modülasyonlu sinyal için configured band-power modu eklenecek.
-7. [ ] ZX80/HMC936A için BDC IF/koherens, RF-port 0 VDC, altı-bit 5 V level-shifter, pin/kablo eşlemesi ve settle sözleşmesi gerçek donanımla doğrulanacak.
-8. [ ] Tek AD9364 RX'te sırayla `Σ+ΔAZ`, `Σ-ΔAZ`, `Σ+ΔEL`, `Σ-ΔEL` frame'leri yakalanacak.
-9. [ ] Dört güçten signed Q1.31 `AZ_ERROR` ve `EL_ERROR` scalar oranları PL'de üretilecek; küçük payda geçersiz sayılacak.
-10. [ ] SMW200A ve yankısız oda ile mekanik sıfır, `-θ/0/+θ`, simetri ve tekrar edilebilirlik kalibrasyonu yapılacak.
-11. [ ] Golden AD9364 init/DMA regresyonu, timing/DRC ve fiziksel kabul geçmeden Candidate release terfi ettirilmeyecek.
+4. [ ] Tek Vivado FFT v9.1 core; rectangular-first, `SCALE_SCH=0x6AB`, magnitude-square, tam 2048-bin BRAM ve `PEAK_BIN/POWER/RE/IM` Python/C modeliyle bit-doğru doğrulanacak.
+5. [ ] Tek-kare kabulünden sonra iki bankalı spectrum ping-pong, atomik bank ownership ve sürekli FFT frame modu overrun/throughput testleriyle doğrulanacak; sürekli host/DDR streaming ertelenecek.
+6. [ ] CW için yapılandırılmış pencerede ortak maximum peak ve ±2 komşu-bin gücü üretilecek.
+7. [ ] 5-10 MHz modülasyonlu sinyal için configured band-power modu eklenecek.
+8. [ ] ZX80/HMC936A için BDC IF/koherens, RF-port 0 VDC, altı-bit 5 V level-shifter, pin/kablo eşlemesi ve settle sözleşmesi gerçek donanımla doğrulanacak.
+9. [ ] Tek AD9364 RX'te sırayla `Σ+ΔAZ`, `Σ-ΔAZ`, `Σ+ΔEL`, `Σ-ΔEL` frame'leri yakalanacak.
+10. [ ] Dört güçten signed Q1.31 `AZ_ERROR` ve `EL_ERROR` scalar oranları PL'de üretilecek; küçük payda geçersiz sayılacak.
+11. [ ] SMW200A ve yankısız oda ile mekanik sıfır, `-θ/0/+θ`, simetri ve tekrar edilebilirlik kalibrasyonu yapılacak.
+12. [ ] Golden AD9364 init/DMA regresyonu, timing/DRC ve fiziksel kabul geçmeden Candidate release terfi ettirilmeyecek.
 
 AD9364 1x1 olduğundan iki dijital RX kanalının eşzamanlı okunması kapsam dışıdır. Fotoğraftaki AD-FMCOMMS3-EBZ/AD9361 iki-kanallı sistem yalnız laboratuvar/referans kayıt olarak değerlendirilir ve hedef kartı değiştirmez.
 
@@ -367,11 +370,11 @@ Doğrulanmış AXU4EVB-P + AD9364 çalışması yerel `main` dalına çatışmas
 
 Çalışma alanındaki kullanıcıya ait 1081 staged dosya ile Vitis/Vivado üretim çıktıları merge veya push kapsamına alınmadı. Kirli çalışma ağacını taşımamak için checkout zorlanmadı; `codex/axu4ev-pmufw-bringup` dalı çalışma alanında korunurken yerel ve uzak `main` doğrulanmış committe sabitlendi.
 
-## 19. 20 Temmuz 2026 — monopulse ister ve tasarım kapanışı
+## 19. 20-21 Temmuz 2026 — monopulse ister ve tasarım kapanışı
 
 Proje sahibiyle yapılan ister görüşmesinde hedef platformun AXU4EVB-P + mevcut AD9364 olarak korunacağı kesinleştirildi. Bağlayıcı RF şeması; analog Σ hattı, SPDT ile seçilen ΔAZ/ΔEL, 0°/180° bi-phase switch, combiner ve AD9364'e gelen tek birleşik RX hattıdır. Referans makale donanım kaynağı değil, yalnız algoritma/test bağlamıdır.
 
-Onaylanan ilk Candidate; 30,72 MSPS, 10 MHz RX bandwidth readback hedefi, 2048 nokta tek FFT, CW ortak peak, modülasyonlu sinyal için band-power ve dört durumdan normalize AZ/EL hata üretir. Tam kompleks Σ/Δ faz açısı ve gerçek eşzamanlı çift RX, AD9364 sınırı nedeniyle ürün kapsamına alınmadı.
+Onaylanan Candidate; 30,72 MSPS, 10 MHz RX bandwidth readback hedefi, 2048 nokta tek FFT, tam 2048-bin güç spektrumu, CW ortak peak, modülasyonlu sinyal için band-power ve dört durumdan normalize AZ/EL hata üretir. İlk alt aşama PS tetiklemeli tek-kare, ikinci alt aşama ping-pong bankalı sürekli FFT frame modudur. Sürekli host/DDR spectrum streaming ayrı performans fazıdır. `PEAK_RE/PEAK_IM` tek-frame diagnostik olarak saklanır; tam kompleks Σ/Δ faz açısı ve gerçek eşzamanlı çift RX, AD9364 ve ardışık yakalama sınırı nedeniyle ürün kapsamına alınmadı.
 
 R&S SMW200A, yankısız oda, verici/alıcı anten ve X-band BDC altyapısının hazır olduğu fotoğraflarla görüldü. Yakın çekimdeki AD-FMCOMMS3-EBZ kartının RX1A/RX2A bağlantıları AD9361 tabanlı eski/referans sisteme aittir; Candidate kaynak veya channel-count kanıtı değildir.
 

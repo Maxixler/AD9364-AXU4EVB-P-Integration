@@ -2,7 +2,9 @@
 
 **Tarih:** 20 Temmuz 2026
 
-**Durum:** Kullanıcı tarafından mimari, DSP ve kalibrasyon bölümleri onaylandı; ZX80-DR230-S+ ile EV1HMC936ALP6 parça kimlikleri doğrulandı; fiziksel pin/level-shifter/IF sözleşmesi henüz tamamlanmadı ve RTL uygulanmadı.
+**Durum:** Kullanıcı tarafından mimari, DSP ve kalibrasyon bölümleri onaylandı; 21 Temmuz 2026 tarihli iki teknik inceleme raporu bağlayıcı tasarımla uzlaştırıldı. ZX80-DR230-S+ ile EV1HMC936ALP6 parça kimlikleri doğrulandı; fiziksel pin/level-shifter/IF sözleşmesi henüz tamamlanmadı ve PL FFT RTL'i uygulanmadı.
+
+**PL FFT alt-tasarımı:** `docs/superpowers/specs/2026-07-21-axu4ev-ad9364-pl-fft-spectrum-design.md`
 
 **Hedef platform:** ALINX AXU4EVB-P + mevcut AD9364 tabanlı RF kartı
 
@@ -15,13 +17,16 @@ Bu tasarım, yankısız odada Rohde & Schwarz SMW200A ile üretilen kontrollü R
 
 - Tek AD9364 RX kanalından finite-frame I/Q yakalama
 - Tek ve zaman paylaşımlı FFT çekirdeği
+- Tek-kare ve ping-pong bankalı sürekli FFT çalışma modları
+- AXI BRAM üzerinden okunabilen tam 2048-bin güç spektrumu
 - Modülasyonsuz taşıyıcı için ortak maksimum peak tespiti
+- Peak bin/power ile tek-frame diagnostik `PEAK_RE/PEAK_IM`
 - 5-10 MHz işgal bantlı sinyal için bant gücü ölçümü
 - `Σ+ΔAZ`, `Σ-ΔAZ`, `Σ+ΔEL`, `Σ-ΔEL` güçleri
 - Normalize `AZ_ERROR` ve `EL_ERROR`
 - Kalibre edilmiş tahmini azimuth/elevation hata açısı
 
-İlk ürün kesintisiz streaming yapmaz. Dört analog durumu sırayla yakalayan, doğrulanabilir finite-frame Candidate geliştirir. Mevcut Golden bitstream/XSA/ELF değişmez tutulur; yeni tasarım ayrı Candidate olarak üretilir.
+İlk doğrulama PS tetiklemeli tek-kare modunda yapılır. Aynı register ve veri yolu sözleşmesi, atomik ping-pong spectrum bankaları tamamlandıktan sonra sürekli FFT frame modunu da destekler. Sürekli host/DDR spectrum aktarımı ayrı performans fazıdır. Dört analog durumun ürün ölçümü kontrollü finite-frame çevrimi olarak kalır. Mevcut Golden bitstream/XSA/ELF değişmez tutulur; yeni tasarım ayrı Candidate olarak üretilir.
 
 ## 2. Donanım gerçekleri ve kapsam sınırı
 
@@ -107,7 +112,9 @@ Fiziksel adaptör mantıksal `delta_select` değerini ZX80 `Control1/Control2` �
 - CDC-safe store-and-forward replay
 - Rectangular/Hann pencereleme
 - Tek 2048-point FFT
-- Magnitude-square, spectrum buffer ve ortak peak araması
+- Magnitude-square, tam 2048-bin spectrum buffer ve ortak peak araması
+- Peak bin/power ile diagnostik peak Re/Im saklama
+- Tek-kare modu; doğrulandıktan sonra atomik ping-pong bankalı sürekli frame modu
 - CW peak veya configured band-power toplamı
 - Dört durumun güçlerini, pay/payda ve Q1.31 hata oranlarını üretme
 - Clip, sample-drop, FFT event, switch timeout ve küçük-payda denetimleri
@@ -123,6 +130,9 @@ Fiziksel adaptör mantıksal `delta_select` değerini ZX80 `Control1/Control2` �
 | FFT IP | Vivado 2020.1 FFT v9.1, tek core |
 | FFT ölçekleme | Mevcut bit-true plan sözleşmesi `SCALE_SCH=0x6AB` |
 | İlk pencere | Rectangular bit-doğrulama; RF ölçümünde Hann desteği |
+| Çalışma modları | Önce tek-kare; sonra ping-pong bankalı sürekli frame |
+| Spectrum payload | 2048 x 64-bit; alt 33 bit magnitude-square |
+| Peak diagnostik | `PEAK_BIN`, `PEAK_POWER`, `PEAK_RE`, `PEAK_IM` |
 | İlk RF uyarımı | SMW200A CW, LO'dan DC guard dışına kontrollü offset |
 | TX | Mute; DAC ZERO + 89.750 mdB + readback |
 
@@ -253,9 +263,15 @@ Kalibrasyon sonrasında `E(+theta) ~= -E(-theta)` beklenir. Eğim yoksa veya ço
 
 ## 10. Register ve sonuç sözleşmesi
 
+AXI-Lite yalnız control/status taşır. Tam 2048-bin spectrum payload'u AXI BRAM
+üzerinden okunur. Tek 2048 x 64-bit banka 16 KiB ve yaklaşık dört BRAM36,
+iki bankalı ping-pong spectrum belleği yaklaşık sekiz BRAM36 gerektirir; kesin
+primitive sayısı sentez/implementation raporundan alınır.
+
 Zorunlu kontrol alanları:
 
 - `start`, `abort`, `soft_reset`
+- `mode_single`, `mode_continuous`
 - `measurement_mode`: CW peak veya band power
 - `settling_cycles`, `discard_samples`
 - `search_bin_start`, `search_bin_stop`, `dc_guard_bins`
@@ -265,15 +281,19 @@ Zorunlu kontrol alanları:
 
 Zorunlu status/sonuç alanları:
 
-- `busy`, `done`, `state_id`, `frame_id`
-- `peak_bin`, `peak_power`, `peak_frequency_metadata`
+- `busy`, `done`, `spectrum_valid`, `active_bank`, `state_id`, `frame_id`
+- `peak_bin`, `peak_power`, `peak_re`, `peak_im`, `peak_frequency_metadata`
 - `P_AZ_PLUS`, `P_AZ_MINUS`, `P_EL_PLUS`, `P_EL_MINUS`
 - `AZ_NUM`, `AZ_DEN`, `AZ_ERROR`
 - `EL_NUM`, `EL_DEN`, `EL_ERROR`
 - `fifo_overflow`, `dropped_samples`, `frame_error`
 - `fft_error`, `arithmetic_overflow`, `denominator_small`
 - `clipping_detected`, `switch_timeout`, `rf_metadata_changed`
-- `cdc_ready`, `cdc_fault`, `reset_epoch`
+- `bank_overrun`, `cdc_ready`, `cdc_fault`, `reset_epoch`, `aborted`
+
+`peak_re/peak_im`, tek frame'in peak FFT katsayısını taşır. Bu alanlar bit-doğru
+FFT doğrulaması ve diagnostik içindir; ardışık S0-S3 frame'lerinden kompleks
+`Delta/Sigma` ürün sonucu oluşturmak için kullanılmaz.
 
 ## 11. Hata yönetimi
 
@@ -304,6 +324,7 @@ Hatalı çevrimde önceki geçerli AZ/EL sonucu yeniymiş gibi yayımlanmaz. Sta
 - Busy iken start reddi, abort ve reset-epoch recovery
 - Bilinçli clipping/overflow/küçük-payda negatif testleri
 - Python/C bit-true FFT, magnitude-square, peak ve Q1.31 oran karşılaştırması
+- Tek-kare bank publish ve sürekli mod ping-pong ownership/overrun testleri
 
 ### 12.2 Kart kabulü
 
@@ -331,12 +352,13 @@ SPDT ve phase-shifter modelleri doğrulanmıştır. Kalan donanım kapısı; BDC
 1. Golden kaynak/artefakt ve aktif FMCOMMS2 Tcl/XDC güvenini yeniden doğrula.
 2. AD9364 I0/Q0 formatı, runtime RF metadata ve TX-safe readback'i kapat.
 3. Non-blocking 2048-sample capture + AXI replay adapter'ını test-first geliştir.
-4. Tek FFT, magnitude-square ve spectrum BRAM'i bit-doğru doğrula.
-5. CW peak ve band-power motorunu ekle.
-6. BDC IF/koherensini, ZX80/HMC936A sürücü sözleşmesini ve PL pinlerini doğrula.
-7. Dört-durum FSM, ortak peak ve scalar PL oran motorunu ekle.
-8. SMW200A ile yankısız oda sıfır/açı kalibrasyonunu yap.
-9. Golden DMA regresyonu, timing/DRC ve fiziksel kabulden sonra Candidate release üret.
+4. Tek-kare FFT, magnitude-square, tam 2048-bin spectrum BRAM ve peak diagnostiklerini bit-doğru doğrula.
+5. CW peak ve band-power motorunu ekle; DMA/PL frame'ini imza+CRC ile eşleştir.
+6. Ping-pong bankalama ve sürekli FFT frame modunu throughput/overrun testleriyle kapat.
+7. BDC IF/koherensini, ZX80/HMC936A sürücü sözleşmesini ve PL pinlerini doğrula.
+8. Dört-durum FSM, ortak peak ve scalar PL güç oran motorunu ekle.
+9. SMW200A ile yankısız oda sıfır/açı kalibrasyonunu yap.
+10. Golden DMA regresyonu, timing/DRC ve fiziksel kabulden sonra Candidate release üret.
 
 Hiçbir adım mevcut Golden sürümün üzerine yazmaz. Bir kapı başarısızken sonraki fiziksel özellik uygulanmaz.
 
@@ -346,7 +368,7 @@ Hiçbir adım mevcut Golden sürümün üzerine yazmaz. Bir kapı başarısızke
 - Gerçek eşzamanlı iki dijital RX
 - Tam kompleks Σ/Δ faz açısı
 - 90°/270° quadrature phase state
-- Sürekli kesintisiz spectrum streaming
+- Sürekli host/DDR spectrum streaming; yerel ping-pong sürekli FFT frame modu kapsam içindedir
 - 61.44 MSPS profilinin kanıtsız etkinleştirilmesi
 - 8192/65536 gibi gerekçesiz yüksek FFT uzunluğu
 - PetaLinux ürünleştirmesi; Candidate donanım kabulünden sonraki ayrı fazdır

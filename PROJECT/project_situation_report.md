@@ -1,10 +1,10 @@
 # Proje Durum Raporu — AXU4EVB-P + AD9364
 
-**Son güncelleme:** 20 Temmuz 2026
+**Son güncelleme:** 21 Temmuz 2026
 
 **Ana hedef:** ALINX AXU4EVB-P üzerinde AD9364/FMCOMMS ailesi ile doğrulanmış FPGA donanım platformu ve bare-metal yazılım zinciri oluşturmak.
 
-**Mevcut aşama:** Vivado/Vitis kapanışı, PMUFW içeren JTAG başlatma ve temel bare-metal kart bring-up'ı tamamlandı. Tek AD9364 RX, dört analog Σ/Δ durumu ve tek FFT kullanan monopulse Candidate tasarımı onaylandı; sıradaki ana aşama kaynak/Golden regresyonu ile RX/IQ format kapısıdır.
+**Mevcut aşama:** Vivado/Vitis kapanışı, PMUFW içeren JTAG başlatma ve temel bare-metal kart bring-up'ı tamamlandı. Tek AD9364 RX, dört analog Σ/Δ durumu ve tek 2048-point FFT kullanan monopulse Candidate tasarımı onaylandı. 21 Temmuz inceleme uzlaştırmasıyla tam 2048-bin spektrum, peak diagnostikleri, tek-kare ve ping-pong sürekli frame modları bağlayıcı hale getirildi; sıradaki ana aşama kaynak/Golden regresyonu ile RX/IQ format kapısıdır.
 
 ## 1. Yönetici özeti
 
@@ -238,7 +238,8 @@ Sıradaki güvenli iş sırası:
 
 1. Aktif Tcl/XDC ve Golden kaynak/artefakt regresyonu.
 2. I0/Q0, runtime RF metadata ve TX-safe readback kapısı.
-3. Non-blocking 2048-sample capture ve tek FFT sayısal kapanışı.
+3. Non-blocking 2048-sample capture, tek-kare FFT, tam 2048-bin spectrum ve peak sayısal kapanışı.
+4. Tek-kare kabulünden sonra ping-pong bankalı sürekli FFT frame modu.
 4. Common peak/band-power motoru.
 5. Gerçek harici kontrol elektriksel sözleşmesi.
 6. Dört-durum FSM, PL scalar ratio ve yankısız oda kalibrasyonu.
@@ -381,3 +382,30 @@ Kart kabul özeti:
 - İki koşunun tamamında RX-only güvenlik kapısı PASS, DMA OK, clipping sıfır, platform PASS ve RF activity PASS.
 
 Kabul kanıtı `PROJECT/tests/evidence/axu4ev-ad9364-wifi-rf-pass.txt` dosyasındadır. Sistem RF enerji ve burst aktivitesini algılar; Wi-Fi paketlerini veya kullanıcı verisini çözmez. Task 6 kapanmıştır. Mevcut Golden fallback ve `CURRENT` değiştirilmemiştir; FFT/grafik, continuous streaming ve PetaLinux/IIO sonraki fazlardır.
+
+## 16. Tasarım inceleme uzlaştırması ve PL FFT sözleşmesi — 21 Temmuz 2026
+
+Durum: **TAMAMLANDI — iki inceleme raporu teknik kaynaklar ve güncel branch ile uzlaştırıldı.**
+
+Bağlayıcı alt-tasarım:
+`docs/superpowers/specs/2026-07-21-axu4ev-ad9364-pl-fft-spectrum-design.md`.
+
+Kesinleşenler:
+
+- `ZX80-DR230-S+` DC-3 GHz, HMC936A 1.2-1.4 GHz ve 0/+5 V kontrollüdür.
+- HMC936A BDC sonrası Delta IF yolundadır; monopulse AD9364 LO'su ölçülen IF merkezine göre seçilir.
+- İlk PL kabulü PS tetiklemeli tek-kare, 2048-point, rectangular-first FFT'dir.
+- Tam 2048-bin magnitude-square spectrum AXI BRAM'de, control/status AXI-Lite'tadır.
+- Peak sonucu `BIN/POWER/RE/IM` taşır; Re/Im diagnostiktir, ardışık frame kompleks oranı değildir.
+- Tek-kare kabulünden sonra yaklaşık sekiz BRAM36 bütçeli iki spectrum bankasıyla sürekli FFT frame modu açılır.
+- Ürün monopulse sonucu dört ardışık gücün normalize AZ/EL oranıdır; tam kompleks `Delta/Sigma` kapsam dışıdır.
+- İlk elektriksel RF kontrolü PS/manual olabilir; nihai S0-S3 state-tag/settle/discard çevrimi PL FSM'dedir.
+- CDC mailbox, `reset_epoch`, imza+CRC frame eşlemesi ve DMA'yı durdurmayan shadow path korunur.
+
+İkinci inceleme raporu eski `d264bddd`/`codex/wifi-rf-detection` bağlamında hazırlandığından “foundation yok” ve “monopulse yalnız opsiyonel Faz 5B olsun” yorumları güncel durum değildir. Foundation iki soğuk başlangıçta fiziksel kabul edilmiştir; monopulse kullanıcı tarafından bağlayıcı ürün mimarisi olarak seçilmiştir. Risk azaltma, ürünü A/B prototipine geri döndürmek yerine FFT, sürekli mod ve RF kontrolünü ayrı kabul kapılarıyla geliştirmek şeklinde uygulanacaktır.
+
+Sıradaki uygulanabilir işler:
+
+1. Temiz Candidate Vivado kaynak/build güvenini kapatmak.
+2. ILA/DMA ile I0/Q0 formatı, valid/enable ve gerçek tap clock'unu ölçmek.
+3. 2048-point bit-true model ve non-blocking capture sözleşmesini test-first uygulamak.
