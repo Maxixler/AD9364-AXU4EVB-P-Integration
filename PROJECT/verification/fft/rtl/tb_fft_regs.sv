@@ -269,6 +269,26 @@ module tb_fft_regs;
     require_true(read_value[10:0] == 11'h005, "STATUS W1C cleared live bits or missed sticky bits");
     require_true((o_status_clear & 11'h3fa) == 0, "W1C clear output was not a pulse");
 
+    // A new sticky event coincident with its W1C write wins over the clear.
+    @(negedge s_axi_aclk);
+    s_axi_awaddr = 8'h08; s_axi_awvalid = 1'b1;
+    s_axi_wdata = 32'h0000_0002; s_axi_wstrb = 4'b0001; s_axi_wvalid = 1'b1;
+    while (!s_axi_awready || !s_axi_wready) @(negedge s_axi_aclk);
+    @(negedge s_axi_aclk);
+    s_axi_awvalid = 1'b0; s_axi_wvalid = 1'b0;
+    while (!u_dut.write_commit) @(negedge s_axi_aclk);
+    i_done = 1'b1;
+    @(negedge s_axi_aclk);
+    i_done = 1'b0;
+    while (!s_axi_bvalid) @(negedge s_axi_aclk);
+    s_axi_bready = 1'b1;
+    @(negedge s_axi_aclk);
+    s_axi_bready = 1'b0;
+    axi_read(8'h08, 0, read_value);
+    require_true(read_value[1],
+                 "coincident DONE event did not win over STATUS W1C");
+    axi_write(8'h08, 32'h0000_0002, 4'b0001, 0, 0);
+
     // Exact fixed result map.
     axi_read(8'h18, 0, read_value); require_true(read_value == 32'h1234_5678, "FRAME_ID map mismatch");
     axi_read(8'h1c, 0, read_value); require_true(read_value == 32'hbeef_000b, "RESULT_TAG map mismatch");

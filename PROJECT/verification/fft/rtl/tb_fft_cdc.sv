@@ -33,6 +33,8 @@ module tb_fft_cdc;
   integer result_count = 0;
   integer command_fault_count = 0;
   integer result_fault_count = 0;
+  integer command_accept_count = 0;
+  integer result_accept_count = 0;
   integer index;
   logic [COMMAND_WIDTH-1:0] expected_command [0:15];
   logic [RESULT_WIDTH-1:0] expected_result [0:15];
@@ -148,6 +150,8 @@ module tb_fft_cdc;
       end
       if (adc_command_epoch_fault)
         command_fault_count = command_fault_count + 1;
+      if (adc_result_valid && adc_result_ready)
+        result_accept_count = result_accept_count + 1;
     end
   end
 
@@ -162,6 +166,8 @@ module tb_fft_cdc;
       end
       if (cpu_result_epoch_fault)
         result_fault_count = result_fault_count + 1;
+      if (cpu_command_valid && cpu_command_ready)
+        command_accept_count = command_accept_count + 1;
     end
   end
 
@@ -257,6 +263,114 @@ module tb_fft_cdc;
     adc_resetn = 1'b1;
     repeat (10) @(posedge cpu_clk);
     require_true(result_count == 9, "ADC reset created a phantom result");
+
+    // A remote destination reset must gate ready immediately, before the
+    // synchronized ready indication has time to fall. A pulse in that window
+    // is not accepted and must never become a transfer after recovery.
+    wait_command_ready();
+    index = command_accept_count;
+    @(negedge adc_clk);
+    adc_resetn = 1'b0;
+    #1;
+    require_true(!cpu_command_ready,
+                 "command ready stayed high after ADC reset assertion");
+    @(negedge cpu_clk);
+    cpu_command_payload = {16'h0011, 64'hbad0_0000_0000_0001};
+    cpu_command_valid = 1'b1;
+    @(posedge cpu_clk); #1;
+    require_true(command_accept_count == index,
+                 "command was silently accepted while ADC reset was visible");
+    @(negedge cpu_clk);
+    cpu_command_valid = 1'b0;
+    repeat (3) @(negedge adc_clk);
+    adc_resetn = 1'b1;
+    repeat (10) @(posedge adc_clk);
+    require_true(command_count == 9 && command_fault_count == 1,
+                 "command reset-window attempt produced valid or fault");
+
+    wait_result_ready();
+    index = result_accept_count;
+    @(negedge cpu_clk);
+    cpu_resetn = 1'b0;
+    #1;
+    require_true(!adc_result_ready,
+                 "result ready stayed high after CPU reset assertion");
+    @(negedge adc_clk);
+    adc_result_payload = {16'h0011, 144'hbad0_0000_0000_0000_0000_0000_0000_0000_0001};
+    adc_result_valid = 1'b1;
+    @(posedge adc_clk); #1;
+    require_true(result_accept_count == index,
+                 "result was silently accepted while CPU reset was visible");
+    @(negedge adc_clk);
+    adc_result_valid = 1'b0;
+    repeat (3) @(negedge cpu_clk);
+    cpu_resetn = 1'b1;
+    repeat (10) @(posedge cpu_clk);
+    require_true(result_count == 9 && result_fault_count == 1,
+                 "result reset-window attempt produced valid or fault");
+
+    // A transfer accepted before a destination-only reset remains pending and
+    // is delivered once after recovery; reset may not align/ack it silently.
+    wait_command_ready();
+    expected_command[9] = {16'h0011, 64'h1111_2222_3333_4444};
+    @(negedge cpu_clk);
+    cpu_command_payload = expected_command[9];
+    cpu_command_valid = 1'b1;
+    @(posedge cpu_clk); #1;
+    require_true(command_accept_count == 11,
+                 "in-flight command was not accepted before ADC reset");
+    @(negedge cpu_clk);
+    cpu_command_valid = 1'b0;
+    cpu_command_payload = ~expected_command[9];
+    adc_resetn = 1'b0;
+    repeat (3) @(negedge adc_clk);
+    adc_resetn = 1'b1;
+    repeat (16) @(posedge adc_clk);
+    require_true(command_count == 10 && command_fault_count == 1,
+                 "in-flight command was lost, duplicated, or faulted across ADC reset");
+
+    wait_result_ready();
+    expected_result[9] = {16'h0011, 144'h1111_2222_3333_4444_5555_6666_7777_8888_9999};
+    @(negedge adc_clk);
+    adc_result_payload = expected_result[9];
+    adc_result_valid = 1'b1;
+    @(posedge adc_clk); #1;
+    require_true(result_accept_count == 11,
+                 "in-flight result was not accepted before CPU reset");
+    @(negedge adc_clk);
+    adc_result_valid = 1'b0;
+    adc_result_payload = ~expected_result[9];
+    cpu_resetn = 1'b0;
+    repeat (3) @(negedge cpu_clk);
+    cpu_resetn = 1'b1;
+    repeat (16) @(posedge cpu_clk);
+    require_true(result_count == 10 && result_fault_count == 1,
+                 "in-flight result was lost, duplicated, or faulted across CPU reset");
+
+    // The preceding eleven accepted transfers leave each request toggle at
+    // one. Resetting that source must not create a falling-edge request,
+    // stale payload, duplicate delivery, or phantom epoch fault.
+    wait_command_ready();
+    require_true(u_command_cdc.request_toggle == 1'b1,
+                 "command reset-at-toggle-one precondition not reached");
+    @(negedge cpu_clk);
+    cpu_resetn = 1'b0;
+    repeat (3) @(negedge cpu_clk);
+    cpu_resetn = 1'b1;
+    repeat (12) @(posedge adc_clk);
+    require_true(command_count == 10 && command_fault_count == 1,
+                 "command source reset at toggle one replayed stale state");
+
+    wait_result_ready();
+    require_true(u_result_cdc.request_toggle == 1'b1,
+                 "result reset-at-toggle-one precondition not reached");
+    @(negedge adc_clk);
+    adc_resetn = 1'b0;
+    repeat (3) @(negedge adc_clk);
+    adc_resetn = 1'b1;
+    repeat (12) @(posedge cpu_clk);
+    require_true(result_count == 10 && result_fault_count == 1,
+                 "result source reset at toggle one replayed stale state");
 
     $display("PASS: fft_cdc");
     $finish;
