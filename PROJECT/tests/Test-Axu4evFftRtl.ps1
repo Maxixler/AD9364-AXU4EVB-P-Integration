@@ -34,6 +34,26 @@ $tests = [ordered]@{
         )
         Marker = 'PASS: adc_frame_replay'
     }
+    magnitude = @{
+        Top = 'tb_magnitude_peak'
+        Sources = @(
+            (Join-Path $tbRoot 'tb_magnitude_peak.sv'),
+            (Join-Path $rtlRoot 'magnitude_peak.v')
+        )
+        DataFiles = @(
+            (Join-Path $root 'PROJECT\verification\fft\vectors\tone_bin_137.fft.hex'),
+            (Join-Path $root 'PROJECT\verification\fft\vectors\tone_bin_137.power.hex')
+        )
+        Marker = 'PASS: magnitude_peak'
+    }
+    bank = @{
+        Top = 'tb_spectrum_pingpong'
+        Sources = @(
+            (Join-Path $tbRoot 'tb_spectrum_pingpong.sv'),
+            (Join-Path $rtlRoot 'spectrum_pingpong.v')
+        )
+        Marker = 'PASS: spectrum_pingpong'
+    }
 }
 
 $requested = @($Test -split ',' | ForEach-Object { $_.Trim().ToLowerInvariant() } |
@@ -57,6 +77,11 @@ try {
         $case = $tests[$name]
         $caseWork = Join-Path $work $name
         New-Item -ItemType Directory -Path $caseWork | Out-Null
+        if ($case.ContainsKey('DataFiles')) {
+            foreach ($dataFile in $case.DataFiles) {
+                Copy-Item -LiteralPath $dataFile -Destination $caseWork
+            }
+        }
         Push-Location $caseWork
         try {
             & $xvlog --sv @($case.Sources)

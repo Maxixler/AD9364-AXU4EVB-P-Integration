@@ -227,23 +227,23 @@ git commit -m "feat: add non-blocking ADC frame capture"
 - Create: `PROJECT/verification/fft/rtl/tb_magnitude_peak.sv`
 - Create: `PROJECT/verification/fft/rtl/tb_spectrum_pingpong.sv`
 
-- [ ] **Step 1: Write failing magnitude/peak tests**
+- [x] **Step 1: Write failing magnitude/peak tests**
 
 Drive FFT words from the checked-in vectors and check every 33-bit power word, `PEAK_BIN`, `PEAK_POWER`, `PEAK_RE`, and `PEAK_IM`. Exercise search boundaries, DC guard, lower-bin tie resolution, signed `-32768`, and output stalls.
 
-- [ ] **Step 2: Implement exact arithmetic**
+- [x] **Step 2: Implement exact arithmetic**
 
 Sign-extend both 16-bit components, calculate two unsigned 32-bit squares, add into 33 bits, and compare only eligible bins. Register candidate complex values with the winning power. Do not truncate power before comparison or storage.
 
-- [ ] **Step 3: Write failing bank ownership tests**
+- [x] **Step 3: Write failing bank ownership tests**
 
 Cover single mode, alternating continuous frames, independent PS read clock, bank release, unread-bank collision, sticky overrun, aborted frames, and reset-epoch invalidation. Assert that bank-valid never changes before bin 2047 is written.
 
-- [ ] **Step 4: Implement atomic ping-pong publication**
+- [x] **Step 4: Implement atomic ping-pong publication**
 
 Use two 2048x64 true dual-port inferred memories. PL owns the write port; CPU owns the read port. Publish metadata and valid toggle after the last write. In continuous mode choose a released bank; if neither is free, drop the new frame, preserve both completed banks, and set overrun.
 
-- [ ] **Step 5: Run and commit**
+- [x] **Step 5: Run and commit**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evFftRtl.ps1 -Test magnitude,bank
