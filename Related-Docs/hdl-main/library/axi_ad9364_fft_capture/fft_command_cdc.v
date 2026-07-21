@@ -52,7 +52,8 @@ module fft_command_cdc #(
   assign accept_request = adc_ready && pending_sync2 &&
                           (request_sync2 != request_seen);
   assign recover_request = !adc_ready && cpu_up_sync2 &&
-                           (arm_count == 2'd3) && pending_sync2;
+                           (arm_count == 2'd3) && pending_sync2 &&
+                           (acknowledge_toggle != request_sync2);
   assign align_idle = !adc_ready && cpu_up_sync2 &&
                       (arm_count == 2'd3) && !pending_sync2;
 
@@ -130,7 +131,8 @@ module fft_command_cdc #(
         end else begin
           request_seen <= request_sync2;
           adc_ready <= 1'b1;
-          if (pending_sync2) begin
+          if (pending_sync2 &&
+              (acknowledge_toggle != request_sync2)) begin
             if (payload_hold[PAYLOAD_WIDTH+15:PAYLOAD_WIDTH] == i_adc_epoch) begin
               o_adc_payload <= payload_hold[PAYLOAD_WIDTH-1:0];
               o_adc_valid <= 1'b1;

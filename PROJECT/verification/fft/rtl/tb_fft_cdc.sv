@@ -35,12 +35,23 @@ module tb_fft_cdc;
   integer result_fault_count = 0;
   integer command_accept_count = 0;
   integer result_accept_count = 0;
+  integer command_valid_edge_count = 0;
+  integer result_valid_edge_count = 0;
+  integer command_fault_edge_count = 0;
+  integer result_fault_edge_count = 0;
+  integer delivery_before;
+  integer fault_before;
   integer index;
   logic [COMMAND_WIDTH-1:0] expected_command [0:15];
   logic [RESULT_WIDTH-1:0] expected_result [0:15];
 
   always #3.5 cpu_clk = ~cpu_clk;
   always #5.5 adc_clk = ~adc_clk;
+
+  always @(posedge adc_command_valid) command_valid_edge_count = command_valid_edge_count + 1;
+  always @(posedge cpu_result_valid) result_valid_edge_count = result_valid_edge_count + 1;
+  always @(posedge adc_command_epoch_fault) command_fault_edge_count = command_fault_edge_count + 1;
+  always @(posedge cpu_result_epoch_fault) result_fault_edge_count = result_fault_edge_count + 1;
 
   fft_command_cdc #(
     .PAYLOAD_WIDTH(COMMAND_WIDTH)
@@ -371,6 +382,57 @@ module tb_fft_cdc;
     repeat (12) @(posedge cpu_clk);
     require_true(result_count == 10 && result_fault_count == 1,
                  "result source reset at toggle one replayed stale state");
+
+    // Reset the destination after it has delivered and retained-ack has
+    // changed, but before that acknowledgement can clear source_pending. The
+    // completed bundle must not be recovered and delivered a second time.
+    wait_command_ready();
+    delivery_before = command_valid_edge_count;
+    fault_before = command_fault_edge_count;
+    expected_command[10] = {16'h0011, 64'haaaa_bbbb_cccc_dddd};
+    @(negedge cpu_clk);
+    cpu_command_payload = expected_command[10];
+    cpu_command_valid = 1'b1;
+    @(negedge cpu_clk);
+    cpu_command_valid = 1'b0;
+    cpu_command_payload = ~expected_command[10];
+    @(posedge adc_command_valid); #1;
+    require_true(command_valid_edge_count == delivery_before + 1,
+                 "post-delivery command reset precondition missing valid");
+    require_true(u_command_cdc.source_pending,
+                 "command acknowledgement returned before reset window");
+    adc_resetn = 1'b0;
+    repeat (3) @(negedge adc_clk);
+    adc_resetn = 1'b1;
+    wait_command_ready();
+    repeat (8) @(posedge adc_clk);
+    require_true(command_valid_edge_count == delivery_before + 1 &&
+                 command_fault_edge_count == fault_before,
+                 "command replayed after destination reset post-acknowledge");
+
+    wait_result_ready();
+    delivery_before = result_valid_edge_count;
+    fault_before = result_fault_edge_count;
+    expected_result[10] = {16'h0011, 144'haaaa_bbbb_cccc_dddd_eeee_ffff_1111_2222_3333};
+    @(negedge adc_clk);
+    adc_result_payload = expected_result[10];
+    adc_result_valid = 1'b1;
+    @(negedge adc_clk);
+    adc_result_valid = 1'b0;
+    adc_result_payload = ~expected_result[10];
+    @(posedge cpu_result_valid); #1;
+    require_true(result_valid_edge_count == delivery_before + 1,
+                 "post-delivery result reset precondition missing valid");
+    require_true(u_result_cdc.source_pending,
+                 "result acknowledgement returned before reset window");
+    cpu_resetn = 1'b0;
+    repeat (3) @(negedge cpu_clk);
+    cpu_resetn = 1'b1;
+    wait_result_ready();
+    repeat (8) @(posedge cpu_clk);
+    require_true(result_valid_edge_count == delivery_before + 1 &&
+                 result_fault_edge_count == fault_before,
+                 "result replayed after destination reset post-acknowledge");
 
     $display("PASS: fft_cdc");
     $finish;
