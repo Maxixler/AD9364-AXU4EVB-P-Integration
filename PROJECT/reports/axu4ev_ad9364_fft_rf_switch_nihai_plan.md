@@ -1087,8 +1087,8 @@ Python doğrulama iki katmanlıdır. Bare-metal/JTAG aşamasında NumPy oracle C
 
 - [ ] **Paket M0 — Kaynak ve Golden regresyonu:** Paket 1'deki aktif Tcl/XDC, clean build, manifest/tag ve Golden doğrulamalarını tamamla.
 - [ ] **Paket M1 — RX/TX güvenlik ve format kapısı:** Paket 2'deki I0/Q0, runtime Fs/BW/LO/gain, TX DAC ZERO/89.750 mdB ve DMA regresyon kanıtlarını tamamla.
-- [ ] **Paket M2 — Non-blocking finite capture:** Paket 3'teki CDC mailbox, store-and-forward capture, AXI replay ve backpressure testlerini tamamla.
-- [ ] **Paket M3 — Tek-kare FFT sayısal kapanışı:** Rectangular-first FFT `0x6AB`, magnitude-square, tam 2048-bin spectrum BRAM, `PEAK_BIN/POWER/RE/IM` ve metadata'yı Python/C modeliyle bit-doğru kapat.
+- [x] **Paket M2 — Non-blocking finite capture:** CDC mailbox, store-and-forward capture, AXI replay, abort/reset/epoch recovery ve backpressure testleri RTL'de tamamlandı; fiziksel DMA-shadow korelasyonu M3 kart kapısında yapılacak.
+- [x] **Paket M3 — Tek-kare FFT sayısal kapanışı:** Rectangular-first FFT `0x6AB`, magnitude-square, tam 2048-bin spectrum BRAM, `PEAK_BIN/POWER/RE/IM` ve metadata gerçek xFFT modeliyle bit-doğru kapatıldı; kart üstü aynı-frame kabulü açık.
 - [ ] **Paket M4 — Peak/band-power ve sürekli mod:** Beklenen pencere, DC guard, ortak `P_REF`, ±2 bin CW integrasyonu ve configured band-power testlerini ekle; ardından atomik ping-pong bank ownership, continuous frame ve overrun/throughput testlerini kapat.
 - [ ] **Paket M5 — Harici kontrol elektriksel kapısı:** ZX80 ve HMC936A model doğrulaması tamamlandı. BDC IF, RF1/RF2 kablo eşlemesi, ZX80 beslemesi, HMC altı-bit 5 V level-shifter, sekiz FPGA pini ve ölçülmüş settle/discard değerlerini kapat.
 - [ ] **Paket M6 — Dört durumlu FSM ve scalar oran:** S0-S3 kontrolü, settle/discard, dört spectrum/güç sonucu, Q1.31 AZ/EL divider ve hata status'larını ekle.
@@ -1117,3 +1117,11 @@ Bu kapanış analog S0-S3 kontrolünü veya harici ZX80/HMC936A sürüşünü uy
 Task 6 ile FFT v9.1 üretimi GUI'den ayrılmış ve Tcl-only Candidate sözleşmesine bağlanmıştır. IP ayarları gerçek Vivado property readback ile doğrulanır. Runtime transform length kapalı, transform direction forward ve scaled schedule `0x6AB`'dır. Tek kanallı AXIS config taşıması `16'h0D57` packed sözcüğünü reset sonrası/ilk frame öncesi bir kez gönderecektir.
 
 Custom-IP paket manifesti top-level dahil sekiz RTL kaynağını, AXI-Lite kontrolü, çift BRAM readout'u, ADC tap'i ve interrupt'ı açıkça tanımlar. Clock/reset associations eklenmiştir. Task 7 tamamlanana kadar eksik top/XCI durumunda kaynak dizinde proje üretmeden fail-fast kalır. Sonraki dijital kapı Task 7 üst-seviye single-shot veri yoludur; analog RF state kontrolü bu Task 6 kapsamına alınmamıştır.
+
+## 24. Task 7 tek-kare FFT uygulama kapanışı — 22 Temmuz 2026
+
+Tek-kare Candidate veri yolu tamamlandı: geri basınçsız AD9364 I0/Q0 shadow capture, 2048-word replay, gerçek FFT v9.1, 33-bit magnitude-square ve peak, çift 2048×64 spectrum bankası, sabit AXI-Lite status ve atomik command/result CDC aynı custom IP altında çalışmaktadır. Komut RF etiketi sonuç metadata'sı için otoritatiftir.
+
+Kabul yalnız nominal spektruma dayanmaz. Abort ve soft-reset xFFT/replay/magnitude yolunu deterministik recovery state'ine alır; core en az üç ADC clock resetlenir ve `16'h0D57` yeniden handshaking yapılmadan yeni START kabul edilmez. Dolu single-shot bank yeni replay başlamadan reddedilir. FFT error, overflow, dropped sample, stale epoch, frame error ve bank overrun CPU'ya atomik result flags ile taşınır; STATUS W1C ve IRQ kalan sticky nedenleri korur.
+
+Altı deterministik vektörün tüm 2048 kompleks FFT bileşeni ve 2048 güç kelimesi gerçek Vivado xFFT modeliyle sıfır LSB farkla geçmiştir. BRAM kabulü `RAMB36=8`, `RAMB18=0`, `LUT_AS_MEMORY=0`'dır. Bu kapanış RTL/simülasyon ve paket sözleşmesidir; AXU4EV block-design bağlantısı, timing/DRC, DMA ile aynı-frame CRC korelasyonu ve fiziksel RF kabulü sonraki paketlerde açık kalır.

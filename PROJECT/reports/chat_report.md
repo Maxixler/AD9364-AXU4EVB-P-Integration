@@ -507,3 +507,13 @@ Kalıcı doğrulama artık şu altı PASS hedefini kapsar: `adc_frame_capture`, 
 Task 6 test-first tamamlandı. İlk RED, eksik `fft_v9_1_config.tcl` nedeniyle alındı; Vivado property dump ile 2020.1'deki gerçek lowercase `CONFIG.*` anahtarları keşfedildi. Üretim Tcl'i xFFT v9.1'i 2048-point, pipelined streaming, fixed-point scaled, 16/24-bit, natural-order ve convergent-rounding ayarlarıyla üretmektedir.
 
 İlk review packed config word, clock/reset association ve Task 7 sonrası test güvenliği eksiklerini buldu. Bunlar yeni RED gate'lerle kapatıldı: packed `TDATA=16'h0D57`, AXI/ADC bus association metadata'sı, gerçek Vivado version assertion'ı ve temp fixture tabanlı missing-source/IP/XCI testleri eklendi. Son re-review Critical/Important/Minor bulgusuz `Approved` verdi. Commitler `a0ad12b` ve `25adaf0`'dır.
+
+## 26. 22 Temmuz 2026 — Task 7 gerçek xFFT üst RTL ve hardening kapanışı
+
+Kullanıcının “projeye devam edelim” isteğiyle PL FFT planının Task 7 adımı test-first uygulandı. İlk RED, üst modül bulunmadığı için alındı. Daha sonra ayrık ve non-backpressured AD9364 tap, capture/replay, gerçek xFFT v9.1, magnitude/peak, çift spectrum bankası, CDC ve AXI-Lite register alanı `axi_ad9364_fft_capture` üstünde birleştirildi.
+
+Nominal altı-vektör testi ilk GREEN'i aldıktan sonra bağımsız review; hard-wire status bitleri, unsafe pulse CDC, yırtılabilir epoch bus'ı, abort/soft-reset recovery, dolu-bank deadlock'u, RF-tag kaynağı, IRQ/W1C ve paketleme hijyeni açıklarını buldu. Her bulgu negatif testle yeniden üretildi ve kapatıldı. xFFT ARESETn/overflow çıkışları açıldı; result mailbox 264-bit atomik metadata/flag taşıyacak şekilde genişletildi; bank rezervasyonu replay'den önce yapıldı; xFFT finite frame'ler arasında resetlenip `16'h0D57` ile yeniden configure edildi.
+
+Final gerçek-IP suite; abort recovery, stale epoch, soft-reset epoch adoption, dolu-bank rejection, farklı live/command RF etiketi, FFT_ERROR/OVERFLOW enjeksiyonu, partial W1C ve sticky IRQ ile birlikte altı vektörün 2048'er FFT/power sonucunu geçti. Taze root koşusu exit 0 ve `PASS: axi_ad9364_fft_capture single-shot` verdi. Pozitif paketleme gate'i ve bank sentezi de PASS; kaynak ağacına üretilmiş XCI/proje eklenmedi.
+
+Commitler: `8c03a0f`, `b743312`, `67d5524`. Final bağımsız kapanış incelemesi `Approved`. Sıradaki geliştirme adımı Task 8 block-design entegrasyonudur; henüz yeni bitstream üretilmedi veya kart programlanmadı.

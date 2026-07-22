@@ -229,7 +229,7 @@ Durum: **Temel bring-up tamamlandı; RF/IQ veri doğrulaması sürüyor**
 
 ## 12. Aşama 8 — RF veri işleme ve spektrum
 
-Durum: **Tek kanallı monopulse tasarımı ve PL FFT tam-spektrum alt-sözleşmesi onaylandı; RTL uygulaması başlamadı.**
+Durum: **Tek-kare PL FFT veri yolu RTL ve gerçek xFFT simülasyonunda bit-doğru kapatıldı; Vivado block-design/kart entegrasyonu açık.**
 
 Bağlayıcı tasarım: `PROJECT/designs/2026-07-20-axu4ev-ad9364-single-channel-monopulse-design.md`
 
@@ -237,9 +237,9 @@ PL FFT alt-tasarımı: `docs/superpowers/specs/2026-07-21-axu4ev-ad9364-pl-fft-s
 
 1. [ ] AD9364 I0/Q0 sample formatı, valid/enable sırası ve 30,72 MSPS profili ILA + DMA ile doğrulanacak.
 2. [ ] RX-only başlatmada TX attenuation 89.750 mdB ve tüm AXI DAC source'ları ZERO yapılıp readback alınacak.
-3. [ ] Mevcut RX DMAC yolunu durdurmayan 2048-sample store-and-forward capture geliştirilecek.
-4. [ ] Tek Vivado FFT v9.1 core; rectangular-first, `SCALE_SCH=0x6AB`, magnitude-square, tam 2048-bin BRAM ve `PEAK_BIN/POWER/RE/IM` Python/C modeliyle bit-doğru doğrulanacak.
-5. [ ] Tek-kare kabulünden sonra iki bankalı spectrum ping-pong, atomik bank ownership ve sürekli FFT frame modu overrun/throughput testleriyle doğrulanacak; sürekli host/DDR streaming ertelenecek.
+3. [x] Mevcut RX DMAC yolunu durdurmayan 2048-sample store-and-forward capture geliştirildi ve valid/enable boşluklarıyla doğrulandı.
+4. [x] Tek Vivado FFT v9.1 core; rectangular-first, `SCALE_SCH=0x6AB`, magnitude-square, tam 2048-bin BRAM ve `PEAK_BIN/POWER/RE/IM` Python modeliyle altı vektörde sıfır LSB farkla doğrulandı.
+5. [ ] Tek-kare için çift spectrum bankası, atomik ownership, dolu-bank reddi ve overrun recovery tamamlandı; sürekli FFT frame modu/throughput ile sürekli host/DDR streaming sonraki kapıdır.
 6. [ ] CW için yapılandırılmış pencerede ortak maximum peak ve ±2 komşu-bin gücü üretilecek.
 7. [ ] 5-10 MHz modülasyonlu sinyal için configured band-power modu eklenecek.
 8. [ ] ZX80/HMC936A için BDC IF/koherens, RF-port 0 VDC, altı-bit 5 V level-shifter, pin/kablo eşlemesi ve settle sözleşmesi gerçek donanımla doğrulanacak.
@@ -524,3 +524,13 @@ Tek kanallı sabit-length AXIS configuration sözcüğü PG109 alan sırasına g
 Custom-IP paket Tcl'i sekiz RTL kaynağını açıkça listeler; CPU AXI-Lite, iki read-only BRAM bankası, ADC AXIS tap ve interrupt arayüzlerini tanımlar; AXI/ADC bus-clock-reset association metadata'sını kurar. Task 7 top-level veya üretilmiş FFT XCI eksikken kaynak ağacına çıktı yazmadan fail-fast olur. Testler future-top, missing-source, missing-IP ve missing-XCI yollarını yalnız `%TEMP%` fixture'larında çalıştırır.
 
 Commitler: `a0ad12b`, `25adaf0`. Bağımsız re-review `Approved`; taze Task 6 Vivado gate'i ve 22 Python testi exit 0. Sıradaki adım Task 7: complete single-shot RTL datapath entegrasyonu ve altı bit-doğru vektörle uçtan uca testtir.
+
+## 24. 22 Temmuz 2026 — Task 7 tek-kare PL FFT kapanışı
+
+Task 7 tamamlandı. Ayrık ve geri basınçsız `adc_valid/adc_enable/adc_i/adc_q` shadow tap; 2048-sample capture, RAM replay, gerçek Vivado xFFT v9.1, 33-bit magnitude-square/peak, çift 2048×64 spectrum bankası, AXI-Lite register alanı ve CPU↔ADC mailbox'ları tek üst RTL'de birleştirildi. xFFT resetten sonra `16'h0D57` ile yapılandırılır ve her finite frame/recovery sonrasında deterministik biçimde resetlenip yeniden arm edilir.
+
+Altı dondurulmuş vektörde 2048 kompleks FFT bileşeni, 2048 güç kelimesi, peak, CRC, ilk örnek, sample count, RF tag, frame ID ve bank metadata'sı sıfır LSB farkla geçti. Negatif suite; busy/abort recovery, PROCESS sırasında soft-reset ve epoch değişimi, stale epoch reddi, dolu bankta replay başlamadan atomik rejection, FFT error/overflow enjeksiyonu, sticky STATUS, kısmi W1C ve IRQ neden korumasını doğrular.
+
+Paketleme artık yalnız kaynak ağacı dışındaki bir çıktı klasöründe yapılır; eksik kaynak/IP/XCI ve kaynak-altı output yolları fail-fast'tır. Pozitif paket gate'i AXI-Lite, iki BRAM, IRQ, ayrık ADC portları, sekiz RTL kaynağı ve xFFT XCI bağımlılığını açıp kontrol eder. Spectrum bank sentezi `RAMB36=8`, `RAMB18=0`, `LUT_AS_MEMORY=0` sonucunu vermiştir.
+
+Commit zinciri: `8c03a0f`, `b743312`, `67d5524`. İki bağımsız inceleme turundaki tüm Critical/Important bulgular kapatıldı ve final verdict `Approved` oldu. Sonraki adım Task 8: bu custom IP'yi AXU4EV FMCOMMS2 block design'ına backpressure oluşturmayan I0/Q0 shadow bağlantısıyla eklemek, adres/IRQ atamak ve bitstream/timing/Golden regresyonunu almaktır.

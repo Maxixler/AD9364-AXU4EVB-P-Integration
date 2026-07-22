@@ -119,7 +119,7 @@ Vivado SDK, `PROJECT/verification` ve Vitis platformundaki XSA kopyaları bit d�
 - [x] Analog durumlar `Σ+ΔAZ`, `Σ-ΔAZ`, `Σ+ΔEL`, `Σ-ΔEL` olarak tanımlandı.
 - [x] CW common-peak, modülasyonlu sinyal configured band-power ve Q1.31 AZ/EL normalize oran sözleşmesi tasarlandı.
 - [ ] AD9364 I0/Q0 formatı ve mevcut DMAC izolasyonu ILA/DMA ile doğrulanacak.
-- [ ] Store-and-forward capture, tek FFT, magnitude-square ve ortak peak yolu test-first uygulanacak.
+- [x] Store-and-forward capture, gerçek xFFT v9.1, magnitude-square, tam 2048-bin spectrum ve ortak peak yolu test-first tamamlandı; block-design/kart entegrasyonu açık.
 - [ ] SPDT/0°-180° phase switch pin, gerilim, polarite ve settle değerleri gerçek donanımla doğrulanacak.
 - [ ] SMW200A ile yankısız odada mekanik sıfır ve `-θ/0/+θ` kalibrasyonu yapılacak.
 - [ ] Timing/DRC, Golden DMA regresyonu ve kart kabulü tamamlanacak.
@@ -428,3 +428,17 @@ Son Task 5 commit zinciri `95b0c19` → `19d7e65` → `072cdf6` olup bağımsız
 FFT v9.1 konfigürasyonu kaynak kontrollü Tcl ile kilitlenmiştir. Gerçek Vivado 2020.1 property inspection gate'i hedef part, IP sürümü ve tüm sayısal ayarları doğrular. AXIS config sözcüğü `16'h0D57` olarak dondurulmuş; forward/scale bit dilimleri ayrı ayrı test edilmiştir.
 
 Paketleme reçetesi Task 7 top-level ve XCI oluşmadan kaynak ağacına artefakt yazmaz. Eksik kaynak/IP/XCI hata yolları geçici fixture'larda çalıştırılmaktadır. Task 6 bağımsız incelemesi açık bulgusuz `Approved` durumundadır; commitler `a0ad12b` ve `25adaf0`'dır. Aktif sıradaki iş Task 7 single-shot üst-seviye RTL entegrasyonudur.
+
+## 19. Task 7 single-shot üst RTL durumu — 22 Temmuz 2026
+
+Durum: **TAMAMLANDI ve bağımsız re-review `Approved`.**
+
+- AD9364 shadow girişi ayrık `valid/enable/I/Q` portlarıyla ve DMAC'a geri basınç üretmeden bağlandı.
+- Capture→replay→xFFT→magnitude/peak→atomik spectrum bank veri yolu tamamlandı.
+- Gerçek Vivado 2020.1 xFFT modeliyle altı vektörün tüm 2048 FFT ve güç kelimeleri sıfır farkla geçti.
+- Abort, soft-reset/epoch recovery, stale epoch, dolu bank, dropped sample, FFT error, overflow, W1C ve sticky IRQ hata yolları bounded actual-IP simülasyonda geçti.
+- Komut RF etiketi metadata için otoritatiftir; canlı RF pini bilinçli farklı sürülerek bu bağ doğrulandı.
+- Pozitif custom-IP paketleme kaynak ağacı dışında çalışır; iki BRAM arayüzü, AXI-Lite, IRQ, ayrık ADC portları ve xFFT bağımlılığı kontrol edilir.
+- Spectrum bank sentezi sekiz RAMB36 kullanır ve LUTRAM kullanmaz.
+
+Commitler `8c03a0f`, `b743312`, `67d5524`'tür. Golden bitstream/XSA/ELF ve çalışan JTAG başlatma zinciri değiştirilmedi. Sıradaki aktif iş Task 8 block-design entegrasyonu, adres/IRQ ataması, synthesis/implementation ve kart üstü DMA-shadow korelasyonudur.

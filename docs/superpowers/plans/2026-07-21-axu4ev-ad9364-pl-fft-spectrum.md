@@ -329,19 +329,19 @@ Expected: `PASS: FFT v9.1 configuration matches the numerical contract`.
 - Create: `PROJECT/verification/fft/rtl/tb_axi_ad9364_fft_capture.sv`
 - Modify: `PROJECT/tests/Test-Axu4evFftRtl.ps1`
 
-- [ ] **Step 1: Write end-to-end failing tests**
+- [x] **Step 1: Write end-to-end failing tests**
 
 Feed each checked-in input vector through the ADC interface with gaps, stall the FFT output path, then read the published bank and result registers. Check all 2048 spectrum words, peak fields, CRC, first sample, sample count, RF tag, frame ID, active bank, overflow, done, and atomic valid timing.
 
-- [ ] **Step 2: Connect the modules and FFT instance**
+- [x] **Step 2: Connect the modules and FFT instance**
 
 Keep capture/replay/FFT/magnitude/bank in `adc_clk`. Keep AXI-Lite and bank read ports in `s_axi_aclk`. Use the command/result mailboxes at the boundary. Connect `m_axis_tready` so only internal storage can stall FFT; no reverse path may reach the ADI tap.
 
-- [ ] **Step 3: Add assertions for the shadow-path invariant**
+- [x] **Step 3: Add assertions for the shadow-path invariant**
 
 Testbench assertions must prove input traffic continues while the FFT is stalled, starts while busy are rejected without corrupting the active frame, and a partial frame never changes the CPU-visible bank.
 
-- [ ] **Step 4: Run bit-exact cross-check and commit**
+- [x] **Step 4: Run bit-exact cross-check and commit**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evFftRtl.ps1 -Test top
