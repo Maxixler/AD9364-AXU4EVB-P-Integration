@@ -29,6 +29,15 @@ if {$fft_xci eq {} || ![file isfile $fft_xci]} {
 }
 set fft_xci [file normalize $fft_xci]
 
+if {![info exists ::env(FFT_PACKAGE_OUTPUT_DIR)]} {
+  error "FFT_PACKAGE_OUTPUT_DIR is required; package products must be written outside the RTL source directory."
+}
+set package_output_dir [file normalize $::env(FFT_PACKAGE_OUTPUT_DIR)]
+if {$package_output_dir eq $script_dir} {
+  error "FFT_PACKAGE_OUTPUT_DIR must not be the RTL source directory."
+}
+file mkdir $package_output_dir
+
 # ADI's helper creates the packaging project, so preserve the generated xFFT
 # path and close the generation project only after every fail-fast check passes.
 close_project
@@ -36,7 +45,7 @@ set REQUIRED_VIVADO_VERSION 2020.1
 source [file join $script_dir .. .. scripts adi_env.tcl]
 source [file join $ad_hdl_dir library scripts adi_ip_xilinx.tcl]
 
-cd $script_dir
+cd $package_output_dir
 adi_ip_create axi_ad9364_fft_capture
 adi_ip_files axi_ad9364_fft_capture [concat $rtl_sources [list $fft_xci]]
 adi_ip_properties_lite axi_ad9364_fft_capture

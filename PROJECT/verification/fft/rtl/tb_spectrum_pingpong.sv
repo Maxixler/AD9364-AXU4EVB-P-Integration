@@ -86,7 +86,10 @@ module tb_spectrum_pingpong;
     .bank1_peak_re(bank1_peak_re), .bank0_peak_im(bank0_peak_im),
     .bank1_peak_im(bank1_peak_im), .cpu_clk(cpu_clk),
     .cpu_bank_select(cpu_bank_select), .cpu_read_enable(cpu_read_enable),
-    .cpu_read_address(cpu_read_address), .cpu_read_data(cpu_read_data)
+    .cpu_read_address(cpu_read_address), .cpu_read_data(cpu_read_data),
+    .cpu_bank0_read_enable(1'b0), .cpu_bank0_read_address(11'd0),
+    .cpu_bank0_read_data(), .cpu_bank1_read_enable(1'b0),
+    .cpu_bank1_read_address(11'd0), .cpu_bank1_read_data()
   );
 
   task automatic require_true;

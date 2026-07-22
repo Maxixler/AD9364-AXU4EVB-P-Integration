@@ -1,7 +1,8 @@
 `timescale 1ns/1ps
 
 module fft_command_cdc #(
-  parameter integer PAYLOAD_WIDTH = 64
+  parameter integer PAYLOAD_WIDTH = 64,
+  parameter integer DEST_EPOCH_CHECK = 1
 ) (
   input  wire                     cpu_clk,
   input  wire                     cpu_resetn,
@@ -42,6 +43,8 @@ module fft_command_cdc #(
   wire accept_request;
   wire recover_request;
   wire align_idle;
+  wire payload_epoch_matches = !DEST_EPOCH_CHECK ||
+    (payload_hold[PAYLOAD_WIDTH+15:PAYLOAD_WIDTH] == i_adc_epoch);
 
   // Protocol parity is initialized only by a common reset. One-sided resets
   // retain it, so reset itself cannot manufacture a request/acknowledge edge.
@@ -133,7 +136,7 @@ module fft_command_cdc #(
           adc_ready <= 1'b1;
           if (pending_sync2 &&
               (acknowledge_toggle != request_sync2)) begin
-            if (payload_hold[PAYLOAD_WIDTH+15:PAYLOAD_WIDTH] == i_adc_epoch) begin
+            if (payload_epoch_matches) begin
               o_adc_payload <= payload_hold[PAYLOAD_WIDTH-1:0];
               o_adc_valid <= 1'b1;
             end else begin
@@ -143,7 +146,7 @@ module fft_command_cdc #(
         end
       end else if (accept_request) begin
         request_seen <= request_sync2;
-        if (payload_hold[PAYLOAD_WIDTH+15:PAYLOAD_WIDTH] == i_adc_epoch) begin
+        if (payload_epoch_matches) begin
           o_adc_payload <= payload_hold[PAYLOAD_WIDTH-1:0];
           o_adc_valid <= 1'b1;
         end else begin

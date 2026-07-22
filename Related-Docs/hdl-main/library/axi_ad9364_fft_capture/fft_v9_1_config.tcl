@@ -29,5 +29,7 @@ set_property -dict [list \
   CONFIG.output_ordering {natural_order} \
   CONFIG.rounding_modes {convergent_rounding} \
   CONFIG.scaling_options {scaled} \
+  CONFIG.aresetn {true} \
+  CONFIG.ovflo {true} \
   CONFIG.run_time_configurable_transform_length {false} \
 ] $fft_ip

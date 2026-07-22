@@ -65,6 +65,8 @@ require_equal "Output ordering" [get_property CONFIG.output_ordering $fft_ip] "n
 require_equal "Rounding mode" [get_property CONFIG.rounding_modes $fft_ip] "convergent_rounding"
 require_equal "Scaling arithmetic" [get_property CONFIG.scaling_options $fft_ip] "scaled"
 require_equal "Runtime transform length" [get_property CONFIG.run_time_configurable_transform_length $fft_ip] "false"
+require_equal "Active-low reset port" [get_property CONFIG.aresetn $fft_ip] "true"
+require_equal "Overflow output" [get_property CONFIG.ovflo $fft_ip] "true"
 
 if {![info exists ::axi_ad9364_fft_capture_fft_axis_config_word]} {
   error "fft_v9_1_config.tcl did not publish the fixed AXIS configuration-word contract."

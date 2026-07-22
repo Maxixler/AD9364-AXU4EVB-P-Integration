@@ -87,6 +87,14 @@ module spectrum_pingpong (
   wire complete_word = ordered_write && spectrum_tlast && (expected_bin == LAST_BIN);
   wire bank0_write_enable = ordered_write && (active_bank == 1'b0);
   wire bank1_write_enable = ordered_write && (active_bank == 1'b1);
+  wire bank0_cpu_read_enable = cpu_bank0_read_enable ||
+                               (cpu_read_enable && !cpu_bank_select);
+  wire bank1_cpu_read_enable = cpu_bank1_read_enable ||
+                               (cpu_read_enable && cpu_bank_select);
+  wire [10:0] bank0_cpu_read_address = cpu_bank0_read_enable ?
+                                       cpu_bank0_read_address : cpu_read_address;
+  wire [10:0] bank1_cpu_read_address = cpu_bank1_read_enable ?
+                                       cpu_bank1_read_address : cpu_read_address;
 
   assign spectrum_tready = frame_active;
 
@@ -211,17 +219,13 @@ module spectrum_pingpong (
   end
 
   always @(posedge cpu_clk) begin
-    if (cpu_bank0_read_enable)
-      bank0_read_data <= bank0_memory[cpu_bank0_read_address];
-    else if (cpu_read_enable && (cpu_bank_select == 1'b0))
-      bank0_read_data <= bank0_memory[cpu_read_address];
+    if (bank0_cpu_read_enable)
+      bank0_read_data <= bank0_memory[bank0_cpu_read_address];
   end
 
   always @(posedge cpu_clk) begin
-    if (cpu_bank1_read_enable)
-      bank1_read_data <= bank1_memory[cpu_bank1_read_address];
-    else if (cpu_read_enable && (cpu_bank_select == 1'b1))
-      bank1_read_data <= bank1_memory[cpu_read_address];
+    if (bank1_cpu_read_enable)
+      bank1_read_data <= bank1_memory[bank1_cpu_read_address];
   end
 
   assign cpu_read_data = cpu_bank_select ? bank1_read_data : bank0_read_data;

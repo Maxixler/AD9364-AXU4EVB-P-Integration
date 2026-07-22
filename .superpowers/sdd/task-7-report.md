@@ -88,3 +88,46 @@ python -m unittest discover -s PROJECT/tests -p "test_*.py" -v
 The final actual-IP simulation published and verified the final
 `near_full_scale` bank at simulation times 941.116 us and 986.502 us,
 respectively, then printed the required top-level PASS marker.
+
+## Independent-review hardening
+
+The follow-up review was handled with a new strict RED: the testbench changed
+the live RF pins after accepting a command and the first actual-IP result
+failed at 119.053 us (`RESULT_TAG expected=00000002 actual=0000000c`).  The
+command RF tag is now authoritative.
+
+The result mailbox was widened to carry the epoch and all completion/error
+flags atomically.  The CPU domain converts those flags into one-cycle events
+for the sticky W1C status register, holds IRQ until a relevant W1C, and reports
+BUSY while a command is pending as well as while the ADC pipeline is active.
+The ADC domain validates the bundled command epoch locally, reserves a bank
+before replay, propagates xFFT overflow, and uses the xFFT ARESETN port with a
+three-cycle coordinated reset/reconfiguration path after abort, soft reset,
+and normal completion.
+
+The actual xFFT regression now covers a process abort and recovery, an
+unreleased-bank rejection before replay, W1C/IRQ behavior, dropped-sample W1C,
+a soft reset during processing with epoch 0 to 1, and live RF pins deliberately
+different from the accepted command tag.  It then verifies all six manifest
+frames and every FFT/power bin.  Final marker:
+
+```text
+PASS: axi_ad9364_fft_capture single-shot
+$finish called at time : 1086748 ns
+```
+
+The real IP package script now requires `FFT_PACKAGE_OUTPUT_DIR`.  The positive
+gate packages into a disposable directory and inspects AXI-Lite, both 11-bit
+address/64-bit data BRAM ports, the discrete ADC ports, IRQ, all production RTL
+files, and the generated xFFT XCI.  A before/after source-tree comparison proves
+that packaging creates no products beside the RTL sources.
+
+Additional final gates:
+
+```text
+PASS: FFT v9.1 configuration matches the numerical contract
+PASS: positive disposable FFT package inspection
+PASS: spectrum_pingpong infers block RAM
+SYNTH_BANK: RAMB36=8 RAMB18=0 LUT_AS_MEMORY=0
+Ran 22 tests in 0.649s -- OK
+```

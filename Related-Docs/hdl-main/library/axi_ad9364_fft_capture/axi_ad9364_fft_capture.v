@@ -40,11 +40,13 @@ module axi_ad9364_fft_capture (
   output wire        irq
 );
 
-  localparam integer COMMAND_WIDTH = 58;
-  localparam integer RESULT_WIDTH = 256;
-  localparam [1:0] PIPE_IDLE = 2'd0;
-  localparam [1:0] PIPE_CAPTURE = 2'd1;
-  localparam [1:0] PIPE_PROCESS = 2'd2;
+  localparam integer COMMAND_WIDTH = 59;
+  localparam integer RESULT_WIDTH = 264;
+  localparam [2:0] PIPE_IDLE = 3'd0;
+  localparam [2:0] PIPE_CAPTURE = 3'd1;
+  localparam [2:0] PIPE_RESERVE = 3'd2;
+  localparam [2:0] PIPE_PROCESS = 3'd3;
+  localparam [2:0] PIPE_RECOVER = 3'd4;
 
   wire reg_start, reg_abort, reg_soft_reset, reg_mode_continuous;
   wire reg_bank0_release, reg_bank1_release;
@@ -55,10 +57,11 @@ module axi_ad9364_fft_capture (
   wire [10:0] reg_status_clear;
   wire command_ready, command_busy;
   wire command_valid_cpu = reg_start || reg_abort || reg_soft_reset ||
-                           reg_bank0_release || reg_bank1_release;
+                           reg_bank0_release || reg_bank1_release ||
+                           reg_status_clear[9];
   wire [COMMAND_WIDTH-1:0] command_payload_cpu = {
     reg_reset_epoch, reg_rf_state, reg_dc_guard, reg_search_stop,
-    reg_search_start, reg_bank1_release, reg_bank0_release,
+    reg_search_start, reg_status_clear[9], reg_bank1_release, reg_bank0_release,
     reg_mode_continuous, reg_soft_reset, reg_abort, reg_start};
 
   wire command_valid_adc, command_epoch_fault_adc;
@@ -69,13 +72,13 @@ module axi_ad9364_fft_capture (
   wire cmd_mode_continuous = command_payload_adc[3];
   wire cmd_release0 = command_payload_adc[4];
   wire cmd_release1 = command_payload_adc[5];
-  wire [10:0] cmd_search_start = command_payload_adc[16:6];
-  wire [10:0] cmd_search_stop = command_payload_adc[27:17];
-  wire [10:0] cmd_dc_guard = command_payload_adc[38:28];
-  wire [2:0] cmd_rf_state = command_payload_adc[41:39];
-  wire [15:0] cmd_epoch = command_payload_adc[57:42];
+  wire cmd_clear_overrun = command_payload_adc[6];
+  wire [10:0] cmd_search_start = command_payload_adc[17:7];
+  wire [10:0] cmd_search_stop = command_payload_adc[28:18];
+  wire [10:0] cmd_dc_guard = command_payload_adc[39:29];
+  wire [2:0] cmd_rf_state = command_payload_adc[42:40];
+  wire [15:0] cmd_epoch = command_payload_adc[58:43];
 
-  (* ASYNC_REG = "TRUE" *) reg [15:0] epoch_sync1_adc, epoch_sync2_adc;
   (* ASYNC_REG = "TRUE" *) reg configured_sync1_cpu, configured_sync2_cpu;
   (* ASYNC_REG = "TRUE" *) reg busy_sync1_cpu, busy_sync2_cpu;
 
@@ -96,6 +99,7 @@ module axi_ad9364_fft_capture (
   wire fft_config_ready;
   wire [31:0] fft_data;
   wire fft_valid, fft_ready, fft_last;
+  wire [7:0] fft_user;
   wire fft_event_started, fft_event_tlast_unexpected, fft_event_tlast_missing;
   wire fft_event_status_halt, fft_event_input_halt, fft_event_output_halt;
 
@@ -121,16 +125,21 @@ module axi_ad9364_fft_capture (
   wire signed [15:0] bank0_peak_im, bank1_peak_im;
   wire [63:0] legacy_bank_data;
 
-  reg [1:0] pipeline_state;
+  reg [2:0] pipeline_state;
   reg [10:0] active_search_start, active_search_stop, active_dc_guard;
   reg [15:0] active_epoch;
   reg [2:0] active_command_rf_state;
   reg active_mode_continuous;
   reg [31:0] adc_frame_id;
   reg fft_error_adc, fft_overflow_adc;
+  reg [31:0] dropped_count_at_start;
+  reg [1:0] datapath_reset_count;
+  wire datapath_reset = |datapath_reset_count;
+  wire datapath_resetn = adc_resetn && !datapath_reset;
 
   wire result_ready_adc, result_busy_adc;
   reg result_valid_adc;
+  reg [15:0] result_epoch_adc;
   reg [RESULT_WIDTH-1:0] result_payload_adc;
   wire result_valid_cpu, result_epoch_fault_cpu;
   wire [RESULT_WIDTH-1:0] result_payload_cpu;
@@ -145,23 +154,12 @@ module axi_ad9364_fft_capture (
   reg signed [15:0] cpu_peak_re, cpu_peak_im;
   reg [1:0] cpu_bank_valid;
   reg done_cpu;
+  reg cdc_fault_cpu, aborted_cpu, frame_error_cpu, fft_error_cpu;
+  reg overflow_cpu, dropped_samples_cpu, bank_overrun_cpu;
+  reg irq_sticky;
 
   wire pipeline_busy_adc = (pipeline_state != PIPE_IDLE) || result_busy_adc;
   wire cdc_ready_cpu = command_ready && configured_sync2_cpu;
-  wire dropped_samples_cpu = (cpu_dropped_count != 32'd0);
-  wire bank_overrun_cpu = 1'b0;
-  wire fft_error_cpu = 1'b0;
-  wire overflow_cpu = 1'b0;
-
-  always @(posedge adc_clk or negedge adc_resetn) begin
-    if (!adc_resetn) begin
-      epoch_sync1_adc <= 16'd0;
-      epoch_sync2_adc <= 16'd0;
-    end else begin
-      epoch_sync1_adc <= reg_reset_epoch;
-      epoch_sync2_adc <= epoch_sync1_adc;
-    end
-  end
 
   always @(posedge s_axi_aclk or negedge s_axi_aresetn) begin
     if (!s_axi_aresetn) begin
@@ -177,12 +175,14 @@ module axi_ad9364_fft_capture (
     end
   end
 
-  fft_command_cdc #(.PAYLOAD_WIDTH(COMMAND_WIDTH)) i_command_cdc (
+  fft_command_cdc #(
+    .PAYLOAD_WIDTH(COMMAND_WIDTH), .DEST_EPOCH_CHECK(0)
+  ) i_command_cdc (
     .cpu_clk(s_axi_aclk), .cpu_resetn(s_axi_aresetn),
     .i_cpu_epoch(reg_reset_epoch), .i_cpu_valid(command_valid_cpu),
     .i_cpu_payload(command_payload_cpu), .o_cpu_ready(command_ready),
     .o_cpu_busy(command_busy), .adc_clk(adc_clk), .adc_resetn(adc_resetn),
-    .i_adc_epoch(epoch_sync2_adc), .o_adc_valid(command_valid_adc),
+    .i_adc_epoch(active_epoch), .o_adc_valid(command_valid_adc),
     .o_adc_payload(command_payload_adc),
     .o_adc_epoch_fault(command_epoch_fault_adc));
 
@@ -197,14 +197,14 @@ module axi_ad9364_fft_capture (
     .mem_rd_addr(capture_mem_addr), .mem_rd_data(capture_mem_data));
 
   adc_frame_replay i_replay (
-    .adc_clk(adc_clk), .adc_resetn(adc_resetn), .start(replay_start),
+    .adc_clk(adc_clk), .adc_resetn(datapath_resetn), .start(replay_start),
     .frame_available(capture_frame_ready), .mem_rd_addr(capture_mem_addr),
     .mem_rd_data(capture_mem_data), .m_axis_tdata(replay_data),
     .m_axis_tvalid(replay_valid), .m_axis_tready(replay_ready),
     .m_axis_tlast(replay_last), .busy(replay_busy), .done(replay_done));
 
   ad9364_fft_2048 i_fft (
-    .aclk(adc_clk),
+    .aclk(adc_clk), .aresetn(datapath_resetn),
     .s_axis_config_tdata(16'h0D57),
     .s_axis_config_tvalid(fft_config_valid),
     .s_axis_config_tready(fft_config_ready),
@@ -212,6 +212,7 @@ module axi_ad9364_fft_capture (
     .s_axis_data_tready(replay_ready), .s_axis_data_tlast(replay_last),
     .m_axis_data_tdata(fft_data), .m_axis_data_tvalid(fft_valid),
     .m_axis_data_tready(fft_ready), .m_axis_data_tlast(fft_last),
+    .m_axis_data_tuser(fft_user),
     .event_frame_started(fft_event_started),
     .event_tlast_unexpected(fft_event_tlast_unexpected),
     .event_tlast_missing(fft_event_tlast_missing),
@@ -220,7 +221,7 @@ module axi_ad9364_fft_capture (
     .event_data_out_channel_halt(fft_event_output_halt));
 
   magnitude_peak i_magnitude (
-    .clk(adc_clk), .resetn(adc_resetn), .start(magnitude_start),
+    .clk(adc_clk), .resetn(datapath_resetn), .start(magnitude_start),
     .search_start(active_search_start), .search_stop(active_search_stop),
     .dc_guard(active_dc_guard), .s_axis_tdata(fft_data),
     .s_axis_tvalid(fft_valid), .s_axis_tready(fft_ready),
@@ -235,9 +236,9 @@ module axi_ad9364_fft_capture (
     .mode_continuous(active_mode_continuous), .begin_frame(bank_begin_frame),
     .abort_frame(bank_abort_frame), .release_bank0(cmd_release0 && command_valid_adc),
     .release_bank1(cmd_release1 && command_valid_adc),
-    .clear_overrun(reg_status_clear[9]), .reset_epoch(active_epoch),
+    .clear_overrun(cmd_clear_overrun && command_valid_adc), .reset_epoch(active_epoch),
     .epoch_update(cmd_soft_reset && command_valid_adc),
-    .frame_id(adc_frame_id + 1'b1), .rf_state(capture_rf_state),
+    .frame_id(adc_frame_id + 1'b1), .rf_state(active_command_rf_state),
     .peak_bin_in(peak_bin), .peak_power_in(peak_power),
     .peak_re_in(peak_re), .peak_im_in(peak_im),
     .spectrum_tvalid(magnitude_valid), .spectrum_tready(magnitude_ready),
@@ -283,7 +284,10 @@ module axi_ad9364_fft_capture (
       adc_frame_id <= 32'd0;
       fft_error_adc <= 1'b0;
       fft_overflow_adc <= 1'b0;
+      dropped_count_at_start <= 32'd0;
+      datapath_reset_count <= 2'd0;
       result_valid_adc <= 1'b0;
+      result_epoch_adc <= 16'd0;
       result_payload_adc <= {RESULT_WIDTH{1'b0}};
     end else begin
       capture_start <= 1'b0;
@@ -293,35 +297,63 @@ module axi_ad9364_fft_capture (
       bank_begin_frame <= 1'b0;
       bank_abort_frame <= 1'b0;
       result_valid_adc <= 1'b0;
+      if (datapath_reset_count != 0)
+        datapath_reset_count <= datapath_reset_count - 1'b1;
 
-      if (!fft_configured && !fft_config_valid) begin
+      if (datapath_reset) begin
+        fft_config_valid <= 1'b0;
+        fft_configured <= 1'b0;
+      end else if (!fft_configured && !fft_config_valid) begin
         fft_config_valid <= 1'b1;
       end else if (fft_config_valid && fft_config_ready) begin
         fft_config_valid <= 1'b0;
         fft_configured <= 1'b1;
       end
 
-      if (command_epoch_fault_adc)
-        fft_error_adc <= 1'b1;
       if (fft_event_tlast_unexpected || fft_event_tlast_missing ||
-          fft_event_status_halt || fft_event_input_halt || fft_event_output_halt)
+          fft_event_status_halt)
         fft_error_adc <= 1'b1;
+      if (fft_valid && fft_ready && fft_user[0])
+        fft_overflow_adc <= 1'b1;
 
       if (command_valid_adc && cmd_soft_reset) begin
-        pipeline_state <= PIPE_IDLE;
+        pipeline_state <= PIPE_RECOVER;
         capture_abort <= 1'b1;
         bank_abort_frame <= 1'b1;
+        datapath_reset_count <= 2'd3;
+        fft_config_valid <= 1'b0;
+        fft_configured <= 1'b0;
         active_epoch <= cmd_epoch;
         fft_error_adc <= 1'b0;
         fft_overflow_adc <= 1'b0;
       end else begin
-        if (command_valid_adc && cmd_abort) begin
+        if (command_valid_adc && (cmd_epoch != active_epoch)) begin
+          if (result_ready_adc) begin
+            result_epoch_adc <= cmd_epoch;
+            result_payload_adc <= {1'b0, 1'b1, 6'b0, 256'd0};
+            result_valid_adc <= 1'b1;
+          end
+        end else if (command_valid_adc && cmd_abort &&
+                     (pipeline_state != PIPE_IDLE)) begin
           capture_abort <= 1'b1;
           bank_abort_frame <= 1'b1;
-          pipeline_state <= PIPE_IDLE;
-        end
-
-        if (command_valid_adc && cmd_start && fft_configured &&
+          datapath_reset_count <= 2'd3;
+          fft_config_valid <= 1'b0;
+          fft_configured <= 1'b0;
+          pipeline_state <= PIPE_RECOVER;
+          if (result_ready_adc) begin
+            result_epoch_adc <= active_epoch;
+            result_payload_adc <= {
+              1'b0, 1'b0, 1'b0,
+              (capture_dropped_count != dropped_count_at_start),
+              fft_overflow_adc, fft_error_adc, 1'b0, 1'b1,
+              capture_dropped_count, capture_crc, capture_first_sample,
+              16'd0, 16'd0, 33'd0, 11'd0,
+              20'd0, capture_sample_count,
+              active_epoch, active_command_rf_state, 1'b0, adc_frame_id};
+            result_valid_adc <= 1'b1;
+          end
+        end else if (command_valid_adc && cmd_start && fft_configured &&
             (pipeline_state == PIPE_IDLE) && !result_busy_adc) begin
           active_search_start <= cmd_search_start;
           active_search_stop <= cmd_search_stop;
@@ -329,6 +361,9 @@ module axi_ad9364_fft_capture (
           active_epoch <= cmd_epoch;
           active_command_rf_state <= cmd_rf_state;
           active_mode_continuous <= cmd_mode_continuous;
+          dropped_count_at_start <= capture_dropped_count;
+          fft_error_adc <= 1'b0;
+          fft_overflow_adc <= 1'b0;
           capture_start <= 1'b1;
           pipeline_state <= PIPE_CAPTURE;
         end
@@ -339,35 +374,67 @@ module axi_ad9364_fft_capture (
         if ((pipeline_state == PIPE_CAPTURE) && capture_frame_ready &&
             !capture_start) begin
           bank_begin_frame <= 1'b1;
+          pipeline_state <= PIPE_RESERVE;
+        end
+
+        if ((pipeline_state == PIPE_RESERVE) && bank_frame_accepted) begin
           replay_start <= 1'b1;
           magnitude_start <= 1'b1;
           pipeline_state <= PIPE_PROCESS;
+        end else if ((pipeline_state == PIPE_RESERVE) && bank_frame_rejected) begin
+          pipeline_state <= PIPE_IDLE;
+          if (result_ready_adc) begin
+            result_epoch_adc <= active_epoch;
+            result_payload_adc <= {
+              1'b0, 1'b0, bank_overrun_adc,
+              (capture_dropped_count != dropped_count_at_start),
+              fft_overflow_adc, fft_error_adc, 1'b1, 1'b0,
+              capture_dropped_count, capture_crc, capture_first_sample,
+              16'd0, 16'd0, 33'd0, 11'd0,
+              20'd0, capture_sample_count,
+              active_epoch, active_command_rf_state, 1'b0, adc_frame_id};
+            result_valid_adc <= 1'b1;
+          end
         end
 
         if ((pipeline_state == PIPE_PROCESS) && bank_publish) begin
           adc_frame_id <= adc_frame_id + 1'b1;
-          pipeline_state <= PIPE_IDLE;
+          // Re-arm the vendor core between frames.  This also gives abort and
+          // normal completion one deterministic recovery path; no residual
+          // FFT state can leak into the next command.
+          pipeline_state <= PIPE_RECOVER;
+          datapath_reset_count <= 2'd3;
+          fft_config_valid <= 1'b0;
+          fft_configured <= 1'b0;
           if (result_ready_adc) begin
+            result_epoch_adc <= active_epoch;
             result_payload_adc <= {
+              1'b1, 1'b0, bank_overrun_adc,
+              (capture_dropped_count != dropped_count_at_start),
+              fft_overflow_adc, fft_error_adc, 1'b0, 1'b0,
               capture_dropped_count, capture_crc, capture_first_sample,
               bank_published ? bank1_peak_im : bank0_peak_im,
               bank_published ? bank1_peak_re : bank0_peak_re,
               bank_published ? bank1_peak_power : bank0_peak_power,
               bank_published ? bank1_peak_bin : bank0_peak_bin,
               20'd0, capture_sample_count,
-              active_epoch, capture_rf_state, bank_published,
+              active_epoch, active_command_rf_state, bank_published,
               adc_frame_id + 1'b1};
             result_valid_adc <= 1'b1;
           end else begin
             fft_error_adc <= 1'b1;
           end
         end
+
+        if ((pipeline_state == PIPE_RECOVER) && fft_configured &&
+            !result_busy_adc)
+          pipeline_state <= PIPE_IDLE;
       end
     end
   end
 
   fft_result_cdc #(.PAYLOAD_WIDTH(RESULT_WIDTH)) i_result_cdc (
-    .adc_clk(adc_clk), .adc_resetn(adc_resetn), .i_adc_epoch(active_epoch),
+    .adc_clk(adc_clk), .adc_resetn(adc_resetn), .i_adc_epoch(result_epoch_adc),
     .i_adc_valid(result_valid_adc), .i_adc_payload(result_payload_adc),
     .o_adc_ready(result_ready_adc), .o_adc_busy(result_busy_adc),
     .cpu_clk(s_axi_aclk), .cpu_resetn(s_axi_aresetn),
@@ -391,8 +458,25 @@ module axi_ad9364_fft_capture (
       cpu_dropped_count <= 32'd0;
       cpu_bank_valid <= 2'b00;
       done_cpu <= 1'b0;
+      cdc_fault_cpu <= 1'b0;
+      aborted_cpu <= 1'b0;
+      frame_error_cpu <= 1'b0;
+      fft_error_cpu <= 1'b0;
+      overflow_cpu <= 1'b0;
+      dropped_samples_cpu <= 1'b0;
+      bank_overrun_cpu <= 1'b0;
+      irq_sticky <= 1'b0;
     end else begin
       done_cpu <= 1'b0;
+      cdc_fault_cpu <= result_epoch_fault_cpu;
+      aborted_cpu <= 1'b0;
+      frame_error_cpu <= 1'b0;
+      fft_error_cpu <= 1'b0;
+      overflow_cpu <= 1'b0;
+      dropped_samples_cpu <= 1'b0;
+      bank_overrun_cpu <= 1'b0;
+      if (|(reg_status_clear & 11'b01111111010))
+        irq_sticky <= 1'b0;
       if (reg_bank0_release)
         cpu_bank_valid[0] <= 1'b0;
       if (reg_bank1_release)
@@ -412,9 +496,21 @@ module axi_ad9364_fft_capture (
         cpu_first_sample <= result_payload_cpu[191:160];
         cpu_crc <= result_payload_cpu[223:192];
         cpu_dropped_count <= result_payload_cpu[255:224];
-        cpu_bank_valid[result_payload_cpu[32]] <= 1'b1;
-        done_cpu <= 1'b1;
+        aborted_cpu <= result_payload_cpu[256];
+        frame_error_cpu <= result_payload_cpu[257];
+        fft_error_cpu <= result_payload_cpu[258];
+        overflow_cpu <= result_payload_cpu[259];
+        dropped_samples_cpu <= result_payload_cpu[260];
+        bank_overrun_cpu <= result_payload_cpu[261];
+        cdc_fault_cpu <= result_payload_cpu[262] | result_epoch_fault_cpu;
+        done_cpu <= result_payload_cpu[263];
+        if (result_payload_cpu[263])
+          cpu_bank_valid[result_payload_cpu[32]] <= 1'b1;
+        if (|result_payload_cpu[263:256])
+          irq_sticky <= 1'b1;
       end
+      if (result_epoch_fault_cpu)
+        irq_sticky <= 1'b1;
     end
   end
 
@@ -428,10 +524,11 @@ module axi_ad9364_fft_capture (
     .s_axi_araddr(s_axi_araddr), .s_axi_arvalid(s_axi_arvalid),
     .s_axi_arready(s_axi_arready), .s_axi_rdata(s_axi_rdata),
     .s_axi_rresp(s_axi_rresp), .s_axi_rvalid(s_axi_rvalid),
-    .s_axi_rready(s_axi_rready), .i_busy(busy_sync2_cpu),
+    .s_axi_rready(s_axi_rready),
+    .i_busy(busy_sync2_cpu || command_busy || command_valid_cpu),
     .i_cdc_ready(cdc_ready_cpu), .i_done(done_cpu),
-    .i_cdc_fault(result_epoch_fault_cpu), .i_aborted(capture_aborted),
-    .i_frame_error(bank_frame_rejected), .i_fft_error(fft_error_cpu),
+    .i_cdc_fault(cdc_fault_cpu), .i_aborted(aborted_cpu),
+    .i_frame_error(frame_error_cpu), .i_fft_error(fft_error_cpu),
     .i_overflow(overflow_cpu), .i_dropped_samples(dropped_samples_cpu),
     .i_bank_overrun(bank_overrun_cpu), .i_frame_id(cpu_frame_id),
     .i_active_bank(cpu_active_bank), .i_result_rf_state(cpu_result_rf_state),
@@ -448,6 +545,6 @@ module axi_ad9364_fft_capture (
     .o_rf_state(reg_rf_state), .o_reset_epoch(reg_reset_epoch),
     .o_status_clear(reg_status_clear));
 
-  assign irq = done_cpu;
+  assign irq = irq_sticky;
 
 endmodule

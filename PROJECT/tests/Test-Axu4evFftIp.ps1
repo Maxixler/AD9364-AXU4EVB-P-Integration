@@ -8,8 +8,9 @@ $libraryDir = Join-Path $root 'Related-Docs\hdl-main\library\axi_ad9364_fft_capt
 $configTcl = Join-Path $libraryDir 'fft_v9_1_config.tcl'
 $packageTcl = Join-Path $libraryDir 'axi_ad9364_fft_capture_ip.tcl'
 $inspectTcl = Join-Path $PSScriptRoot 'Inspect-Axu4evFftIp.tcl'
+$positivePackageTcl = Join-Path $PSScriptRoot 'Package-Axu4evFftIp.tcl'
 
-foreach ($requiredFile in @($configTcl, $packageTcl, $inspectTcl, $Vivado)) {
+foreach ($requiredFile in @($configTcl, $packageTcl, $inspectTcl, $positivePackageTcl, $Vivado)) {
     if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
         throw "Missing Task 6 dependency: $requiredFile"
     }
@@ -79,6 +80,7 @@ New-Item -ItemType Directory -Path $work | Out-Null
 $oldRoot = $env:FPGA_PROFEN_ROOT
 $oldMissingSourceTcl = $env:FFT_PACKAGE_MISSING_SOURCE_TCL
 $oldCompleteTcl = $env:FFT_PACKAGE_COMPLETE_TCL
+$oldPackageOutput = $env:FFT_PACKAGE_OUTPUT_DIR
 $sourceTreeBefore = @(Get-ChildItem -LiteralPath $libraryDir -Recurse -Force |
     ForEach-Object { $_.FullName.Substring($libraryDir.Length) })
 try {
@@ -99,6 +101,7 @@ try {
     $env:FPGA_PROFEN_ROOT = $root
     $env:FFT_PACKAGE_MISSING_SOURCE_TCL = $missingSourcePackage
     $env:FFT_PACKAGE_COMPLETE_TCL = $completePackage
+    $env:FFT_PACKAGE_OUTPUT_DIR = Join-Path $work 'positive_package'
     Push-Location $work
     try {
         $output = (& $Vivado -mode batch -nolog -nojournal -notrace -source $inspectTcl 2>&1 | Out-String)
@@ -114,6 +117,18 @@ try {
         if (-not $output.Contains($marker)) {
             throw "Vivado FFT IP inspection did not emit '$marker'."
         }
+
+        $packageOutput = (& $Vivado -mode batch -nolog -nojournal -notrace `
+            -source $positivePackageTcl 2>&1 | Out-String)
+        $packageExitCode = $LASTEXITCODE
+        Write-Output $packageOutput
+        if ($packageExitCode -ne 0 -or $packageOutput.Contains('ERROR:')) {
+            throw "Positive disposable FFT packaging failed with exit code $packageExitCode."
+        }
+        $packageMarker = 'PASS: positive disposable FFT package inspection'
+        if (-not $packageOutput.Contains($packageMarker)) {
+            throw "Positive packaging did not emit '$packageMarker'."
+        }
     } finally {
         Pop-Location
     }
@@ -121,6 +136,7 @@ try {
     $env:FPGA_PROFEN_ROOT = $oldRoot
     $env:FFT_PACKAGE_MISSING_SOURCE_TCL = $oldMissingSourceTcl
     $env:FFT_PACKAGE_COMPLETE_TCL = $oldCompleteTcl
+    $env:FFT_PACKAGE_OUTPUT_DIR = $oldPackageOutput
     $resolvedWork = (Resolve-Path -LiteralPath $work).Path
     $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
     if (-not $resolvedWork.StartsWith($tempRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
