@@ -75,7 +75,7 @@ set spectrum_bank0 [ipx::add_bus_interface spectrum_bank0 $core]
 set_property abstraction_type_vlnv xilinx.com:interface:bram_rtl:1.0 $spectrum_bank0
 set_property bus_type_vlnv xilinx.com:interface:bram:1.0 $spectrum_bank0
 set_property interface_mode slave $spectrum_bank0
-foreach mapping {{CLK bank0_bram_clk} {RST bank0_bram_rst} {EN bank0_bram_en} {ADDR bank0_bram_addr} {DOUT bank0_bram_rddata}} {
+foreach mapping {{EN bank0_bram_en} {ADDR bank0_bram_addr} {DOUT bank0_bram_rddata}} {
   map_ip_port $spectrum_bank0 [lindex $mapping 0] [lindex $mapping 1]
 }
 
@@ -83,17 +83,22 @@ set spectrum_bank1 [ipx::add_bus_interface spectrum_bank1 $core]
 set_property abstraction_type_vlnv xilinx.com:interface:bram_rtl:1.0 $spectrum_bank1
 set_property bus_type_vlnv xilinx.com:interface:bram:1.0 $spectrum_bank1
 set_property interface_mode slave $spectrum_bank1
-foreach mapping {{CLK bank1_bram_clk} {RST bank1_bram_rst} {EN bank1_bram_en} {ADDR bank1_bram_addr} {DOUT bank1_bram_rddata}} {
+foreach mapping {{EN bank1_bram_en} {ADDR bank1_bram_addr} {DOUT bank1_bram_rddata}} {
   map_ip_port $spectrum_bank1 [lindex $mapping 0] [lindex $mapping 1]
 }
 
-# AD9364 receive tap: one complex {Q,I} word per valid ADC sample.
-set adc_tap [ipx::add_bus_interface adc_tap $core]
-set_property abstraction_type_vlnv xilinx.com:interface:axis_rtl:1.0 $adc_tap
-set_property bus_type_vlnv xilinx.com:interface:axis:1.0 $adc_tap
-set_property interface_mode slave $adc_tap
-map_ip_port $adc_tap TDATA adc_data
-map_ip_port $adc_tap TVALID adc_valid
+# AD9364 shadow tap. This is deliberately discrete and non-backpressured:
+# a sample is accepted only on adc_valid && adc_enable and there is no ready
+# path toward the existing ADI receive chain.
+foreach {port_name port_description} {
+  adc_valid  {One-cycle AD9364 source-valid indication}
+  adc_enable {I0/Q0 sample-enable indication}
+  adc_i      {Signed I0 sample component in Q1.15 format}
+  adc_q      {Signed Q0 sample component in Q1.15 format}
+  rf_state   {Three-bit RF-state tag sampled at command acceptance}
+} {
+  set_property description $port_description [ipx::get_ports $port_name -of_objects $core]
+}
 
 # Completion/error interrupt output.
 set irq [ipx::add_bus_interface irq $core]
@@ -108,7 +113,8 @@ ipx::infer_bus_interface adc_clk xilinx.com:signal:clock_rtl:1.0 $core
 ipx::infer_bus_interface adc_resetn xilinx.com:signal:reset_rtl:1.0 $core
 ipx::associate_bus_interfaces -busif s_axi -clock s_axi_aclk $core
 ipx::associate_bus_interfaces -clock s_axi_aclk -reset s_axi_aresetn $core
-ipx::associate_bus_interfaces -busif adc_tap -clock adc_clk $core
+ipx::associate_bus_interfaces -busif spectrum_bank0 -clock s_axi_aclk $core
+ipx::associate_bus_interfaces -busif spectrum_bank1 -clock s_axi_aclk $core
 ipx::associate_bus_interfaces -clock adc_clk -reset adc_resetn $core
 
 ipx::update_checksums $core

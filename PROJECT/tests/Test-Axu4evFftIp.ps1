@@ -39,13 +39,16 @@ $requiredPackagingTokens = @(
     'ipx::add_bus_interface spectrum_bank0',
     'ipx::add_bus_interface spectrum_bank1',
     'xilinx.com:interface:bram_rtl:1.0',
-    'ipx::add_bus_interface adc_tap',
-    'xilinx.com:interface:axis_rtl:1.0',
+    'adc_enable {I0/Q0 sample-enable indication}',
+    'adc_i      {Signed I0 sample component in Q1.15 format}',
+    'adc_q      {Signed Q0 sample component in Q1.15 format}',
+    'rf_state   {Three-bit RF-state tag sampled at command acceptance}',
     'ipx::add_bus_interface irq',
     'xilinx.com:signal:interrupt_rtl:1.0',
     'ipx::associate_bus_interfaces -busif s_axi -clock s_axi_aclk',
     'ipx::associate_bus_interfaces -clock s_axi_aclk -reset s_axi_aresetn',
-    'ipx::associate_bus_interfaces -busif adc_tap -clock adc_clk',
+    'ipx::associate_bus_interfaces -busif spectrum_bank0 -clock s_axi_aclk',
+    'ipx::associate_bus_interfaces -busif spectrum_bank1 -clock s_axi_aclk',
     'ipx::associate_bus_interfaces -clock adc_clk -reset adc_resetn',
     'Missing required RTL source',
     'Missing required FFT IP'
@@ -54,6 +57,10 @@ foreach ($token in $requiredPackagingTokens) {
     if (-not $packageSource.Contains($token)) {
         throw "Package Tcl is missing required packaging contract token '$token'."
     }
+}
+if ($packageSource.Contains('xilinx.com:interface:axis_rtl:1.0') -or
+    $packageSource.Contains('physical_name adc_data')) {
+    throw 'Package Tcl must expose the AD9364 tap as discrete non-backpressured ports.'
 }
 
 foreach ($fixtureToken in @('FFT_PACKAGE_MISSING_SOURCE_TCL', 'FFT_PACKAGE_COMPLETE_TCL')) {
