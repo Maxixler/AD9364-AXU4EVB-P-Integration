@@ -299,19 +299,19 @@ git commit -m "feat: add FFT control and result mailboxes"
 - Create: `PROJECT/tests/Inspect-Axu4evFftIp.tcl`
 - Create: `PROJECT/tests/Test-Axu4evFftIp.ps1`
 
-- [ ] **Step 1: Write a failing property inspection gate**
+- [x] **Step 1: Write a failing property inspection gate**
 
 Create an in-memory Vivado project, source the IP Tcl, and assert transform length 2048, pipelined streaming architecture, fixed point, 16-bit data, 24-bit phase factor, natural order, convergent rounding, scaled arithmetic, and runtime config disabled.
 
-- [ ] **Step 2: Generate the IP through Tcl only**
+- [x] **Step 2: Generate the IP through Tcl only**
 
 Use `create_ip -name xfft -vendor xilinx.com -library ip -version 9.1` and explicit `set_property -dict`. Encode `0x6AB` on the configuration stream once after reset and before the first frame; fix forward direction. No GUI-generated project path may enter source control.
 
-- [ ] **Step 3: Package the custom RTL sources**
+- [x] **Step 3: Package the custom RTL sources**
 
 The library Tcl must enumerate source files explicitly and expose CPU AXI-Lite, dual bank BRAM read ports, ADC tap, and interrupts. It must fail immediately if an expected source or FFT IP is missing.
 
-- [ ] **Step 4: Run and commit**
+- [x] **Step 4: Run and commit**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evFftIp.ps1

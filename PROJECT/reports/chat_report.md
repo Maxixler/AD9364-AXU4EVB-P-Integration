@@ -501,3 +501,9 @@ Bugünkü geliştirmede PL FFT planının Task 4 ve Task 5 adımları tamamland�
 Task 5 ile CPU↔ADC command/result mailbox'ları ve sabit AXI-Lite register haritası test-first geliştirildi. İlk sürüm altı RTL testini geçmesine rağmen bağımsız inceleme reset sınırında kayıp, stale/phantom ve duplicate transfer pencereleri buldu. Her bulgu önce iki yönlü başarısız testle yeniden üretildi; mailbox request/ack paritesi, payload retention, async ready gating ve recovery kararı düzeltilerek kapatıldı. Son bağımsız re-review Critical/Important/Minor bulgusuz `Approved` verdi.
 
 Kalıcı doğrulama artık şu altı PASS hedefini kapsar: `adc_frame_capture`, `adc_frame_replay`, `magnitude_peak`, `spectrum_pingpong`, `fft_cdc`, `fft_regs`. Task 5 commitleri `95b0c19`, `19d7e65` ve `072cdf6`'dır. Kullanıcının raporları `PROJECT/reports/` altında toplama kararı uygulandı; bundan sonraki proje raporu güncellemeleri bu klasörden yapılacaktır.
+
+## 25. 22 Temmuz 2026 — FFT v9.1 Tcl ve paketleme sözleşmesi
+
+Task 6 test-first tamamlandı. İlk RED, eksik `fft_v9_1_config.tcl` nedeniyle alındı; Vivado property dump ile 2020.1'deki gerçek lowercase `CONFIG.*` anahtarları keşfedildi. Üretim Tcl'i xFFT v9.1'i 2048-point, pipelined streaming, fixed-point scaled, 16/24-bit, natural-order ve convergent-rounding ayarlarıyla üretmektedir.
+
+İlk review packed config word, clock/reset association ve Task 7 sonrası test güvenliği eksiklerini buldu. Bunlar yeni RED gate'lerle kapatıldı: packed `TDATA=16'h0D57`, AXI/ADC bus association metadata'sı, gerçek Vivado version assertion'ı ve temp fixture tabanlı missing-source/IP/XCI testleri eklendi. Son re-review Critical/Important/Minor bulgusuz `Approved` verdi. Commitler `a0ad12b` ve `25adaf0`'dır.

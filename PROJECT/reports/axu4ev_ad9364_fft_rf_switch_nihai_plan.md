@@ -1111,3 +1111,9 @@ Bağlayıcı PL FFT alt-planında Tasks 1-5 tamamlanmıştır. Artık Candidate 
 CDC kabulü yalnız nominal transferle sınırlı değildir. Her iki yönde toggle wrap, epoch mismatch/recovery, reset-at-toggle-one, reset sırasında in-flight transfer, uzak resetin ready'ye yansıma gecikmesi ve hedef tesliminden sonra source ack öncesi reset senaryoları exactly-once davranışıyla geçmektedir. AXI-Lite kabulü bağımsız AW/W, byte strobe, B/R backpressure, RO koruması, one-shot pulse, persistent mode, W1C ve coincident event-wins-clear davranışlarını kapsar.
 
 Bu kapanış analog S0-S3 kontrolünü veya harici ZX80/HMC936A sürüşünü uygulamaz; onlar mevcut nihai plandaki sonraki iş paketlerinde kalır. Bir sonraki dijital adım FFT v9.1 IP ayarlarını kaynak kontrollü Candidate üretimine bağlamak, ardından üst seviye shadow-path entegrasyonu ve bit-doğru uçtan uca regresyondur.
+
+## 23. FFT v9.1 kaynak sözleşmesi — 22 Temmuz 2026
+
+Task 6 ile FFT v9.1 üretimi GUI'den ayrılmış ve Tcl-only Candidate sözleşmesine bağlanmıştır. IP ayarları gerçek Vivado property readback ile doğrulanır. Runtime transform length kapalı, transform direction forward ve scaled schedule `0x6AB`'dır. Tek kanallı AXIS config taşıması `16'h0D57` packed sözcüğünü reset sonrası/ilk frame öncesi bir kez gönderecektir.
+
+Custom-IP paket manifesti top-level dahil sekiz RTL kaynağını, AXI-Lite kontrolü, çift BRAM readout'u, ADC tap'i ve interrupt'ı açıkça tanımlar. Clock/reset associations eklenmiştir. Task 7 tamamlanana kadar eksik top/XCI durumunda kaynak dizinde proje üretmeden fail-fast kalır. Sonraki dijital kapı Task 7 üst-seviye single-shot veri yoludur; analog RF state kontrolü bu Task 6 kapsamına alınmamıştır.

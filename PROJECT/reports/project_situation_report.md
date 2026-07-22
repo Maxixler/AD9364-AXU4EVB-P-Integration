@@ -422,3 +422,9 @@ Yukarıdaki ilk üç iş tamamlandı ve uygulama Task 5 seviyesine ulaştı. Mev
 - Tek-taraflı resetlerde stale, kayıp veya duplicate transfer üretmemek için reset-at-toggle-one, in-flight, remote-ready latency ve post-ack reset testleri iki yönde geçmektedir.
 
 Son Task 5 commit zinciri `95b0c19` → `19d7e65` → `072cdf6` olup bağımsız RTL review sonucu `Approved` durumundadır. Golden artefaktlar korunmuştur. Bir sonraki açık iş FFT v9.1 IP konfigürasyonunun üretilmesi ve ardından üst-seviye Candidate entegrasyonudur.
+
+## 18. FFT IP durumu — 22 Temmuz 2026
+
+FFT v9.1 konfigürasyonu kaynak kontrollü Tcl ile kilitlenmiştir. Gerçek Vivado 2020.1 property inspection gate'i hedef part, IP sürümü ve tüm sayısal ayarları doğrular. AXIS config sözcüğü `16'h0D57` olarak dondurulmuş; forward/scale bit dilimleri ayrı ayrı test edilmiştir.
+
+Paketleme reçetesi Task 7 top-level ve XCI oluşmadan kaynak ağacına artefakt yazmaz. Eksik kaynak/IP/XCI hata yolları geçici fixture'larda çalıştırılmaktadır. Task 6 bağımsız incelemesi açık bulgusuz `Approved` durumundadır; commitler `a0ad12b` ve `25adaf0`'dır. Aktif sıradaki iş Task 7 single-shot üst-seviye RTL entegrasyonudur.

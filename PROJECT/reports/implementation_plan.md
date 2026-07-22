@@ -514,3 +514,13 @@ Doğrulama kapıları:
 - Golden bitstream/XSA/ELF değiştirilmedi.
 
 İlgili commitler: `95b0c19`, `19d7e65`, `072cdf6`. Sıradaki geliştirme adımı Task 6: Vivado FFT v9.1 IP konfigürasyonunu üretmek ve `NFFT=2048`, natural order, 16-bit fixed point, 24-bit twiddle, convergent rounding ve `SCALE_SCH=0x6AB` ayarlarını kaynak kontrollü biçimde kilitlemektir.
+
+## 23. 22 Temmuz 2026 — FFT v9.1 IP konfigürasyon kapanışı
+
+Task 6 tamamlandı. Vivado 2020.1 altında `xfft:9.1` yalnız Tcl ile oluşturulmakta ve gerçek IP property'leri üzerinden şu sözleşme doğrulanmaktadır: 2048-point, Pipelined Streaming I/O, fixed-point scaled arithmetic, 16-bit kompleks bileşen, 24-bit phase factor, natural order, convergent rounding ve runtime transform length kapalı.
+
+Tek kanallı sabit-length AXIS configuration sözcüğü PG109 alan sırasına göre kilitlendi: `FWD_INV=1`, `SCALE_SCH=0x6AB`, packed `TDATA=16'h0D57`; bit 0 forward, bit `[12:1]` scale schedule, üst padding sıfırdır. Konfigürasyon reset sonrası ve ilk frame öncesi bir kez gönderilecektir.
+
+Custom-IP paket Tcl'i sekiz RTL kaynağını açıkça listeler; CPU AXI-Lite, iki read-only BRAM bankası, ADC AXIS tap ve interrupt arayüzlerini tanımlar; AXI/ADC bus-clock-reset association metadata'sını kurar. Task 7 top-level veya üretilmiş FFT XCI eksikken kaynak ağacına çıktı yazmadan fail-fast olur. Testler future-top, missing-source, missing-IP ve missing-XCI yollarını yalnız `%TEMP%` fixture'larında çalıştırır.
+
+Commitler: `a0ad12b`, `25adaf0`. Bağımsız re-review `Approved`; taze Task 6 Vivado gate'i ve 22 Python testi exit 0. Sıradaki adım Task 7: complete single-shot RTL datapath entegrasyonu ve altı bit-doğru vektörle uçtan uca testtir.
