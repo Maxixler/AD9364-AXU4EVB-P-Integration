@@ -23,16 +23,11 @@ if {[llength $fft_ips] != 1} {
   error "Missing required FFT IP 'ad9364_fft_2048'. Source fft_v9_1_config.tcl in Vivado 2020.1 before packaging."
 }
 
-set fft_xci {}
-foreach fft_file [get_files -quiet -of_objects [lindex $fft_ips 0]] {
-  if {[string equal -nocase [file extension $fft_file] ".xci"] && [file isfile $fft_file]} {
-    set fft_xci [file normalize $fft_file]
-    break
-  }
-}
-if {$fft_xci eq {}} {
+set fft_xci [get_property IP_FILE [lindex $fft_ips 0]]
+if {$fft_xci eq {} || ![file isfile $fft_xci]} {
   error "Missing required FFT IP artifact for 'ad9364_fft_2048'; generate its XCI before packaging."
 }
+set fft_xci [file normalize $fft_xci]
 
 # ADI's helper creates the packaging project, so preserve the generated xFFT
 # path and close the generation project only after every fail-fast check passes.
@@ -111,6 +106,10 @@ ipx::infer_bus_interface s_axi_aclk xilinx.com:signal:clock_rtl:1.0 $core
 ipx::infer_bus_interface s_axi_aresetn xilinx.com:signal:reset_rtl:1.0 $core
 ipx::infer_bus_interface adc_clk xilinx.com:signal:clock_rtl:1.0 $core
 ipx::infer_bus_interface adc_resetn xilinx.com:signal:reset_rtl:1.0 $core
+ipx::associate_bus_interfaces -busif s_axi -clock s_axi_aclk $core
+ipx::associate_bus_interfaces -clock s_axi_aclk -reset s_axi_aresetn $core
+ipx::associate_bus_interfaces -busif adc_tap -clock adc_clk $core
+ipx::associate_bus_interfaces -clock adc_clk -reset adc_resetn $core
 
 ipx::update_checksums $core
 ipx::save_core $core

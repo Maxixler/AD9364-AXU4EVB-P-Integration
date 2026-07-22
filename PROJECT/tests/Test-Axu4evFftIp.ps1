@@ -16,6 +16,7 @@ foreach ($requiredFile in @($configTcl, $packageTcl, $inspectTcl, $Vivado)) {
 }
 
 $packageSource = Get-Content -Raw -LiteralPath $packageTcl
+$inspectSource = Get-Content -Raw -LiteralPath $inspectTcl
 $expectedSources = @(
     'axi_ad9364_fft_capture.v',
     'adc_frame_capture.v',
@@ -42,6 +43,10 @@ $requiredPackagingTokens = @(
     'xilinx.com:interface:axis_rtl:1.0',
     'ipx::add_bus_interface irq',
     'xilinx.com:signal:interrupt_rtl:1.0',
+    'ipx::associate_bus_interfaces -busif s_axi -clock s_axi_aclk',
+    'ipx::associate_bus_interfaces -clock s_axi_aclk -reset s_axi_aresetn',
+    'ipx::associate_bus_interfaces -busif adc_tap -clock adc_clk',
+    'ipx::associate_bus_interfaces -clock adc_clk -reset adc_resetn',
     'Missing required RTL source',
     'Missing required FFT IP'
 )
@@ -51,13 +56,42 @@ foreach ($token in $requiredPackagingTokens) {
     }
 }
 
+foreach ($fixtureToken in @('FFT_PACKAGE_MISSING_SOURCE_TCL', 'FFT_PACKAGE_COMPLETE_TCL')) {
+    if (-not $inspectSource.Contains($fixtureToken)) {
+        throw "Inspection Tcl does not require isolated fixture '$fixtureToken'."
+    }
+}
+if ($inspectSource.Contains('set package_tcl [file join $library_dir')) {
+    throw 'Inspection Tcl must not resolve the real package script for execution.'
+}
+
 $work = Join-Path ([System.IO.Path]::GetTempPath()) (
     'axu4ev_fft_ip_' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $work | Out-Null
 
 $oldRoot = $env:FPGA_PROFEN_ROOT
+$oldMissingSourceTcl = $env:FFT_PACKAGE_MISSING_SOURCE_TCL
+$oldCompleteTcl = $env:FFT_PACKAGE_COMPLETE_TCL
+$sourceTreeBefore = @(Get-ChildItem -LiteralPath $libraryDir -Recurse -Force |
+    ForEach-Object { $_.FullName.Substring($libraryDir.Length) })
 try {
+    $missingSourceDir = Join-Path $work 'missing_source_fixture'
+    $completeDir = Join-Path $work 'complete_source_fixture'
+    New-Item -ItemType Directory -Path $missingSourceDir, $completeDir | Out-Null
+    $missingSourcePackage = Join-Path $missingSourceDir 'axi_ad9364_fft_capture_ip.tcl'
+    $completePackage = Join-Path $completeDir 'axi_ad9364_fft_capture_ip.tcl'
+    Copy-Item -LiteralPath $packageTcl -Destination $missingSourcePackage
+    Copy-Item -LiteralPath $packageTcl -Destination $completePackage
+    foreach ($sourceName in $expectedSources) {
+        New-Item -ItemType File -Path (Join-Path $completeDir $sourceName) | Out-Null
+        if ($sourceName -ne 'axi_ad9364_fft_capture.v') {
+            New-Item -ItemType File -Path (Join-Path $missingSourceDir $sourceName) | Out-Null
+        }
+    }
+
     $env:FPGA_PROFEN_ROOT = $root
+    $env:FFT_PACKAGE_MISSING_SOURCE_TCL = $missingSourcePackage
+    $env:FFT_PACKAGE_COMPLETE_TCL = $completePackage
     Push-Location $work
     try {
         $output = (& $Vivado -mode batch -nolog -nojournal -notrace -source $inspectTcl 2>&1 | Out-String)
@@ -78,10 +112,18 @@ try {
     }
 } finally {
     $env:FPGA_PROFEN_ROOT = $oldRoot
+    $env:FFT_PACKAGE_MISSING_SOURCE_TCL = $oldMissingSourceTcl
+    $env:FFT_PACKAGE_COMPLETE_TCL = $oldCompleteTcl
     $resolvedWork = (Resolve-Path -LiteralPath $work).Path
     $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
     if (-not $resolvedWork.StartsWith($tempRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Refusing to remove unexpected work directory '$resolvedWork'."
     }
     Remove-Item -LiteralPath $resolvedWork -Recurse -Force -ErrorAction SilentlyContinue
+    $sourceTreeAfter = @(Get-ChildItem -LiteralPath $libraryDir -Recurse -Force |
+        ForEach-Object { $_.FullName.Substring($libraryDir.Length) })
+    $sourceTreeDelta = @(Compare-Object $sourceTreeBefore $sourceTreeAfter)
+    if ($sourceTreeDelta.Count -ne 0) {
+        throw "FFT IP inspection modified the source library: $($sourceTreeDelta | Out-String)"
+    }
 }
