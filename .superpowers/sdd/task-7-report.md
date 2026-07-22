@@ -131,3 +131,33 @@ PASS: spectrum_pingpong infers block RAM
 SYNTH_BANK: RAMB36=8 RAMB18=0 LUT_AS_MEMORY=0
 Ran 22 tests in 0.649s -- OK
 ```
+
+## Residual review closure
+
+IRQ ownership now lives in the AXI-Lite register block and is derived from all
+remaining sticky causes.  Targeted RED failed because `o_irq` did not exist;
+the GREEN register test latches DONE and FFT_ERROR together, clears only DONE,
+proves IRQ and FFT_ERROR remain, then clears FFT_ERROR and proves IRQ drops.
+
+The actual-IP bench legally submits a START with a staged epoch that has not
+been adopted by SOFT_RESET.  It observes CDC_FAULT with no capture, replay, or
+bank publication, clears the fault, adopts the epoch, and completes subsequent
+frames.  A controlled one-cycle xFFT event and accepted TUSER overflow bit also
+prove atomic result payload bits FFT_ERROR[258] and OVERFLOW[259].  The injected
+result exercises the same partial-W1C IRQ sequence at the integrated top.
+
+The package output guard now rejects normalized paths equal to or below the RTL
+source directory.  Its RED fixture reached ADI helper loading through a nested
+path; the GREEN fixture fails immediately with the containment diagnostic.
+
+Fresh closure evidence:
+
+```text
+PASS: fft_regs
+PASS: Descendant output packaging path
+PASS: positive disposable FFT package inspection
+PASS: axi_ad9364_fft_capture single-shot (1087308 ns)
+capture,replay,magnitude,bank,cdc,regs: exit 0
+SYNTH_BANK: RAMB36=8 RAMB18=0 LUT_AS_MEMORY=0
+Ran 22 tests in 0.592s -- OK
+```

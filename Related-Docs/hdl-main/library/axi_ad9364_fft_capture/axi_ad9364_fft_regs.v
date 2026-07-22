@@ -57,7 +57,8 @@ module axi_ad9364_fft_regs (
   output reg  [1:0]          o_window_select,
   output reg  [2:0]          o_rf_state,
   output reg  [15:0]         o_reset_epoch,
-  output reg  [10:0]         o_status_clear
+  output reg  [10:0]         o_status_clear,
+  output wire                o_irq
 );
 
   localparam [7:0] ADDR_VERSION = 8'h00;
@@ -114,6 +115,7 @@ module axi_ad9364_fft_regs (
                          wstrb_hold[0] && wdata_hold[0] && !config_valid;
   assign visible_status = sticky_status |
                           {8'd0, i_cdc_ready, 1'b0, i_busy};
+  assign o_irq = |(sticky_status & 11'b11111111010);
 
   always @(posedge s_axi_aclk or negedge s_axi_aresetn) begin
     if (!s_axi_aresetn) begin

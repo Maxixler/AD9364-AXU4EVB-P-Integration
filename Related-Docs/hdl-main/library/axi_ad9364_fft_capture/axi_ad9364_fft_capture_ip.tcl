@@ -33,8 +33,11 @@ if {![info exists ::env(FFT_PACKAGE_OUTPUT_DIR)]} {
   error "FFT_PACKAGE_OUTPUT_DIR is required; package products must be written outside the RTL source directory."
 }
 set package_output_dir [file normalize $::env(FFT_PACKAGE_OUTPUT_DIR)]
-if {$package_output_dir eq $script_dir} {
-  error "FFT_PACKAGE_OUTPUT_DIR must not be the RTL source directory."
+set source_path_key [string tolower [string map {\\ /} $script_dir]]
+set output_path_key [string tolower [string map {\\ /} $package_output_dir]]
+if {$output_path_key eq $source_path_key ||
+    [string first "${source_path_key}/" "${output_path_key}/"] == 0} {
+  error "FFT_PACKAGE_OUTPUT_DIR must not be the RTL source directory or any descendant."
 }
 file mkdir $package_output_dir
 

@@ -58,6 +58,7 @@ module tb_fft_regs;
   logic [2:0] o_rf_state;
   logic [15:0] o_reset_epoch;
   logic [10:0] o_status_clear;
+  logic o_irq;
 
   integer start_count = 0;
   integer abort_count = 0;
@@ -96,7 +97,7 @@ module tb_fft_regs;
     .o_search_start(o_search_start), .o_search_stop(o_search_stop),
     .o_dc_guard(o_dc_guard), .o_window_select(o_window_select),
     .o_rf_state(o_rf_state), .o_reset_epoch(o_reset_epoch),
-    .o_status_clear(o_status_clear)
+    .o_status_clear(o_status_clear), .o_irq(o_irq)
   );
 
   task automatic require_true;
@@ -288,6 +289,20 @@ module tb_fft_regs;
     require_true(read_value[1],
                  "coincident DONE event did not win over STATUS W1C");
     axi_write(8'h08, 32'h0000_0002, 4'b0001, 0, 0);
+
+    // IRQ reflects every remaining sticky cause, not the most recent W1C.
+    @(negedge s_axi_aclk);
+    i_done = 1'b1; i_fft_error = 1'b1;
+    @(negedge s_axi_aclk);
+    i_done = 1'b0; i_fft_error = 1'b0;
+    require_true(o_irq, "IRQ missed simultaneous DONE and FFT_ERROR");
+    axi_write(8'h08, 32'h0000_0002, 4'b0001, 0, 0);
+    require_true(o_irq, "partial DONE W1C cleared pending FFT_ERROR IRQ");
+    axi_read(8'h08, 0, read_value);
+    require_true(!read_value[1] && read_value[6],
+                 "partial W1C did not preserve FFT_ERROR status");
+    axi_write(8'h08, 32'h0000_0040, 4'b0001, 0, 0);
+    require_true(!o_irq, "IRQ remained after final FFT_ERROR W1C");
 
     // Exact fixed result map.
     axi_read(8'h18, 0, read_value); require_true(read_value == 32'h1234_5678, "FRAME_ID map mismatch");

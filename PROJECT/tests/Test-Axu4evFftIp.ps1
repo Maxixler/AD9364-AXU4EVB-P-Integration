@@ -64,7 +64,8 @@ if ($packageSource.Contains('xilinx.com:interface:axis_rtl:1.0') -or
     throw 'Package Tcl must expose the AD9364 tap as discrete non-backpressured ports.'
 }
 
-foreach ($fixtureToken in @('FFT_PACKAGE_MISSING_SOURCE_TCL', 'FFT_PACKAGE_COMPLETE_TCL')) {
+foreach ($fixtureToken in @('FFT_PACKAGE_MISSING_SOURCE_TCL', 'FFT_PACKAGE_COMPLETE_TCL',
+        'FFT_PACKAGE_CONTAINMENT_TCL')) {
     if (-not $inspectSource.Contains($fixtureToken)) {
         throw "Inspection Tcl does not require isolated fixture '$fixtureToken'."
     }
@@ -80,19 +81,24 @@ New-Item -ItemType Directory -Path $work | Out-Null
 $oldRoot = $env:FPGA_PROFEN_ROOT
 $oldMissingSourceTcl = $env:FFT_PACKAGE_MISSING_SOURCE_TCL
 $oldCompleteTcl = $env:FFT_PACKAGE_COMPLETE_TCL
+$oldContainmentTcl = $env:FFT_PACKAGE_CONTAINMENT_TCL
 $oldPackageOutput = $env:FFT_PACKAGE_OUTPUT_DIR
 $sourceTreeBefore = @(Get-ChildItem -LiteralPath $libraryDir -Recurse -Force |
     ForEach-Object { $_.FullName.Substring($libraryDir.Length) })
 try {
     $missingSourceDir = Join-Path $work 'missing_source_fixture'
     $completeDir = Join-Path $work 'complete_source_fixture'
-    New-Item -ItemType Directory -Path $missingSourceDir, $completeDir | Out-Null
+    $containmentDir = Join-Path $work 'containment_source_fixture'
+    New-Item -ItemType Directory -Path $missingSourceDir, $completeDir, $containmentDir | Out-Null
     $missingSourcePackage = Join-Path $missingSourceDir 'axi_ad9364_fft_capture_ip.tcl'
     $completePackage = Join-Path $completeDir 'axi_ad9364_fft_capture_ip.tcl'
+    $containmentPackage = Join-Path $containmentDir 'axi_ad9364_fft_capture_ip.tcl'
     Copy-Item -LiteralPath $packageTcl -Destination $missingSourcePackage
     Copy-Item -LiteralPath $packageTcl -Destination $completePackage
+    Copy-Item -LiteralPath $packageTcl -Destination $containmentPackage
     foreach ($sourceName in $expectedSources) {
         New-Item -ItemType File -Path (Join-Path $completeDir $sourceName) | Out-Null
+        New-Item -ItemType File -Path (Join-Path $containmentDir $sourceName) | Out-Null
         if ($sourceName -ne 'axi_ad9364_fft_capture.v') {
             New-Item -ItemType File -Path (Join-Path $missingSourceDir $sourceName) | Out-Null
         }
@@ -101,6 +107,7 @@ try {
     $env:FPGA_PROFEN_ROOT = $root
     $env:FFT_PACKAGE_MISSING_SOURCE_TCL = $missingSourcePackage
     $env:FFT_PACKAGE_COMPLETE_TCL = $completePackage
+    $env:FFT_PACKAGE_CONTAINMENT_TCL = $containmentPackage
     $env:FFT_PACKAGE_OUTPUT_DIR = Join-Path $work 'positive_package'
     Push-Location $work
     try {
@@ -136,6 +143,7 @@ try {
     $env:FPGA_PROFEN_ROOT = $oldRoot
     $env:FFT_PACKAGE_MISSING_SOURCE_TCL = $oldMissingSourceTcl
     $env:FFT_PACKAGE_COMPLETE_TCL = $oldCompleteTcl
+    $env:FFT_PACKAGE_CONTAINMENT_TCL = $oldContainmentTcl
     $env:FFT_PACKAGE_OUTPUT_DIR = $oldPackageOutput
     $resolvedWork = (Resolve-Path -LiteralPath $work).Path
     $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())

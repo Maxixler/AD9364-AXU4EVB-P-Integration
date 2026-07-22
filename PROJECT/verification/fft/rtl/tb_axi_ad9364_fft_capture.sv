@@ -203,6 +203,8 @@ module tb_axi_ad9364_fft_capture;
     input expected_bank,
     input mode_continuous,
     input release_bank,
+    input inject_fft_error,
+    input inject_overflow,
     input [31:0] expected_frame_id);
     integer index;
     integer timeout_count;
@@ -235,6 +237,27 @@ module tb_axi_ad9364_fft_capture;
       if (!dut.capture_busy)
         fail("accepted START did not arm ADC capture");
       $display("TRACE: %s capture armed at %0t", case_name, $time);
+
+      fork
+        begin : inject_vendor_faults
+          if (inject_fft_error || inject_overflow) begin
+            wait (dut.pipeline_state == 3'd3);
+            if (inject_fft_error) begin
+              @(negedge adc_clk);
+              force dut.fft_event_tlast_unexpected = 1'b1;
+              @(negedge adc_clk);
+              release dut.fft_event_tlast_unexpected;
+            end
+            if (inject_overflow) begin
+              wait (dut.fft_valid && dut.fft_ready);
+              @(negedge adc_clk);
+              force dut.fft_user[0] = 1'b1;
+              @(negedge adc_clk);
+              release dut.fft_user[0];
+            end
+          end
+        end
+      join_none
 
       // A second start while the capture is active must be consumed and
       // rejected locally without replacing the active frame.
@@ -299,8 +322,13 @@ module tb_axi_ad9364_fft_capture;
       expect_reg(8'h34, input_words[0], "FIRST_SAMPLE");
       expect_reg(8'h38, expected_crc, "FRAME_CRC32");
       axi_read(8'h08, value);
-      if (!value[1] || !value[8] || value[7] || value[6] || value[5])
+      if (!value[1] || !value[8] ||
+          (value[7] != inject_overflow) ||
+          (value[6] != inject_fft_error) || value[5]) begin
+        $display("FAIL: status=%08x expect_fft_error=%0b expect_overflow=%0b",
+                 value, inject_fft_error, inject_overflow);
         fail("DONE/error/overflow status invariant failed");
+      end
       if (!irq)
         fail("sticky IRQ did not assert for completed/dropped result");
 
@@ -315,7 +343,17 @@ module tb_axi_ad9364_fft_capture;
       $display("TRACE: %s bank verified at %0t", case_name, $time);
 
       checked_cases = checked_cases + 1;
-      axi_write(8'h08, 32'h0000_07f2);
+      if (inject_fft_error || inject_overflow) begin
+        axi_write(8'h08, 32'h0000_0002);
+        axi_read(8'h08, value);
+        if (value[1] || !irq ||
+            (inject_fft_error && !value[6]) ||
+            (inject_overflow && !value[7]))
+          fail("partial DONE W1C lost a vendor fault IRQ cause");
+        axi_write(8'h08, 32'h0000_07f0);
+      end else begin
+        axi_write(8'h08, 32'h0000_07f2);
+      end
       axi_read(8'h08, value);
       if (value[8] || value[1] || irq)
         fail("W1C did not clear dropped/DONE status and sticky IRQ");
@@ -427,6 +465,44 @@ module tb_axi_ad9364_fft_capture;
     end
   endtask
 
+  task automatic reject_stale_epoch(input [15:0] stale_epoch);
+    integer timeout_count;
+    reg [31:0] value;
+    begin
+      axi_write(8'h14, {stale_epoch, 13'd0, 3'd6});
+      axi_write(8'h04, 32'h0000_0001);
+      timeout_count = 0;
+      value = 32'd0;
+      while (!value[3] && timeout_count < 1000) begin
+        repeat (4) @(posedge s_axi_aclk);
+        axi_read(8'h08, value);
+        timeout_count = timeout_count + 1;
+      end
+      if (!value[3] || !irq)
+        fail("stale command epoch did not report CDC_FAULT/IRQ");
+      axi_read(8'h40, value);
+      if (value[1:0] != 2'b00 || dut.capture_busy || dut.replay_busy ||
+          (dut.pipeline_state != 3'd0))
+        fail("stale command epoch started or published a frame");
+      axi_write(8'h08, 32'h0000_0008);
+      axi_read(8'h08, value);
+      if (value[3] || irq)
+        fail("CDC_FAULT W1C did not clear status/IRQ");
+
+      // Legally adopt the staged epoch and prove READY recovery.
+      axi_write(8'h04, 32'h0000_0004);
+      timeout_count = 0;
+      value = 32'h1;
+      while ((value[0] || !value[2]) && timeout_count < 2000) begin
+        repeat (4) @(posedge s_axi_aclk);
+        axi_read(8'h08, value);
+        timeout_count = timeout_count + 1;
+      end
+      if (value[0] || !value[2])
+        fail("epoch adoption soft reset did not recover READY");
+    end
+  endtask
+
   // This checks the actual Xilinx FFT output before magnitude calculation,
   // proving component-level zero-LSB equivalence as well as power equivalence.
   always @(posedge adc_clk) begin
@@ -468,28 +544,30 @@ module tb_axi_ad9364_fft_capture;
     recover_during_process(1'b0, 16'd0, 16'd0);
     run_case("zeros", "zeros.input.hex", "zeros.fft.hex", "zeros.power.hex",
              0, 2047, 0, 32'hD8F49994, 1, 33'd0, 0, 0, 3'd1,
-             16'd0, 1'b0, 1'b0, 1'b0, 1);
+             16'd0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1);
     reject_when_bank_owned(16'd0);
     run_case("impulse", "impulse.input.hex", "impulse.fft.hex", "impulse.power.hex",
              0, 2047, 4, 32'hF5EB8ADF, 5, 33'd64, 8, 0, 3'd2,
-             16'd0, 1'b0, 1'b0, 1'b1, 2);
+             16'd0, 1'b0, 1'b0, 1'b1, 1'b0, 1'b0, 2);
     recover_during_process(1'b1, 16'd0, 16'd1);
+    reject_stale_epoch(16'd2);
     run_case("tone_bin_137", "tone_bin_137.input.hex", "tone_bin_137.fft.hex",
              "tone_bin_137.power.hex", 0, 2047, 0, 32'hB4B6B2BD,
              137, 33'd4194304, 2048, 0, 3'd3,
-             16'd1, 1'b0, 1'b0, 1'b1, 3);
+             16'd2, 1'b0, 1'b0, 1'b1, 1'b1, 1'b1, 3);
     run_case("tone_bin_1901", "tone_bin_1901.input.hex", "tone_bin_1901.fft.hex",
              "tone_bin_1901.power.hex", 0, 2047, 0, 32'hABB86F03,
              1901, 33'd4194304, 2048, 0, 3'd4,
-             16'd1, 1'b0, 1'b0, 1'b1, 4);
+             16'd2, 1'b0, 1'b0, 1'b1, 1'b0, 1'b0, 4);
     run_case("two_tone_tie", "two_tone_tie.input.hex", "two_tone_tie.fft.hex",
              "two_tone_tie.power.hex", 0, 2047, 0, 32'h4DEA120B,
              300, 33'd1048576, 1024, 0, 3'd5,
-             16'd1, 1'b0, 1'b0, 1'b1, 5);
+             16'd2, 1'b0, 1'b0, 1'b1, 1'b0, 1'b0, 5);
     run_case("near_full_scale", "near_full_scale.input.hex",
              "near_full_scale.fft.hex", "near_full_scale.power.hex",
              0, 2047, 0, 32'h92652EAB, 137, 33'd268435456,
-             16384, 0, 3'd6, 16'd1, 1'b0, 1'b0, 1'b1, 6);
+             16384, 0, 3'd6, 16'd2, 1'b0, 1'b0, 1'b1,
+             1'b0, 1'b0, 6);
 
     if (checked_cases != 6)
       fail("not all manifest cases completed");

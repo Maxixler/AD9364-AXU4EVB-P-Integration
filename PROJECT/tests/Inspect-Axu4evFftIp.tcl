@@ -5,13 +5,14 @@ if {![info exists ::env(FPGA_PROFEN_ROOT)]} {
 set workspace_root [string map {\\ /} $::env(FPGA_PROFEN_ROOT)]
 set library_dir [file join $workspace_root Related-Docs hdl-main library axi_ad9364_fft_capture]
 set fft_config_tcl [file join $library_dir fft_v9_1_config.tcl]
-foreach required_variable {FFT_PACKAGE_MISSING_SOURCE_TCL FFT_PACKAGE_COMPLETE_TCL} {
+foreach required_variable {FFT_PACKAGE_MISSING_SOURCE_TCL FFT_PACKAGE_COMPLETE_TCL FFT_PACKAGE_CONTAINMENT_TCL} {
   if {![info exists ::env($required_variable)]} {
     error "$required_variable environment variable is required."
   }
 }
 set missing_source_package_tcl [string map {\\ /} $::env(FFT_PACKAGE_MISSING_SOURCE_TCL)]
 set complete_package_tcl [string map {\\ /} $::env(FFT_PACKAGE_COMPLETE_TCL)]
+set containment_package_tcl [string map {\\ /} $::env(FFT_PACKAGE_CONTAINMENT_TCL)]
 
 foreach required_file [list $fft_config_tcl $missing_source_package_tcl $complete_package_tcl] {
   if {![file isfile $required_file]} {
@@ -92,6 +93,12 @@ require_equal "AXIS SCALE_SCH field value" [dict get $axis_contract SCALE_SCH] "
 require_equal "AXIS SCALE_SCH slice" [format "0x%03X" [expr {($axis_tdata >> [dict get $axis_contract SCALE_SCH_LSB]) & $scale_mask}]] "0x6AB"
 require_equal "AXIS zero padding" [expr {$axis_tdata >> 13}] "0"
 require_equal "AXIS configuration timing" [dict get $::axi_ad9364_fft_capture_fft_axis_config_word SEND] "once_after_reset_before_first_frame"
+
+set saved_package_output $::env(FFT_PACKAGE_OUTPUT_DIR)
+set ::env(FFT_PACKAGE_OUTPUT_DIR) [file join [file dirname $containment_package_tcl] generated nested]
+require_package_failure "Descendant output packaging path" $containment_package_tcl \
+  "*must not be the RTL source directory or any descendant*"
+set ::env(FFT_PACKAGE_OUTPUT_DIR) $saved_package_output
 
 require_package_failure "Missing-source packaging path" $missing_source_package_tcl \
   "*Missing required RTL source*axi_ad9364_fft_capture.v*"

@@ -156,7 +156,7 @@ module axi_ad9364_fft_capture (
   reg done_cpu;
   reg cdc_fault_cpu, aborted_cpu, frame_error_cpu, fft_error_cpu;
   reg overflow_cpu, dropped_samples_cpu, bank_overrun_cpu;
-  reg irq_sticky;
+  wire status_irq;
 
   wire pipeline_busy_adc = (pipeline_state != PIPE_IDLE) || result_busy_adc;
   wire cdc_ready_cpu = command_ready && configured_sync2_cpu;
@@ -465,7 +465,6 @@ module axi_ad9364_fft_capture (
       overflow_cpu <= 1'b0;
       dropped_samples_cpu <= 1'b0;
       bank_overrun_cpu <= 1'b0;
-      irq_sticky <= 1'b0;
     end else begin
       done_cpu <= 1'b0;
       cdc_fault_cpu <= result_epoch_fault_cpu;
@@ -475,8 +474,6 @@ module axi_ad9364_fft_capture (
       overflow_cpu <= 1'b0;
       dropped_samples_cpu <= 1'b0;
       bank_overrun_cpu <= 1'b0;
-      if (|(reg_status_clear & 11'b01111111010))
-        irq_sticky <= 1'b0;
       if (reg_bank0_release)
         cpu_bank_valid[0] <= 1'b0;
       if (reg_bank1_release)
@@ -506,11 +503,7 @@ module axi_ad9364_fft_capture (
         done_cpu <= result_payload_cpu[263];
         if (result_payload_cpu[263])
           cpu_bank_valid[result_payload_cpu[32]] <= 1'b1;
-        if (|result_payload_cpu[263:256])
-          irq_sticky <= 1'b1;
       end
-      if (result_epoch_fault_cpu)
-        irq_sticky <= 1'b1;
     end
   end
 
@@ -543,8 +536,8 @@ module axi_ad9364_fft_capture (
     .o_search_start(reg_search_start), .o_search_stop(reg_search_stop),
     .o_dc_guard(reg_dc_guard), .o_window_select(reg_window_select),
     .o_rf_state(reg_rf_state), .o_reset_epoch(reg_reset_epoch),
-    .o_status_clear(reg_status_clear));
+    .o_status_clear(reg_status_clear), .o_irq(status_irq));
 
-  assign irq = irq_sticky;
+  assign irq = status_irq;
 
 endmodule
