@@ -51,8 +51,11 @@
 //#define TDD_SWITCH_STATE_EXAMPLE
 
 //#define WIFI_RF_TEST
+//#define PL_FFT_SINGLE_SHOT
+#if !defined(PL_FFT_SINGLE_SHOT)
 #if !defined(WIFI_RF_TEST) && !defined(MONOPULSE_FOUNDATION_TEST)
 #define MONOPULSE_FOUNDATION_TEST
+#endif
 #endif
 
 #if defined(WIFI_RF_TEST)
@@ -69,6 +72,11 @@
 #endif
 #if defined(WIFI_RF_TEST) && defined(DMA_EXAMPLE)
 #error "WIFI_RF_TEST and DMA_EXAMPLE cannot be enabled together"
+#endif
+#if defined(PL_FFT_SINGLE_SHOT) && \
+	(defined(MONOPULSE_FOUNDATION_TEST) || defined(WIFI_RF_TEST) || \
+	 defined(DMA_EXAMPLE))
+#error "PL_FFT_SINGLE_SHOT must be enabled by itself"
 #endif
 
 //#define IIO_SUPPORT

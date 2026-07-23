@@ -404,11 +404,11 @@ git commit -m "feat: integrate FFT shadow path into AXU4EV design"
 - Create: `PROJECT/tests/Test-Axu4evPlFftDriver.ps1`
 - Modify: `Vitis/workspace/ad9364app/src/adc9364_src/main.c`
 
-- [ ] **Step 1: Write host-side failing register-driver tests**
+- [x] **Step 1: Write host-side failing register-driver tests**
 
 Use a fake MMIO array to test configuration validation, start pulse, timeout, W1C error handling, bank-valid selection, 2048-word reads, metadata-before/after consistency, bank release, CRC comparison, and signed peak unpacking.
 
-- [ ] **Step 2: Implement a platform-independent MMIO core**
+- [x] **Step 2: Implement a platform-independent MMIO core**
 
 Use generated `XPAR_*` base macros only in the board adapter. Provide:
 
@@ -425,11 +425,11 @@ int pl_fft_capture_once(struct pl_fft_device *dev,
 
 Reject torn reads by reading `FRAME_ID` and `RESULT_TAG` before and after the bank copy and retrying only within a bounded timeout.
 
-- [ ] **Step 3: Add explicit application mode**
+- [x] **Step 3: Add explicit application mode**
 
 Preserve `MONOPULSE_FOUNDATION` behavior. Add compile-time `PL_FFT_SINGLE_SHOT` mode that captures one frame and prints one summary line plus optional full-bin UART dump. The default remains the already verified foundation mode until Candidate hardware is loaded.
 
-- [ ] **Step 4: Run source/host tests and commit**
+- [x] **Step 4: Run source/host tests and commit**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evPlFftDriver.ps1

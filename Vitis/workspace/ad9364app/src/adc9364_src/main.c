@@ -41,6 +41,7 @@
 #ifdef XILINX_PLATFORM
 #include <xparameters.h>
 #include <xil_cache.h>
+#include <xil_io.h>
 #include "xilinx_spi.h"
 #include "xilinx_gpio.h"
 #include "no_os_irq.h"
@@ -62,7 +63,87 @@
 #include "axi_dmac.h"
 #include "no_os_error.h"
 #include "monopulse_selftest.h"
+#include "pl_fft_control.h"
 #include "wifi_rf_test.h"
+
+#ifdef PL_FFT_SINGLE_SHOT
+#ifndef XPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR
+#error "Candidate XSA is missing the PL FFT control base address"
+#endif
+#ifndef XPAR_AXI_AD9364_FFT_BRAM0_S_AXI_BASEADDR
+#error "Candidate XSA is missing PL FFT bank 0"
+#endif
+#ifndef XPAR_AXI_AD9364_FFT_BRAM1_S_AXI_BASEADDR
+#error "Candidate XSA is missing PL FFT bank 1"
+#endif
+
+#define PL_FFT_CONTROL_BASE XPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR
+#define PL_FFT_BANK0_BASE XPAR_AXI_AD9364_FFT_BRAM0_S_AXI_BASEADDR
+#define PL_FFT_BANK1_BASE XPAR_AXI_AD9364_FFT_BRAM1_S_AXI_BASEADDR
+
+static uint64_t pl_fft_spectrum[PL_FFT_SPECTRUM_WORDS]
+	__attribute__((aligned(64)));
+
+static uint32_t pl_fft_board_read32(void *context, uintptr_t address)
+{
+	(void)context;
+	return Xil_In32(address);
+}
+
+static uint64_t pl_fft_board_read64(void *context, uintptr_t address)
+{
+	(void)context;
+	return Xil_In64(address);
+}
+
+static void pl_fft_board_write32(void *context, uintptr_t address,
+				 uint32_t value)
+{
+	(void)context;
+	Xil_Out32(address, value);
+}
+
+static int pl_fft_single_shot_run(void)
+{
+	struct pl_fft_device dev = {
+		.context = NULL,
+		.control_base = PL_FFT_CONTROL_BASE,
+		.bank_base = {PL_FFT_BANK0_BASE, PL_FFT_BANK1_BASE},
+		.read32 = pl_fft_board_read32,
+		.read64 = pl_fft_board_read64,
+		.write32 = pl_fft_board_write32,
+		.timeout_polls = 10000000u,
+		.max_snapshot_retries = 3u
+	};
+	struct pl_fft_result result;
+	uint32_t index;
+	int status;
+
+	status = pl_fft_init(&dev);
+	if (status != PL_FFT_OK) {
+		printf("PL_FFT: FAIL stage=INIT error=%d\n", status);
+		return status;
+	}
+	status = pl_fft_capture_once(&dev, 0u, 2047u, 0u, 0u,
+				     &result, pl_fft_spectrum);
+	if (status != PL_FFT_OK) {
+		printf("PL_FFT: FAIL stage=CAPTURE error=%d\n", status);
+		return status;
+	}
+	printf("PL_FFT: PASS frame=%"PRIu32" bank=%u peak_bin=%u crc=%08"PRIx32"\n",
+	       result.frame_id, result.active_bank, result.peak_bin,
+	       result.frame_crc32);
+#ifdef PL_FFT_UART_DUMP_BINS
+	for (index = 0u; index < PL_FFT_SPECTRUM_WORDS; index++) {
+		printf("BIN=%"PRIu32" WORD=%016"PRIx64"\n",
+		       index, pl_fft_spectrum[index]);
+	}
+#else
+	(void)index;
+#endif
+	return 0;
+}
+#endif
 
 #ifdef IIO_SUPPORT
 
@@ -628,6 +709,11 @@ int main(void)
 		printf("PLATFORM: FAIL stage=AD9364_INIT error=%"PRIi32"\n", status);
 		goto cleanup;
 	}
+
+#ifdef PL_FFT_SINGLE_SHOT
+	status = pl_fft_single_shot_run();
+	goto cleanup;
+#endif
 
 #ifdef MONOPULSE_FOUNDATION_TEST
 	status = monopulse_selftest_run(ad9361_phy);
