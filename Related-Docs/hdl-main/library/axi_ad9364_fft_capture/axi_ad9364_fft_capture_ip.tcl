@@ -11,8 +11,10 @@ set rtl_sources [list \
   [file join $script_dir fft_command_cdc.v] \
   [file join $script_dir fft_result_cdc.v] \
   [file join $script_dir axi_ad9364_fft_regs.v]]
+set constraint_sources [list \
+  [file join $script_dir axi_ad9364_fft_capture_constr.xdc]]
 
-foreach source_file $rtl_sources {
+foreach source_file [concat $rtl_sources $constraint_sources] {
   if {![file isfile $source_file]} {
     error "Missing required RTL source '$source_file'. Run the matching implementation task before packaging axi_ad9364_fft_capture."
   }
@@ -50,7 +52,8 @@ source [file join $ad_hdl_dir library scripts adi_ip_xilinx.tcl]
 
 cd $package_output_dir
 adi_ip_create axi_ad9364_fft_capture
-adi_ip_files axi_ad9364_fft_capture [concat $rtl_sources [list $fft_xci]]
+adi_ip_files axi_ad9364_fft_capture \
+  [concat $rtl_sources $constraint_sources [list $fft_xci]]
 adi_ip_properties_lite axi_ad9364_fft_capture
 
 set core [ipx::current_core]
@@ -87,6 +90,15 @@ set spectrum_bank0 [ipx::add_bus_interface spectrum_bank0 $core]
 set_property abstraction_type_vlnv xilinx.com:interface:bram_rtl:1.0 $spectrum_bank0
 set_property bus_type_vlnv xilinx.com:interface:bram:1.0 $spectrum_bank0
 set_property interface_mode slave $spectrum_bank0
+# The AXI BRAM controller drives MEM_WIDTH into its BRAM_PORTA interface.
+# Make the slave value dependent on the HDL model parameter, which gives the
+# BD cell a CONFIG property it can accept during parameter propagation.
+set spectrum_bank0_mem_width [ipx::add_bus_parameter MEM_WIDTH $spectrum_bank0]
+set_property -dict [list \
+  value_resolve_type dependent \
+  value_dependency {spirit:decode(id('MODELPARAM_VALUE.SPECTRUM_BANK_DATA_WIDTH'))} \
+  value_format long value 64] \
+  $spectrum_bank0_mem_width
 foreach mapping {{EN bank0_bram_en} {ADDR bank0_bram_addr} {DOUT bank0_bram_rddata}} {
   map_ip_port $spectrum_bank0 [lindex $mapping 0] [lindex $mapping 1]
 }
@@ -95,6 +107,14 @@ set spectrum_bank1 [ipx::add_bus_interface spectrum_bank1 $core]
 set_property abstraction_type_vlnv xilinx.com:interface:bram_rtl:1.0 $spectrum_bank1
 set_property bus_type_vlnv xilinx.com:interface:bram:1.0 $spectrum_bank1
 set_property interface_mode slave $spectrum_bank1
+# Keep the second independent spectrum bank dependent on the same accepted
+# model parameter.
+set spectrum_bank1_mem_width [ipx::add_bus_parameter MEM_WIDTH $spectrum_bank1]
+set_property -dict [list \
+  value_resolve_type dependent \
+  value_dependency {spirit:decode(id('MODELPARAM_VALUE.SPECTRUM_BANK_DATA_WIDTH'))} \
+  value_format long value 64] \
+  $spectrum_bank1_mem_width
 foreach mapping {{EN bank1_bram_en} {ADDR bank1_bram_addr} {DOUT bank1_bram_rddata}} {
   map_ip_port $spectrum_bank1 [lindex $mapping 0] [lindex $mapping 1]
 }

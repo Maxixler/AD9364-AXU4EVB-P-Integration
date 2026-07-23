@@ -30,10 +30,10 @@ module tb_axi_ad9364_fft_capture;
   reg s_axi_rready = 1'b0;
 
   reg bank0_bram_en = 1'b0;
-  reg [10:0] bank0_bram_addr = 11'd0;
+  reg [13:0] bank0_bram_addr = 14'd0;
   wire [63:0] bank0_bram_rddata;
   reg bank1_bram_en = 1'b0;
-  reg [10:0] bank1_bram_addr = 11'd0;
+  reg [13:0] bank1_bram_addr = 14'd0;
   wire [63:0] bank1_bram_rddata;
   wire irq;
 
@@ -166,15 +166,17 @@ module tb_axi_ad9364_fft_capture;
     end
   endtask
 
+  // AXI BRAM Controller addresses are byte addresses; the 2048x64 spectrum
+  // memories therefore use bits [13:3] as their 11-bit word index.
   task automatic read_bank(input bank_select, input [10:0] address,
                            output [63:0] data);
     begin
       @(negedge s_axi_aclk);
       if (bank_select) begin
-        bank1_bram_addr = address;
+        bank1_bram_addr = {address, 3'b000};
         bank1_bram_en = 1'b1;
       end else begin
-        bank0_bram_addr = address;
+        bank0_bram_addr = {address, 3'b000};
         bank0_bram_en = 1'b1;
       end
       @(posedge s_axi_aclk);

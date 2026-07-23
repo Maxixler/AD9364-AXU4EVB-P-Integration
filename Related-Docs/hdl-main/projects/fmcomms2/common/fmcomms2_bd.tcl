@@ -132,6 +132,52 @@ for {set i 0} {$i < 4} {incr i} {
   ad_connect util_ad9361_adc_fifo/dout_data_$i util_ad9361_adc_pack/fifo_wr_data_$i
 }
 
+# AXU4EV Candidate-only, passive I0/Q0 FFT shadow path. No output from this
+# path reaches the ADI FIFO, channel packer, or DMAC.
+if {[info exists ::AXU4EV_FFT_SHADOW_PATH] && $::AXU4EV_FFT_SHADOW_PATH} {
+  ad_ip_instance axi_ad9364_fft_capture axi_ad9364_fft_capture
+
+  foreach bank {0 1} {
+    ad_ip_instance axi_bram_ctrl axi_ad9364_fft_bram$bank
+    # Vivado 2020.1 constrains AXI4-Lite BRAM controllers to 32-bit native
+    # ports. AXI4 is required for the 64-bit spectrum words.
+    ad_ip_parameter axi_ad9364_fft_bram$bank CONFIG.PROTOCOL AXI4
+    ad_ip_parameter axi_ad9364_fft_bram$bank CONFIG.DATA_WIDTH 64
+    ad_ip_parameter axi_ad9364_fft_bram$bank CONFIG.SINGLE_PORT_BRAM 1
+    ad_ip_parameter axi_ad9364_fft_bram$bank CONFIG.ECC_TYPE 0
+    set_property CONFIG.MASTER_TYPE BRAM_CTRL \
+      [get_bd_intf_pins axi_ad9364_fft_capture/spectrum_bank$bank]
+    # Match the controller's pre-address-assignment default while connecting.
+    # The explicit 16 KiB PS segment below then drives the controller depth.
+    set_property CONFIG.MEM_SIZE 4096 \
+      [get_bd_intf_pins axi_ad9364_fft_capture/spectrum_bank$bank]
+    # AXI BRAM Controller 4.1 requires READ_WRITE metadata on its native
+    # master. The custom slave intentionally exposes no DIN/WE maps, so PS
+    # writes cannot alter the spectrum RAM even though the interface contract
+    # uses the controller-required value.
+    set_property CONFIG.READ_WRITE_MODE READ_WRITE \
+      [get_bd_intf_pins axi_ad9364_fft_capture/spectrum_bank$bank]
+    ad_connect axi_ad9364_fft_bram$bank/BRAM_PORTA \
+      axi_ad9364_fft_capture/spectrum_bank$bank
+    ad_connect $sys_cpu_clk axi_ad9364_fft_bram$bank/s_axi_aclk
+    ad_connect $sys_cpu_resetn axi_ad9364_fft_bram$bank/s_axi_aresetn
+  }
+
+  ad_ip_instance xlconstant axi_ad9364_fft_rf_state_zero
+  ad_ip_parameter axi_ad9364_fft_rf_state_zero CONFIG.CONST_WIDTH 3
+  ad_ip_parameter axi_ad9364_fft_rf_state_zero CONFIG.CONST_VAL 0
+
+  ad_connect $sys_cpu_clk axi_ad9364_fft_capture/s_axi_aclk
+  ad_connect $sys_cpu_resetn axi_ad9364_fft_capture/s_axi_aresetn
+  ad_connect util_ad9361_adc_fifo/dout_clk axi_ad9364_fft_capture/adc_clk
+  ad_connect util_ad9361_adc_fifo/dout_rstn axi_ad9364_fft_capture/adc_resetn
+  ad_connect util_ad9361_adc_fifo/dout_valid_0 axi_ad9364_fft_capture/adc_valid
+  ad_connect util_ad9361_adc_fifo/dout_enable_0 axi_ad9364_fft_capture/adc_enable
+  ad_connect util_ad9361_adc_fifo/dout_data_0 axi_ad9364_fft_capture/adc_i
+  ad_connect util_ad9361_adc_fifo/dout_data_1 axi_ad9364_fft_capture/adc_q
+  ad_connect axi_ad9364_fft_rf_state_zero/dout axi_ad9364_fft_capture/rf_state
+}
+
 # adc-path dma
 
 ad_ip_instance axi_dmac axi_ad9361_adc_dma
@@ -222,6 +268,27 @@ ad_cpu_interconnect 0x79020000 axi_ad9361
 ad_cpu_interconnect 0x7C400000 axi_ad9361_adc_dma
 ad_cpu_interconnect 0x7C420000 axi_ad9361_dac_dma
 
+if {[info exists ::AXU4EV_FFT_SHADOW_PATH] && $::AXU4EV_FFT_SHADOW_PATH} {
+  # Stable Task 9 map after the ZynqMP aperture remap:
+  # control=0x9C440000, bank0=0x9D000000, bank1=0x9D010000.
+  ad_cpu_interconnect 0x7C440000 axi_ad9364_fft_capture s_axi
+  ad_cpu_interconnect 0x7D000000 axi_ad9364_fft_bram0 S_AXI
+  ad_cpu_interconnect 0x7D010000 axi_ad9364_fft_bram1 S_AXI
+  foreach {bank offset} {0 0x9D000000 1 0x9D010000} {
+    set segment_name SEG_data_axi_ad9364_fft_bram${bank}_S_AXI
+    delete_bd_objs [get_bd_addr_segs sys_ps8/Data/$segment_name]
+    create_bd_addr_seg -range 0x00004000 -offset $offset \
+      [get_bd_addr_spaces sys_ps8/Data] \
+      [get_bd_addr_segs axi_ad9364_fft_bram$bank/S_AXI/Mem0] \
+      $segment_name
+    # The 2048 x 64-bit spectrum bank occupies 16 KiB. Set the custom BRAM
+    # slave to that final contract explicitly; Vivado propagates the Address
+    # Editor range into the AXI BRAM Controller during design validation.
+    set_property CONFIG.MEM_SIZE 16384 \
+      [get_bd_intf_pins axi_ad9364_fft_capture/spectrum_bank$bank]
+  }
+}
+
 if {$CACHE_COHERENCY} {
   ad_mem_hpc0_interconnect $sys_cpu_clk sys_ps8/S_AXI_HPC0
   ad_mem_hpc0_interconnect $sys_cpu_clk axi_ad9361_adc_dma/m_dest_axi
@@ -242,3 +309,7 @@ if {$CACHE_COHERENCY} {
 
 ad_cpu_interrupt ps-13 mb-12 axi_ad9361_adc_dma/irq
 ad_cpu_interrupt ps-12 mb-13 axi_ad9361_dac_dma/irq
+
+if {[info exists ::AXU4EV_FFT_SHADOW_PATH] && $::AXU4EV_FFT_SHADOW_PATH} {
+  ad_cpu_interrupt ps-11 mb-11 axi_ad9364_fft_capture/irq
+}

@@ -26,7 +26,8 @@ $expectedSources = @(
     'spectrum_pingpong.v',
     'fft_command_cdc.v',
     'fft_result_cdc.v',
-    'axi_ad9364_fft_regs.v'
+    'axi_ad9364_fft_regs.v',
+    'axi_ad9364_fft_capture_constr.xdc'
 )
 foreach ($sourceName in $expectedSources) {
     if (-not $packageSource.Contains($sourceName)) {

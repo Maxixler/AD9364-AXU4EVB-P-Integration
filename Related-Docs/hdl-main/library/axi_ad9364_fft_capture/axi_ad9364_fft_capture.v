@@ -1,6 +1,10 @@
 `timescale 1ns/1ps
 
-module axi_ad9364_fft_capture (
+module axi_ad9364_fft_capture #(
+  // This model parameter is the IP-XACT source for both BRAM-port
+  // MEM_WIDTH bus parameters. The AXU4EV integration fixes it at 64 bits.
+  parameter integer SPECTRUM_BANK_DATA_WIDTH = 64
+) (
   input  wire        s_axi_aclk,
   input  wire        s_axi_aresetn,
   input  wire [7:0]  s_axi_awaddr,
@@ -32,11 +36,15 @@ module axi_ad9364_fft_capture (
   input  wire [2:0]  rf_state,
 
   input  wire        bank0_bram_en,
-  input  wire [10:0] bank0_bram_addr,
-  output wire [63:0] bank0_bram_rddata,
+  // AXI BRAM Controller addresses are byte addresses. The 2K x 64-bit
+  // spectrum banks consume 16 KiB, so bits [13:3] select the stored word.
+  // AXI4 controller transactions for this read-only aperture are 64-bit
+  // aligned; low address bits are intentionally not used by the RAM index.
+  input  wire [13:0] bank0_bram_addr,
+  output wire [SPECTRUM_BANK_DATA_WIDTH-1:0] bank0_bram_rddata,
   input  wire        bank1_bram_en,
-  input  wire [10:0] bank1_bram_addr,
-  output wire [63:0] bank1_bram_rddata,
+  input  wire [13:0] bank1_bram_addr,
+  output wire [SPECTRUM_BANK_DATA_WIDTH-1:0] bank1_bram_rddata,
   output wire        irq
 );
 
@@ -124,6 +132,8 @@ module axi_ad9364_fft_capture (
   wire signed [15:0] bank0_peak_re, bank1_peak_re;
   wire signed [15:0] bank0_peak_im, bank1_peak_im;
   wire [63:0] legacy_bank_data;
+  wire [10:0] bank0_bram_word_addr = bank0_bram_addr[13:3];
+  wire [10:0] bank1_bram_word_addr = bank1_bram_addr[13:3];
 
   reg [2:0] pipeline_state;
   reg [10:0] active_search_start, active_search_stop, active_dc_guard;
@@ -258,10 +268,10 @@ module axi_ad9364_fft_capture (
     .cpu_bank_select(1'b0), .cpu_read_enable(1'b0),
     .cpu_read_address(11'd0), .cpu_read_data(legacy_bank_data),
     .cpu_bank0_read_enable(bank0_bram_en),
-    .cpu_bank0_read_address(bank0_bram_addr),
+    .cpu_bank0_read_address(bank0_bram_word_addr),
     .cpu_bank0_read_data(bank0_bram_rddata),
     .cpu_bank1_read_enable(bank1_bram_en),
-    .cpu_bank1_read_address(bank1_bram_addr),
+    .cpu_bank1_read_address(bank1_bram_word_addr),
     .cpu_bank1_read_data(bank1_bram_rddata));
 
   always @(posedge adc_clk or negedge adc_resetn) begin

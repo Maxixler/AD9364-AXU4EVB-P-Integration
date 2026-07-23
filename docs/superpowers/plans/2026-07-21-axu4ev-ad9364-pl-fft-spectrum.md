@@ -361,15 +361,15 @@ Expected: all six vector cases match with zero LSB difference and print `PASS: a
 - Create: `PROJECT/tests/Test-Axu4evFftBlockDesign.ps1`
 - Modify: `PROJECT/tests/Build-Axu4evAd9364Bitstream.tcl`
 
-- [ ] **Step 1: Write a failing structural gate**
+- [x] **Step 1: Write a failing structural gate**
 
 Require one FFT capture instance, two AXI BRAM Controllers, control and bank address segments, CPU reset/clock connections, ADC clock/reset connections, and only I0/Q0 tap nets. Snapshot all existing `util_ad9361_adc_fifo -> util_ad9361_adc_pack` and pack-to-DMAC connections and assert they are unchanged.
 
-- [ ] **Step 2: Add the RTL/IP instances without editing generated BD files**
+- [x] **Step 2: Add the RTL/IP instances without editing generated BD files**
 
 Source only checked-in Tcl. Connect the tap to `util_ad9361_adc_fifo/dout_valid_0`, `/dout_enable_0`, `/dout_data_0`, and `/dout_data_1`; validate in the generated BD that these are I0 and Q0 before accepting the build. Connect CPU AXI through the existing interconnect and let `assign_bd_address` allocate segments.
 
-- [ ] **Step 3: Generate a clean Candidate design**
+- [x] **Step 3: Generate a clean Candidate design**
 
 Run:
 
@@ -379,7 +379,7 @@ powershell -ExecutionPolicy Bypass -File PROJECT/tests/Test-Axu4evFftBlockDesign
 
 Expected: `PASS: FFT shadow path is present and the Golden DMA topology is unchanged`.
 
-- [ ] **Step 4: Build Candidate bitstream and inspect closure**
+- [x] **Step 4: Build Candidate bitstream and inspect closure**
 
 ```powershell
 C:\Xilinx\Vivado\2020.1\bin\vivado.bat -mode batch -source PROJECT/tests/Build-Axu4evAd9364Bitstream.tcl -tclargs candidate_fft
@@ -387,7 +387,7 @@ C:\Xilinx\Vivado\2020.1\bin\vivado.bat -mode batch -source PROJECT/tests/Build-A
 
 Require zero critical warnings attributable to the new CDC or BRAM interfaces, zero DRC errors, non-negative worst setup/hold slack, and a utilization report recording FFT DSP/BRAM/LUT/FF use. Do not overwrite the Golden bitstream/XSA.
 
-- [ ] **Step 5: Commit Task 8**
+- [x] **Step 5: Commit Task 8**
 
 ```powershell
 git add Related-Docs/hdl-main/projects/fmcomms2 PROJECT/tests
