@@ -19,15 +19,17 @@ RED was observed before either production source existed:
 Missing PL FFT driver source: .../pl_fft_control.c
 ```
 
-The fake-MMIO host test then exposed and closed one implementation defect:
-pre-existing sticky FFT errors were initially cleared before capture instead
-of being returned as a typed hardware error.
+The fake-MMIO host tests exposed and closed two related implementation defects:
+sticky FFT errors were first cleared before capture, and a later review showed
+that an error already present when `pl_fft_init()` ran was also silently
+discarded. Initialization and capture now both W1C-clear the reported bits and
+return `PL_FFT_ERR_HARDWARE`.
 
 Final host coverage includes:
 
 - configuration validation without a start pulse;
 - bounded completion timeout followed by abort;
-- W1C hardware-error handling;
+- W1C hardware-error handling during both initialization and capture;
 - active-bank/valid-bank agreement;
 - complete 2048-word 64-bit bank reads;
 - frame/result-tag before/after consistency and bounded retry;

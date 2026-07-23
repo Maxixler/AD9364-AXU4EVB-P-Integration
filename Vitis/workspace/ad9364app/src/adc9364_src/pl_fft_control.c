@@ -29,7 +29,6 @@
 #define STATUS_DONE            (1u << 1)
 #define STATUS_CDC_READY       (1u << 2)
 #define STATUS_ERROR_MASK      (0x7f8u)
-#define STATUS_CLEARABLE_MASK  (STATUS_DONE | STATUS_ERROR_MASK)
 
 static uint32_t reg_read(const struct pl_fft_device *dev, uint32_t offset)
 {
@@ -88,8 +87,12 @@ int pl_fft_init(struct pl_fft_device *dev)
 		return PL_FFT_ERR_NOT_READY;
 	if ((status & STATUS_BUSY) != 0u)
 		return PL_FFT_ERR_NOT_READY;
+	if ((status & STATUS_ERROR_MASK) != 0u) {
+		reg_write(dev, REG_STATUS, status & STATUS_ERROR_MASK);
+		return PL_FFT_ERR_HARDWARE;
+	}
 
-	reg_write(dev, REG_STATUS, status & STATUS_CLEARABLE_MASK);
+	reg_write(dev, REG_STATUS, status & STATUS_DONE);
 	return PL_FFT_OK;
 }
 

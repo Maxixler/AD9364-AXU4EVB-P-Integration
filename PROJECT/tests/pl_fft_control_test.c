@@ -278,6 +278,21 @@ static void test_hardware_error_is_cleared_w1c(void)
 	CHECK(fake.write_value[fake.write_count - 1u] == STATUS_FFT_ERROR);
 }
 
+static void test_preexisting_hardware_error_is_reported_by_init(void)
+{
+	struct fake_mmio fake;
+	struct pl_fft_device dev;
+
+	fake_init(&fake, 0u);
+	fake.regs[REG_STATUS / 4u] |= STATUS_FFT_ERROR;
+	dev = make_device(&fake);
+	CHECK(pl_fft_init(&dev) == PL_FFT_ERR_HARDWARE);
+	CHECK((fake.regs[REG_STATUS / 4u] & STATUS_FFT_ERROR) == 0u);
+	CHECK(fake.write_address[fake.write_count - 1u] ==
+	      CONTROL_BASE + REG_STATUS);
+	CHECK(fake.write_value[fake.write_count - 1u] == STATUS_FFT_ERROR);
+}
+
 static void test_missing_valid_bank_is_rejected(void)
 {
 	struct fake_mmio fake;
@@ -301,6 +316,7 @@ int main(void)
 	test_torn_snapshot_is_retried();
 	test_timeout_aborts();
 	test_hardware_error_is_cleared_w1c();
+	test_preexisting_hardware_error_is_reported_by_init();
 	test_missing_valid_bank_is_rejected();
 
 	if (failures != 0) {
