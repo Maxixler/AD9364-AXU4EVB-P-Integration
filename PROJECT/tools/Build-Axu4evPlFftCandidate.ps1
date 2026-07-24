@@ -211,7 +211,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw 'Cannot inspect the Candidate source tree state.'
     }
-    $candidateRelative = $CandidateRoot.Substring($WorkspaceRoot.Length).
+    $candidateRelative = $candidateBase.Substring($WorkspaceRoot.Length).
         TrimStart('\').
         Replace('\', '/')
     $unexpectedTrackedChanges = @($trackedChanges | Where-Object {
