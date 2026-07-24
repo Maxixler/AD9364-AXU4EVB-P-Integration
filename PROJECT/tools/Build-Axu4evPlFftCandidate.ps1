@@ -35,6 +35,58 @@ $candidateBase = Join-Path $WorkspaceRoot 'PROJECT\candidates\axu4ev-ad9364'
 $releaseModule = Join-Path $WorkspaceRoot 'PROJECT\tools\Axu4evRelease.psm1'
 $buildTcl = Join-Path $WorkspaceRoot 'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
 $xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'
+
+function Assert-NoReparsePointForWrite {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+
+        [Parameter(Mandatory)]
+        [string]$Boundary
+    )
+
+    $fullPath = [IO.Path]::GetFullPath($Path).TrimEnd('\')
+    $boundaryPath = [IO.Path]::GetFullPath($Boundary).TrimEnd('\')
+    $boundaryPrefix = $boundaryPath + '\'
+    if (-not $fullPath.Equals($boundaryPath, [StringComparison]::OrdinalIgnoreCase) -and
+        -not $fullPath.StartsWith($boundaryPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Write path is outside its approved boundary '$boundaryPath': $fullPath"
+    }
+    if (-not (Test-Path -LiteralPath $boundaryPath -PathType Container)) {
+        throw "Approved write boundary does not exist: $boundaryPath"
+    }
+
+    $existingPath = $fullPath
+    while (-not (Test-Path -LiteralPath $existingPath)) {
+        $parent = Split-Path $existingPath -Parent
+        if ([string]::IsNullOrWhiteSpace($parent) -or $parent -eq $existingPath) {
+            throw "Cannot find an existing approved ancestor for write path: $fullPath"
+        }
+        $existingPath = $parent
+    }
+
+    $current = Get-Item -LiteralPath $existingPath
+    while ($true) {
+        if (($current.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Write path contains a reparse point: $($current.FullName)"
+        }
+        if ($current.FullName.TrimEnd('\').Equals(
+                $boundaryPath,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            break
+        }
+        if (-not $current.FullName.StartsWith(
+                $boundaryPrefix,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Write path escaped its approved boundary: $($current.FullName)"
+        }
+        $current = $current.Parent
+        if (-not $current) {
+            throw "Write path has no approved-boundary ancestor: $fullPath"
+        }
+    }
+}
+
 foreach ($required in @($SourceXsa, $releaseModule, $buildTcl, $xsct)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "Missing Candidate build dependency: $required"
@@ -46,7 +98,7 @@ $candidatePrefix = [IO.Path]::GetFullPath($candidateBase).TrimEnd('\') + '\'
 if ($CandidateRoot.StartsWith($goldenPrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw "CandidateRoot cannot be inside the Golden release tree: $CandidateRoot"
 }
-if (-not $CandidateRoot.StartsWith($candidatePrefix, [StringComparison]::OrdinalIgnoreCase) -and -not $DryRun) {
+if (-not $CandidateRoot.StartsWith($candidatePrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw "CandidateRoot must be inside the project Candidate tree: $CandidateRoot"
 }
 $allowedWorkspacePrefix = $AllowedVitisWorkspaceRoot.TrimEnd('\') + '\'
@@ -73,6 +125,8 @@ foreach ($protectedPath in @($WorkspaceRoot, $CandidateRoot, $goldenBase, (Split
 if ($VitisWorkspace.Equals($AllowedVitisWorkspaceRoot, [StringComparison]::OrdinalIgnoreCase)) {
     throw "Unsafe Candidate Vitis workspace path: $VitisWorkspace"
 }
+Assert-NoReparsePointForWrite -Path $CandidateRoot -Boundary $candidateBase
+Assert-NoReparsePointForWrite -Path $VitisWorkspace -Boundary $AllowedVitisWorkspaceRoot
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::OpenRead($SourceXsa)
@@ -131,6 +185,15 @@ try {
     }
     if ($trackedChanges.Count -ne 0) {
         throw "Candidate builds require a clean tracked source tree.`r`n$($trackedChanges -join "`r`n")"
+    }
+    $untrackedInputs = @(
+        & git -C $WorkspaceRoot ls-files --others --exclude-standard -- 'Vitis/workspace/ad9364app/src'
+    )
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Cannot inspect untracked Candidate application inputs.'
+    }
+    if ($untrackedInputs.Count -ne 0) {
+        throw "Candidate builds reject untracked application source inputs.`r`n$($untrackedInputs -join "`r`n")"
     }
     $sourceCommit = (& git -C $WorkspaceRoot rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0) {

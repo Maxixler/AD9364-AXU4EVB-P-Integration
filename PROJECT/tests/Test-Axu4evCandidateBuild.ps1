@@ -22,11 +22,20 @@ $builderContent = Get-Content -LiteralPath $builder -Raw
 if (-not $builderContent.Contains('git -C $WorkspaceRoot status --porcelain --untracked-files=no')) {
     throw 'Candidate build does not reject dirty tracked source trees before recording provenance.'
 }
+if (-not $builderContent.Contains(
+        "git -C `$WorkspaceRoot ls-files --others --exclude-standard -- 'Vitis/workspace/ad9364app/src'")) {
+    throw 'Candidate build does not reject untracked application sources before recording provenance.'
+}
+if (-not $builderContent.Contains('Assert-NoReparsePointForWrite')) {
+    throw 'Candidate build does not guard output paths against junction/reparse redirection.'
+}
 
-$candidateRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-candidate-bundle-$([guid]::NewGuid())"
+$candidateBase = Join-Path $workspaceRoot 'PROJECT\candidates\axu4ev-ad9364'
+$candidateRoot = Join-Path $candidateBase "test-build-$([guid]::NewGuid())"
 $allowedWorkspaceRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-candidate-vitis-root-$([guid]::NewGuid())"
 $candidateWorkspace = Join-Path $allowedWorkspaceRoot 'workspace'
 try {
+    New-Item -ItemType Directory -Path $allowedWorkspaceRoot -Force | Out-Null
     $dryRunLines = @(
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
             -WorkspaceRoot $workspaceRoot `
@@ -100,12 +109,17 @@ try {
     }
 }
 finally {
-    foreach ($path in @($candidateRoot, $candidateWorkspace, $allowedWorkspaceRoot)) {
+    foreach ($path in @($candidateWorkspace, $allowedWorkspaceRoot)) {
         $fullPath = [IO.Path]::GetFullPath($path)
         $tempPath = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
         if ($fullPath.StartsWith($tempPath, [StringComparison]::OrdinalIgnoreCase)) {
             Remove-Item -LiteralPath $fullPath -Recurse -Force -ErrorAction SilentlyContinue
         }
+    }
+    $candidatePath = [IO.Path]::GetFullPath($candidateRoot)
+    $candidatePrefix = [IO.Path]::GetFullPath($candidateBase).TrimEnd('\') + '\'
+    if ($candidatePath.StartsWith($candidatePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $candidatePath -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
