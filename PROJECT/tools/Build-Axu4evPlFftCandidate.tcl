@@ -36,7 +36,8 @@ platform create \
     -hw $xsa_path \
     -proc psu_cortexa53_0 \
     -os standalone \
-    -arch 64-bit
+    -arch 64-bit \
+    -no-boot-bsp
 bsp setlib -name xilffs
 platform generate
 

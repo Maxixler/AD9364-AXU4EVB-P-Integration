@@ -109,7 +109,14 @@ $referenceXsa = @(
 if ($referenceXsa.Count -ne 1) {
     throw 'The current Golden release must contain exactly one XSA artifact.'
 }
-Assert-Axu4evPsHardwareContract -Xsa $SourceXsa -ReferenceXsa $referenceXsa[0]
+$referencePmufw = @(
+    $referenceArtifacts |
+        Where-Object Name -eq 'pmufw' |
+        ForEach-Object Path
+)
+if ($referencePmufw.Count -ne 1) {
+    throw 'The current Golden release must contain exactly one PMUFW artifact.'
+}
 
 $goldenPrefix = [IO.Path]::GetFullPath($goldenBase).TrimEnd('\') + '\'
 $candidatePrefix = [IO.Path]::GetFullPath($candidateBase).TrimEnd('\') + '\'
@@ -181,6 +188,9 @@ try {
             throw "Candidate XSA is missing the locked PL FFT hardware mapping '$($entry.Key)'."
         }
     }
+    Assert-Axu4evPsHardwareContract `
+        -Xsa $SourceXsa `
+        -ReferenceXsa $referenceXsa[0]
 
     $description = [ordered]@{
         source_xsa = $SourceXsa
@@ -201,8 +211,17 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw 'Cannot inspect the Candidate source tree state.'
     }
-    if ($trackedChanges.Count -ne 0) {
-        throw "Candidate builds require a clean tracked source tree.`r`n$($trackedChanges -join "`r`n")"
+    $candidateRelative = $CandidateRoot.Substring($WorkspaceRoot.Length).
+        TrimStart('\').
+        Replace('\', '/')
+    $unexpectedTrackedChanges = @($trackedChanges | Where-Object {
+        $path = if ($_.Length -gt 3) { $_.Substring(3).Replace('\', '/') } else { '' }
+        -not $path.StartsWith(
+            "$candidateRelative/",
+            [StringComparison]::OrdinalIgnoreCase)
+    })
+    if ($unexpectedTrackedChanges.Count -ne 0) {
+        throw "Candidate builds require clean tracked source inputs.`r`n$($unexpectedTrackedChanges -join "`r`n")"
     }
     $untrackedInputs = @(
         & git -C $WorkspaceRoot ls-files --others --exclude-standard -- 'Vitis/workspace/ad9364app/src'
@@ -247,7 +266,7 @@ $platformName = 'fmcomms2_axu4ev_fft_hw'
 $generated = [ordered]@{
     application = Join-Path $VitisWorkspace 'ad9364app\Release\ad9364app.elf'
     bitstream = Join-Path $VitisWorkspace 'ad9364app\_ide\bitstream\system_top.bit'
-    pmufw = Join-Path $VitisWorkspace "$platformName\zynqmp_pmufw\executable.elf"
+    pmufw = $referencePmufw[0]
     psu_init = Join-Path $VitisWorkspace 'ad9364app\_ide\psinit\psu_init.tcl'
     xsa = $candidateXsa
 }
