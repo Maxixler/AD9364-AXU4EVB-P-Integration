@@ -1,12 +1,12 @@
 ﻿{
     "schema_version":  1,
     "release_id":  "fft-single-shot-v1",
-    "created_at":  "2026-07-24T14:21:44.6020229+03:00",
+    "created_at":  "2026-07-24T14:46:36.3222732+03:00",
     "target_board":  "AXU4EVB-P",
     "fpga_part":  "xczu4ev-sfvc784-1-i",
     "rf_device":  "AD9364",
     "tool_version":  "2020.1",
-    "source_commit":  "5e1729ae8beabefb0dcd107f9b2dc9bbaf0d1f34",
+    "source_commit":  "dcdfa9640cb3ce5e24c561e07b9e7c54c835715f",
     "board_verified":  false,
     "uart_markers":  [
                          "PL_FFT: PASS"
@@ -15,8 +15,8 @@
                       {
                           "name":  "application",
                           "path":  "applications/ad9364app.elf",
-                          "length":  860840,
-                          "sha256":  "CC48D70C3A1180BD654822E16F8357E44014EF78EA53D9ABB956C423D4C846E3"
+                          "length":  860688,
+                          "sha256":  "4FB6989BF423263DDA947DCCB234AA02A04C946C81FFB03D3903FC2CFB639D93"
                       },
                       {
                           "name":  "bitstream",
