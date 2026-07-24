@@ -28,7 +28,9 @@
 #define STATUS_BUSY            (1u << 0)
 #define STATUS_DONE            (1u << 1)
 #define STATUS_CDC_READY       (1u << 2)
+#define STATUS_DROPPED_SAMPLES (1u << 8)
 #define STATUS_ERROR_MASK      (0x7f8u)
+#define STATUS_FATAL_MASK      (STATUS_ERROR_MASK & ~STATUS_DROPPED_SAMPLES)
 
 static uint32_t reg_read(const struct pl_fft_device *dev, uint32_t offset)
 {
@@ -87,12 +89,13 @@ int pl_fft_init(struct pl_fft_device *dev)
 		return PL_FFT_ERR_NOT_READY;
 	if ((status & STATUS_BUSY) != 0u)
 		return PL_FFT_ERR_NOT_READY;
-	if ((status & STATUS_ERROR_MASK) != 0u) {
+	if ((status & STATUS_FATAL_MASK) != 0u) {
 		reg_write(dev, REG_STATUS, status & STATUS_ERROR_MASK);
 		return PL_FFT_ERR_HARDWARE;
 	}
 
-	reg_write(dev, REG_STATUS, status & STATUS_DONE);
+	reg_write(dev, REG_STATUS,
+		  status & (STATUS_DONE | STATUS_DROPPED_SAMPLES));
 	return PL_FFT_OK;
 }
 
@@ -117,11 +120,12 @@ int pl_fft_capture_once(struct pl_fft_device *dev,
 	status = reg_read(dev, REG_STATUS);
 	if ((status & STATUS_CDC_READY) == 0u || (status & STATUS_BUSY) != 0u)
 		return PL_FFT_ERR_NOT_READY;
-	if ((status & STATUS_ERROR_MASK) != 0u) {
+	if ((status & STATUS_FATAL_MASK) != 0u) {
 		reg_write(dev, REG_STATUS, status & STATUS_ERROR_MASK);
 		return PL_FFT_ERR_HARDWARE;
 	}
-	reg_write(dev, REG_STATUS, status & STATUS_DONE);
+	reg_write(dev, REG_STATUS,
+		  status & (STATUS_DONE | STATUS_DROPPED_SAMPLES));
 	reg_write(dev, REG_SEARCH_RANGE,
 		  ((uint32_t)search_stop << 16) | search_start);
 	reg_write(dev, REG_DC_GUARD_WINDOW, dc_guard);
@@ -130,7 +134,7 @@ int pl_fft_capture_once(struct pl_fft_device *dev,
 
 	for (poll = 0u; poll < dev->timeout_polls; poll++) {
 		status = reg_read(dev, REG_STATUS);
-		if ((status & STATUS_ERROR_MASK) != 0u) {
+		if ((status & STATUS_FATAL_MASK) != 0u) {
 			reg_write(dev, REG_STATUS, status & STATUS_ERROR_MASK);
 			return PL_FFT_ERR_HARDWARE;
 		}
@@ -170,7 +174,8 @@ int pl_fft_capture_once(struct pl_fft_device *dev,
 			continue;
 
 		*result = snapshot;
-		reg_write(dev, REG_STATUS, STATUS_DONE);
+		reg_write(dev, REG_STATUS,
+			  STATUS_DONE | STATUS_DROPPED_SAMPLES);
 		reg_write(dev, REG_CONTROL,
 			  active_bank == 0u ? CONTROL_BANK0_RELEASE :
 					     CONTROL_BANK1_RELEASE);

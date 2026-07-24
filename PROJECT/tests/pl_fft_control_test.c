@@ -31,6 +31,7 @@
 #define STATUS_DONE      (1u << 1)
 #define STATUS_CDC_READY (1u << 2)
 #define STATUS_FFT_ERROR (1u << 6)
+#define STATUS_DROPPED_SAMPLES (1u << 8)
 
 struct fake_mmio {
 	uint32_t regs[0x44u / 4u];
@@ -41,6 +42,7 @@ struct fake_mmio {
 	uint32_t start_count;
 	uint32_t bank_reads;
 	uint32_t mutate_after_bank_read;
+	uint32_t completion_status;
 	uint8_t auto_complete;
 };
 
@@ -107,7 +109,8 @@ static void fake_write32(void *context, uintptr_t address, uint32_t value)
 		if ((value & CONTROL_START) != 0u) {
 			fake->start_count++;
 			if (fake->auto_complete != 0u)
-				fake->regs[REG_STATUS / 4u] |= STATUS_DONE;
+				fake->regs[REG_STATUS / 4u] |=
+					STATUS_DONE | fake->completion_status;
 		}
 		if ((value & CONTROL_ABORT) != 0u)
 			fake->regs[REG_STATUS / 4u] &= ~STATUS_DONE;
@@ -278,6 +281,22 @@ static void test_hardware_error_is_cleared_w1c(void)
 	CHECK(fake.write_value[fake.write_count - 1u] == STATUS_FFT_ERROR);
 }
 
+static void test_single_shot_dropped_samples_is_nonfatal(void)
+{
+	struct fake_mmio fake;
+	struct pl_fft_device dev;
+	struct pl_fft_result result;
+	uint64_t spectrum[PL_FFT_SPECTRUM_WORDS];
+
+	fake_init(&fake, 0u);
+	fake.completion_status = STATUS_DROPPED_SAMPLES;
+	dev = make_device(&fake);
+	CHECK(pl_fft_init(&dev) == PL_FFT_OK);
+	CHECK(pl_fft_capture_once(&dev, 0u, 2047u, 0u, 0u,
+				  &result, spectrum) == PL_FFT_OK);
+	CHECK((fake.regs[REG_STATUS / 4u] & STATUS_DROPPED_SAMPLES) == 0u);
+}
+
 static void test_preexisting_hardware_error_is_reported_by_init(void)
 {
 	struct fake_mmio fake;
@@ -316,6 +335,7 @@ int main(void)
 	test_torn_snapshot_is_retried();
 	test_timeout_aborts();
 	test_hardware_error_is_cleared_w1c();
+	test_single_shot_dropped_samples_is_nonfatal();
 	test_preexisting_hardware_error_is_reported_by_init();
 	test_missing_valid_bank_is_rejected();
 
