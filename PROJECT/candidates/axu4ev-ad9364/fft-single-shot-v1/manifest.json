@@ -7,7 +7,7 @@
     "rf_device":  "AD9364",
     "tool_version":  "2020.1",
     "source_commit":  "dcdfa9640cb3ce5e24c561e07b9e7c54c835715f",
-    "board_verified":  false,
+    "board_verified":  true,
     "uart_markers":  [
                          "PL_FFT: PASS"
                      ],
