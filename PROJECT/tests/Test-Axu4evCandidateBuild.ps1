@@ -107,6 +107,64 @@ try {
     if ($unsafeExitCode -eq 0 -or ($unsafeOutput -join "`n") -notmatch 'approved root') {
         throw 'Candidate build did not reject an unsafe Vitis workspace deletion target.'
     }
+
+    $untrackedInput = Join-Path $workspaceRoot 'Vitis\workspace\ad9364app\src\candidate_untracked_test.c'
+    try {
+        Set-Content -LiteralPath $untrackedInput -Value 'int candidate_untracked_test;' -Encoding Ascii
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $untrackedOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                    -WorkspaceRoot $workspaceRoot `
+                    -SourceXsa $candidateXsa `
+                    -CandidateRoot $candidateRoot `
+                    -VitisWorkspace $candidateWorkspace `
+                    -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot 2>&1
+            )
+            $untrackedExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($untrackedExitCode -eq 0 -or ($untrackedOutput -join "`n") -notmatch 'untracked application source') {
+            throw 'Candidate build did not reject an untracked application build input.'
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $untrackedInput -Force -ErrorAction SilentlyContinue
+    }
+
+    $junctionTarget = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-candidate-junction-target-$([guid]::NewGuid())"
+    $junctionPath = Join-Path $candidateBase "test-junction-$([guid]::NewGuid())"
+    try {
+        New-Item -ItemType Directory -Path $junctionTarget -Force | Out-Null
+        New-Item -ItemType Junction -Path $junctionPath -Target $junctionTarget | Out-Null
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $junctionOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                    -WorkspaceRoot $workspaceRoot `
+                    -SourceXsa $candidateXsa `
+                    -CandidateRoot (Join-Path $junctionPath 'bundle') `
+                    -VitisWorkspace $candidateWorkspace `
+                    -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $junctionExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($junctionExitCode -eq 0 -or ($junctionOutput -join "`n") -notmatch 'reparse point') {
+            throw 'Candidate build accepted a Candidate output redirected through a junction.'
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $junctionPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $junctionTarget -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 finally {
     foreach ($path in @($candidateWorkspace, $allowedWorkspaceRoot)) {
