@@ -123,4 +123,108 @@ function New-Axu4evReleaseManifest {
     }
 }
 
-Export-ModuleMember -Function Resolve-Axu4evCurrentRelease, Read-Axu4evReleaseManifest, Test-Axu4evReleaseArtifacts, New-Axu4evReleaseManifest
+function Get-Axu4evPsHardwareParameters {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Xsa
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $resolvedXsa = (Resolve-Path -LiteralPath $Xsa).Path
+    $archive = [IO.Compression.ZipFile]::OpenRead($resolvedXsa)
+    try {
+        $hwhEntry = @($archive.Entries |
+            Where-Object {
+                $_.FullName -notmatch '/' -and
+                [IO.Path]::GetExtension($_.FullName) -eq '.hwh'
+            }) | Select-Object -First 1
+        if (-not $hwhEntry) {
+            throw "XSA does not contain a top-level HWH: $resolvedXsa"
+        }
+
+        $reader = [IO.StreamReader]::new($hwhEntry.Open())
+        try {
+            [xml]$hwh = $reader.ReadToEnd()
+        }
+        finally {
+            $reader.Dispose()
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+
+    $ps = $hwh.SelectSingleNode("//MODULE[@INSTANCE='sys_ps8']")
+    if (-not $ps) {
+        throw "XSA HWH does not contain sys_ps8: $resolvedXsa"
+    }
+
+    $parameters = [ordered]@{}
+    foreach ($parameter in $ps.SelectNodes('.//PARAMETER')) {
+        $name = [string]$parameter.NAME
+        if ($name -like 'PSU__*') {
+            $parameters[$name] = [string]$parameter.VALUE
+        }
+    }
+    if ($parameters.Count -eq 0) {
+        throw "XSA HWH contains no sys_ps8 PSU parameters: $resolvedXsa"
+    }
+
+    return $parameters
+}
+
+function Assert-Axu4evPsHardwareContract {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Xsa,
+
+        [Parameter(Mandatory)]
+        [string]$ReferenceXsa
+    )
+
+    $actual = Get-Axu4evPsHardwareParameters -Xsa $Xsa
+    $reference = Get-Axu4evPsHardwareParameters -Xsa $ReferenceXsa
+    # Vivado 2020.1 recalculates these divider fields after their parent
+    # DisplayPort/SATA peripherals are disabled. They do not drive hardware
+    # when the corresponding enable parameters (which remain contracted)
+    # are zero.
+    $inactiveDerivedParameters = @(
+        'PSU__CRF_APB__DP_AUDIO_REF_CTRL__DIVISOR0'
+        'PSU__CRF_APB__DP_STC_REF_CTRL__DIVISOR0'
+        'PSU__CRF_APB__DP_STC_REF_CTRL__DIVISOR1'
+        'PSU__CRF_APB__SATA_REF_CTRL__DIVISOR0'
+    )
+    $names = @($actual.Keys + $reference.Keys | Sort-Object -Unique)
+    $differences = @(foreach ($name in $names) {
+        if ($name -in $inactiveDerivedParameters) {
+            continue
+        }
+        $actualValue = if ($actual.Contains($name)) { $actual[$name] } else { '<missing>' }
+        $referenceValue = if ($reference.Contains($name)) {
+            $reference[$name]
+        }
+        else {
+            '<missing>'
+        }
+        if ($actualValue -cne $referenceValue) {
+            "$name`: expected '$referenceValue', got '$actualValue'"
+        }
+    })
+
+    if ($differences.Count -ne 0) {
+        $preview = @($differences | Select-Object -First 12)
+        $suffix = if ($differences.Count -gt $preview.Count) {
+            "`r`n... and $($differences.Count - $preview.Count) more difference(s)."
+        }
+        else {
+            ''
+        }
+        throw "PS hardware contract mismatch ($($differences.Count) difference(s)).`r`n$($preview -join "`r`n")$suffix"
+    }
+}
+
+Export-ModuleMember -Function Resolve-Axu4evCurrentRelease,
+    Read-Axu4evReleaseManifest,
+    Test-Axu4evReleaseArtifacts,
+    New-Axu4evReleaseManifest,
+    Assert-Axu4evPsHardwareContract

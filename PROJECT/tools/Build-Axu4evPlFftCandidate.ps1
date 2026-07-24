@@ -93,6 +93,24 @@ foreach ($required in @($SourceXsa, $releaseModule, $buildTcl, $xsct)) {
     }
 }
 
+Import-Module $releaseModule -Force
+$referenceRelease = Resolve-Axu4evCurrentRelease -ReleasesRoot $goldenBase
+$referenceManifest = Read-Axu4evReleaseManifest -ReleaseRoot $referenceRelease.FullName
+$referenceArtifacts = @(
+    Test-Axu4evReleaseArtifacts `
+        -ReleaseRoot $referenceRelease.FullName `
+        -Manifest $referenceManifest
+)
+$referenceXsa = @(
+    $referenceArtifacts |
+        Where-Object Name -eq 'xsa' |
+        ForEach-Object Path
+)
+if ($referenceXsa.Count -ne 1) {
+    throw 'The current Golden release must contain exactly one XSA artifact.'
+}
+Assert-Axu4evPsHardwareContract -Xsa $SourceXsa -ReferenceXsa $referenceXsa[0]
+
 $goldenPrefix = [IO.Path]::GetFullPath($goldenBase).TrimEnd('\') + '\'
 $candidatePrefix = [IO.Path]::GetFullPath($candidateBase).TrimEnd('\') + '\'
 if ($CandidateRoot.StartsWith($goldenPrefix, [StringComparison]::OrdinalIgnoreCase)) {
@@ -256,7 +274,6 @@ foreach ($name in @('application', 'pmufw', 'psu_init')) {
     Copy-Item -LiteralPath $generated[$name] -Destination $destination -Force
 }
 
-Import-Module $releaseModule -Force
 $manifest = New-Axu4evReleaseManifest `
     -ReleaseRoot $CandidateRoot `
     -Metadata @{

@@ -29,11 +29,12 @@ $candidateRoot = Join-Path $work 'Candidate'
 $candidateHdl = Join-Path $candidateRoot 'hdl-main'
 $candidateProject = Join-Path $candidateHdl 'projects\fmcomms2\axu4ev'
 $candidateCommon = Join-Path $candidateHdl 'projects\fmcomms2\common'
+$candidateCarrierCommon = Join-Path $candidateHdl 'projects\common\axu4ev'
 $candidateScripts = Join-Path $candidateHdl 'scripts'
 $candidateRepo = Join-Path $candidateRoot 'custom-ip'
 $candidateLibrary = Join-Path $candidateRepo 'library'
 $packageOutput = Join-Path $candidateLibrary 'axi_ad9364_fft_capture'
-New-Item -ItemType Directory -Path $candidateProject, $candidateCommon,
+New-Item -ItemType Directory -Path $candidateProject, $candidateCommon, $candidateCarrierCommon,
     $candidateScripts, $candidateLibrary -Force | Out-Null
 
 Copy-Item -LiteralPath (Join-Path $sourceProject 'system_project.tcl') -Destination $candidateProject
@@ -41,6 +42,8 @@ Copy-Item -LiteralPath (Join-Path $sourceProject 'system_bd.tcl') -Destination $
 Copy-Item -LiteralPath (Join-Path $sourceProject 'system_top.v') -Destination $candidateProject
 Copy-Item -LiteralPath (Join-Path $sourceProject 'system_constr.xdc') -Destination $candidateProject
 Copy-Item -LiteralPath $sourceCommon -Destination $candidateCommon
+Copy-Item -LiteralPath (Join-Path $hdlRoot 'projects\common\axu4ev\axu4ev_system_bd.tcl') `
+    -Destination $candidateCarrierCommon
 Copy-Item -LiteralPath (Join-Path $hdlRoot 'scripts\adi_env.tcl') -Destination $candidateScripts
 $candidateProjectScript = Join-Path $candidateProject 'system_project.tcl'
 $candidateProjectSource = Get-Content -Raw -LiteralPath $candidateProjectScript

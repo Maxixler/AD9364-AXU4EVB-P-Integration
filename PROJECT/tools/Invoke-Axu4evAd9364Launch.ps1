@@ -187,6 +187,21 @@ elseif ($Mode -eq 'Candidate') {
         $paths[$item.Name] = $artifactPath
     }
     Assert-CandidateFftHardwareContract -Xsa $paths.xsa -Bitstream $paths.bitstream
+    $referenceManifest = Read-Axu4evReleaseManifest $golden.FullName
+    $referenceArtifacts = @(
+        Test-Axu4evReleaseArtifacts $golden.FullName $referenceManifest
+    )
+    $referenceXsa = @(
+        $referenceArtifacts |
+            Where-Object Name -eq 'xsa' |
+            ForEach-Object Path
+    )
+    if ($referenceXsa.Count -ne 1) {
+        throw 'The current Golden release must contain exactly one XSA artifact.'
+    }
+    Assert-Axu4evPsHardwareContract `
+        -Xsa $paths.xsa `
+        -ReferenceXsa $referenceXsa[0]
 }
 else {
     $handoffTest = Join-Path $WorkspaceRoot 'PROJECT\tests\Test-Axu4evHandoffArtifacts.ps1'

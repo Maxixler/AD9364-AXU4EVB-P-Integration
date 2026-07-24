@@ -34,8 +34,9 @@ if {[llength $argv] > 0 && [lindex $argv 0] eq "candidate_fft"} {
   set source_hdl [file join $workspace_root Related-Docs hdl-main]
   set source_project [file join $source_hdl projects fmcomms2 axu4ev]
   set source_common [file join $source_hdl projects fmcomms2 common fmcomms2_bd.tcl]
+  set source_carrier_common [file join $source_hdl projects common axu4ev axu4ev_system_bd.tcl]
   set package_runner [file join $workspace_root PROJECT tests Package-Axu4evFftIp.tcl]
-  foreach required [list $source_common $package_runner \
+  foreach required [list $source_common $source_carrier_common $package_runner \
       [file join $source_project system_project.tcl] \
       [file join $source_project system_bd.tcl] \
       [file join $source_project system_top.v] \
@@ -71,12 +72,14 @@ if {[llength $argv] > 0 && [lindex $argv 0] eq "candidate_fft"} {
   set candidate_hdl [file join $candidate_root hdl-main]
   set candidate_project [file join $candidate_hdl projects fmcomms2 axu4ev]
   set candidate_common [file join $candidate_hdl projects fmcomms2 common]
+  set candidate_carrier_common [file join $candidate_hdl projects common axu4ev]
   set candidate_scripts [file join $candidate_hdl scripts]
   set candidate_repo [file join $candidate_root custom-ip]
   set package_output [file join $candidate_repo library axi_ad9364_fft_capture]
   set candidate_reports [file join $candidate_root reports]
   file mkdir $candidate_project
   file mkdir $candidate_common
+  file mkdir $candidate_carrier_common
   file mkdir $candidate_scripts
   file mkdir [file dirname $package_output]
   file mkdir $candidate_reports
@@ -85,6 +88,8 @@ if {[llength $argv] > 0 && [lindex $argv 0] eq "candidate_fft"} {
     file copy -force [file join $source_project $name] [file join $candidate_project $name]
   }
   file copy -force $source_common [file join $candidate_common fmcomms2_bd.tcl]
+  file copy -force $source_carrier_common \
+    [file join $candidate_carrier_common axu4ev_system_bd.tcl]
   file copy -force [file join $source_hdl scripts adi_env.tcl] \
     [file join $candidate_scripts adi_env.tcl]
 
@@ -119,12 +124,21 @@ adi_project_run fmcomms2_${BOARD_NAME}}
   source $package_runner
   close_project
 
-  set original_dir [pwd]
-  cd $candidate_project
+  # Vivado 2020.1 can retain stale IP-packager callbacks after close_project;
+  # creating a block design in that same process intermittently tries to
+  # source a context-free "init.tcl". Build the actual project in a clean
+  # child Vivado process, then reopen the completed project for the gates.
+  set child_script [file join $candidate_root build_candidate_project.tcl]
+  set child_handle [open $child_script w]
+  puts $child_handle "cd [list $candidate_project]"
+  puts $child_handle {source system_project.tcl}
+  close $child_handle
+
   set build_code [catch {
-    source system_project.tcl
+    exec [info nameofexecutable] -mode batch -nolog -nojournal -notrace \
+      -source $child_script 2>@1
   } build_error build_options]
-  cd $original_dir
+  puts $build_error
   if {$build_code != 0} {
     puts "ERROR: Candidate build artifacts retained at $candidate_root"
     return -options $build_options $build_error
@@ -132,6 +146,7 @@ adi_project_run fmcomms2_${BOARD_NAME}}
 
   set candidate_xpr [file normalize [file join $candidate_project fmcomms2_axu4ev.xpr]]
   set golden_xpr [file normalize [file join $source_project fmcomms2_axu4ev.xpr]]
+  open_project $candidate_xpr
   require_equal "Candidate project path" [file normalize [get_property DIRECTORY [current_project]]] \
     [file dirname $candidate_xpr]
   if {[string equal -nocase $candidate_xpr $golden_xpr]} {
