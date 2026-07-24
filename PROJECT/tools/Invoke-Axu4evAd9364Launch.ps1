@@ -5,6 +5,8 @@ param(
 
     [string]$WorkspaceRoot,
 
+    [string]$CandidateRoot,
+
     [string]$CandidateApplication,
 
     [switch]$DryRun
@@ -32,24 +34,159 @@ Import-Module $module -Force
 $paths = [ordered]@{}
 
 $releaseBase = Join-Path $WorkspaceRoot 'PROJECT\releases\axu4ev-ad9364'
+$candidateBase = Join-Path $WorkspaceRoot 'PROJECT\candidates\axu4ev-ad9364'
 
-if ($Mode -in @('Golden', 'Candidate')) {
+function Assert-NoReparsePoint {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+
+        [Parameter(Mandatory)]
+        [string]$Boundary
+    )
+
+    $boundaryPath = [IO.Path]::GetFullPath($Boundary).TrimEnd('\')
+    $boundaryPrefix = $boundaryPath + '\'
+    $current = Get-Item -LiteralPath $Path
+    while ($true) {
+        if (($current.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Candidate path contains a reparse point: $($current.FullName)"
+        }
+        if ($current.FullName.TrimEnd('\').Equals(
+                $boundaryPath,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            break
+        }
+        if (-not $current.FullName.StartsWith(
+                $boundaryPrefix,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Candidate path escaped its approved tree: $($current.FullName)"
+        }
+        if ($current -is [IO.DirectoryInfo]) {
+            $current = $current.Parent
+        }
+        else {
+            $current = $current.Directory
+        }
+        if (-not $current) {
+            throw "Candidate path has no approved-tree ancestor: $Path"
+        }
+    }
+}
+
+function Assert-CandidateFftHardwareContract {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Xsa,
+
+        [Parameter(Mandatory)]
+        [string]$Bitstream
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [IO.Compression.ZipFile]::OpenRead($Xsa)
+    try {
+        $hwhEntry = @($archive.Entries |
+            Where-Object {
+                $_.FullName -notmatch '/' -and
+                [IO.Path]::GetExtension($_.FullName) -eq '.hwh'
+            }) | Select-Object -First 1
+        $bitEntry = @($archive.Entries |
+            Where-Object {
+                $_.FullName -notmatch '/' -and
+                [IO.Path]::GetExtension($_.FullName) -eq '.bit'
+            }) | Select-Object -First 1
+        if (-not $hwhEntry -or -not $bitEntry) {
+            throw 'Candidate XSA does not contain its top-level HWH and embedded bitstream.'
+        }
+
+        $reader = New-Object IO.StreamReader($hwhEntry.Open())
+        try {
+            $hwh = $reader.ReadToEnd()
+        }
+        finally {
+            $reader.Dispose()
+        }
+        foreach ($pattern in @(
+            'BASEVALUE="0x9C440000"[^>]+INSTANCE="axi_ad9364_fft_capture"',
+            'BASEVALUE="0x9D000000"[^>]+INSTANCE="axi_ad9364_fft_bram0"',
+            'BASEVALUE="0x9D010000"[^>]+INSTANCE="axi_ad9364_fft_bram1"'
+        )) {
+            if ($hwh -notmatch $pattern) {
+                throw 'Candidate XSA does not satisfy the locked PL FFT address contract.'
+            }
+        }
+
+        $sha256 = [Security.Cryptography.SHA256]::Create()
+        $bitInput = $bitEntry.Open()
+        try {
+            $embeddedHash = [BitConverter]::ToString(
+                $sha256.ComputeHash($bitInput)).Replace('-', '')
+        }
+        finally {
+            $bitInput.Dispose()
+            $sha256.Dispose()
+        }
+        $standaloneHash = (Get-FileHash -LiteralPath $Bitstream -Algorithm SHA256).Hash
+        if ($embeddedHash -ne $standaloneHash) {
+            throw 'Candidate XSA embedded bitstream does not match the standalone Candidate bitstream.'
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
+if ($Mode -eq 'Golden') {
     $release = Resolve-Axu4evCurrentRelease $releaseBase
     $manifest = Read-Axu4evReleaseManifest $release.FullName
     $verified = @(Test-Axu4evReleaseArtifacts $release.FullName $manifest)
     foreach ($item in $verified) {
         $paths[$item.Name] = $item.Path
     }
-
-    if ($Mode -eq 'Candidate') {
-        if ([string]::IsNullOrWhiteSpace($CandidateApplication)) {
-            $CandidateApplication = Join-Path $WorkspaceRoot 'Vitis\workspace\ad9364app\Release\ad9364app.elf'
-        }
-        if (-not (Test-Path -LiteralPath $CandidateApplication -PathType Leaf)) {
-            throw "Missing Release candidate application ELF: $CandidateApplication"
-        }
-        $paths.application = (Resolve-Path -LiteralPath $CandidateApplication).Path
+}
+elseif ($Mode -eq 'Candidate') {
+    if (-not [string]::IsNullOrWhiteSpace($CandidateApplication)) {
+        throw 'CandidateApplication-only launch is unsafe. Provide a complete CandidateRoot bundle.'
     }
+    if ([string]::IsNullOrWhiteSpace($CandidateRoot)) {
+        throw 'Candidate mode requires CandidateRoot.'
+    }
+
+    $candidate = Get-Item -LiteralPath (Resolve-Path -LiteralPath $CandidateRoot).Path
+    if (-not $candidate.PSIsContainer) {
+        throw "CandidateRoot is not a directory: $($candidate.FullName)"
+    }
+
+    $golden = Resolve-Axu4evCurrentRelease $releaseBase
+    $candidateBasePath = [IO.Path]::GetFullPath($candidateBase).TrimEnd('\')
+    $candidateBasePrefix = $candidateBasePath + '\'
+    $releaseBasePath = [IO.Path]::GetFullPath($releaseBase).TrimEnd('\')
+    $releaseBasePrefix = $releaseBasePath + '\'
+    $candidatePrefix = $candidate.FullName.TrimEnd('\') + '\'
+    if ($candidate.FullName.Equals($releaseBasePath, [StringComparison]::OrdinalIgnoreCase) -or
+        $candidatePrefix.StartsWith($releaseBasePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "CandidateRoot resolves inside the Golden release tree: $($candidate.FullName)"
+    }
+    if (-not $candidate.FullName.StartsWith(
+            $candidateBasePrefix,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw "CandidateRoot must be inside the approved Candidate tree: $($candidate.FullName)"
+    }
+    Assert-NoReparsePoint -Path $candidate.FullName -Boundary $candidateBasePath
+
+    $manifest = Read-Axu4evReleaseManifest $candidate.FullName
+    $verified = @(Test-Axu4evReleaseArtifacts $candidate.FullName $manifest)
+    foreach ($item in $verified) {
+        $artifactPath = [IO.Path]::GetFullPath($item.Path)
+        if ($artifactPath.Equals($golden.FullName, [StringComparison]::OrdinalIgnoreCase) -or
+            $artifactPath.StartsWith($releaseBasePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Candidate artifact resolves inside the Golden release tree: $artifactPath"
+        }
+        Assert-NoReparsePoint -Path $artifactPath -Boundary $candidateBasePath
+        $paths[$item.Name] = $artifactPath
+    }
+    Assert-CandidateFftHardwareContract -Xsa $paths.xsa -Bitstream $paths.bitstream
 }
 else {
     $handoffTest = Join-Path $WorkspaceRoot 'PROJECT\tests\Test-Axu4evHandoffArtifacts.ps1'
@@ -78,6 +215,9 @@ else {
 }
 
 $requiredNames = @('bitstream', 'psu_init', 'pmufw', 'application')
+if ($Mode -eq 'Candidate') {
+    $requiredNames += 'xsa'
+}
 $artifacts = @(
     foreach ($name in $requiredNames) {
         $path = [string]$paths[$name]

@@ -26,7 +26,7 @@ function Invoke-DryRun {
         [ValidateSet('Golden', 'Workspace', 'Candidate')]
         [string]$Mode,
 
-        [string]$CandidateApplication,
+        [string]$CandidateRoot,
 
         [string]$TestWorkspaceRoot = $workspaceRoot
     )
@@ -35,8 +35,8 @@ function Invoke-DryRun {
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $orchestrator,
         '-Mode', $Mode, '-WorkspaceRoot', $TestWorkspaceRoot, '-DryRun'
     )
-    if ($CandidateApplication) {
-        $arguments += @('-CandidateApplication', $CandidateApplication)
+    if ($CandidateRoot) {
+        $arguments += @('-CandidateRoot', $CandidateRoot)
     }
     $lines = @(& powershell.exe @arguments)
     if ($LASTEXITCODE -ne 0) {
@@ -45,7 +45,6 @@ function Invoke-DryRun {
     return (($lines -join "`n") | ConvertFrom-Json)
 }
 
-$expectedNames = @('application', 'bitstream', 'pmufw', 'psu_init')
 foreach ($mode in @('Golden', 'Workspace')) {
     $result = Invoke-DryRun -Mode $mode
     if ($result.mode -ne $mode) {
@@ -61,6 +60,7 @@ foreach ($mode in @('Golden', 'Workspace')) {
         throw "$mode dry-run log is outside PROJECT\logs\jtag."
     }
 
+    $expectedNames = @('application', 'bitstream', 'pmufw', 'psu_init')
     $artifacts = @($result.artifacts)
     $actualNames = @($artifacts.name | Sort-Object)
     if (($actualNames -join ',') -ne ($expectedNames -join ',')) {
@@ -80,74 +80,19 @@ foreach ($mode in @('Golden', 'Workspace')) {
     }
 }
 
-$candidateTemp = Join-Path ([IO.Path]::GetTempPath()) "ad9364app-candidate-$([guid]::NewGuid()).elf"
-try {
-    Set-Content -LiteralPath $candidateTemp -Value 'candidate-app' -NoNewline
-    $golden = Invoke-DryRun -Mode Golden
-    $candidate = Invoke-DryRun -Mode Candidate -CandidateApplication $candidateTemp
-
-    foreach ($name in @('bitstream', 'pmufw', 'psu_init')) {
-        $goldenArtifact = @($golden.artifacts | Where-Object name -eq $name)[0]
-        $candidateArtifact = @($candidate.artifacts | Where-Object name -eq $name)[0]
-        if ($candidateArtifact.sha256 -ne $goldenArtifact.sha256) {
-            throw "Candidate $name did not come from the current Golden release."
-        }
-    }
-    $candidateApp = @($candidate.artifacts | Where-Object name -eq 'application')[0]
-    if ([IO.Path]::GetFullPath($candidateApp.path) -ne [IO.Path]::GetFullPath($candidateTemp)) {
-        throw 'Candidate did not use the explicit test application.'
-    }
+$candidateRoot = Join-Path $workspaceRoot 'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1'
+$candidate = Invoke-DryRun -Mode Candidate -CandidateRoot $candidateRoot
+$candidateNames = @($candidate.artifacts.name | Sort-Object)
+$expectedCandidateNames = @('application', 'bitstream', 'pmufw', 'psu_init', 'xsa')
+if (($candidateNames -join ',') -ne ($expectedCandidateNames -join ',')) {
+    throw 'Candidate dry-run did not resolve the complete five-artifact bundle.'
 }
-finally {
-    Remove-Item -LiteralPath $candidateTemp -Force -ErrorAction SilentlyContinue
-}
-
-$candidateWorkspace = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-candidate-workspace-$([guid]::NewGuid())"
-try {
-    $testReleaseBase = Join-Path $candidateWorkspace 'PROJECT\releases\axu4ev-ad9364'
-    $testProjectTests = Join-Path $candidateWorkspace 'PROJECT\tests'
-    $testAppRoot = Join-Path $candidateWorkspace 'Vitis\workspace\ad9364app'
-    $testDebugApplication = Join-Path $testAppRoot 'Debug\ad9364app.elf'
-    $testReleaseApplication = Join-Path $testAppRoot 'Release\ad9364app.elf'
-
-    New-Item -ItemType Directory -Path (Split-Path $testReleaseBase), $testProjectTests, (Split-Path $testDebugApplication) -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $workspaceRoot 'PROJECT\releases\axu4ev-ad9364') -Destination $testReleaseBase -Recurse
-    Copy-Item -LiteralPath (Join-Path $workspaceRoot 'PROJECT\tests\Launch-Axu4evAd9364Jtag.tcl') -Destination (Join-Path $testProjectTests 'Launch-Axu4evAd9364Jtag.tcl')
-    Set-Content -LiteralPath $testDebugApplication -Value 'debug-app-must-not-be-used' -NoNewline
-
-    $arguments = @(
-        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $orchestrator,
-        '-Mode', 'Candidate', '-WorkspaceRoot', $candidateWorkspace, '-DryRun'
-    )
-    $savedErrorActionPreference = $ErrorActionPreference
-    try {
-        $ErrorActionPreference = 'Continue'
-        $failureLines = @(& powershell.exe @arguments 2>&1)
-        $failureCode = $LASTEXITCODE
-    }
-    finally {
-        $ErrorActionPreference = $savedErrorActionPreference
-    }
-    if ($failureCode -eq 0) {
-        throw 'Candidate default unexpectedly fell back to the available Debug application.'
-    }
-    if (($failureLines -join "`n") -notmatch 'Missing Release candidate application ELF:') {
-        throw "Candidate without a Release ELF failed for the wrong reason.`r`n$($failureLines -join "`r`n")"
-    }
-
-    New-Item -ItemType Directory -Path (Split-Path $testReleaseApplication) -Force | Out-Null
-    Set-Content -LiteralPath $testReleaseApplication -Value 'release-app' -NoNewline
-    $defaultCandidate = Invoke-DryRun -Mode Candidate -TestWorkspaceRoot $candidateWorkspace
-    $defaultCandidateApp = @($defaultCandidate.artifacts | Where-Object name -eq 'application')[0]
-    if ([IO.Path]::GetFullPath($defaultCandidateApp.path) -ne [IO.Path]::GetFullPath($testReleaseApplication)) {
-        throw 'Candidate default did not use the exact Release application path.'
-    }
-}
-finally {
-    $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
-    $candidateWorkspacePath = [IO.Path]::GetFullPath($candidateWorkspace)
-    if ($candidateWorkspacePath.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
-        Remove-Item -LiteralPath $candidateWorkspacePath -Recurse -Force -ErrorAction SilentlyContinue
+foreach ($artifact in @($candidate.artifacts)) {
+    $fullPath = [IO.Path]::GetFullPath($artifact.path)
+    if (-not $fullPath.StartsWith(
+            [IO.Path]::GetFullPath($candidateRoot) + [IO.Path]::DirectorySeparatorChar,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Candidate artifact escaped the Candidate bundle: $fullPath"
     }
 }
 
