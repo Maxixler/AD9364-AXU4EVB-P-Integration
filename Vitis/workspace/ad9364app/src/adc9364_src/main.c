@@ -64,13 +64,20 @@
 #include "no_os_error.h"
 #include "monopulse_selftest.h"
 #include "pl_fft_control.h"
+#ifdef PL_FFT_LAB_UART
+#include "pl_fft_lab_protocol.h"
+#include "pl_fft_lab_service.h"
+#include "xil_printf.h"
+extern void outbyte(char c);
+#endif
 #ifdef PL_FFT_PERIODIC_MONITOR
 #include "pl_fft_monitor.h"
 #endif
 #include "wifi_rf_test.h"
 
 #if defined(PL_FFT_SINGLE_SHOT) || \
-	defined(PL_FFT_PERIODIC_MONITOR)
+	defined(PL_FFT_PERIODIC_MONITOR) || \
+	defined(PL_FFT_LAB_UART)
 #if defined(XPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR)
 #define PL_FFT_CONTROL_BASE XPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR
 #elif defined(XPAR_AXI_AD9364_FFT_CAPTURE_BASEADDR)
@@ -219,6 +226,96 @@ static int pl_fft_periodic_monitor_run(void)
 	}
 	printf("PL_FFT_MONITOR: PASS frames=100 interval_ms=1000\n");
 	return PL_FFT_OK;
+}
+#endif
+
+#ifdef PL_FFT_LAB_UART
+static int32_t pl_fft_lab_board_write(void *context,
+				      const uint8_t *data,
+				      uint32_t length,
+				      uint32_t *written)
+{
+	uint32_t index;
+
+	(void)context;
+	if (data == NULL || written == NULL)
+		return PL_FFT_LAB_ERR_ARGUMENT;
+	for (index = 0u; index < length; index++)
+		outbyte((char)data[index]);
+	*written = length;
+	return PL_FFT_LAB_OK;
+}
+
+static int32_t pl_fft_lab_board_read_rf(
+	void *context, struct pl_fft_lab_rf_snapshot *snapshot)
+{
+	struct ad9361_rf_phy *phy = context;
+	int32_t status;
+
+	if (phy == NULL || snapshot == NULL)
+		return PL_FFT_ERR_ARGUMENT;
+	status = ad9361_get_rx_sampling_freq(
+		phy, &snapshot->sample_rate_hz);
+	if (status < 0)
+		return status;
+	status = ad9361_get_rx_rf_bandwidth(
+		phy, &snapshot->rx_bandwidth_hz);
+	if (status < 0)
+		return status;
+	return ad9361_get_rx_lo_freq(phy, &snapshot->lo_hz);
+}
+
+static void pl_fft_lab_report_failure(const char *stage, int32_t error)
+{
+	printf("PL_FFT_LAB: FAIL stage=%s error=%d\n",
+	       stage, (int)error);
+}
+
+static int32_t pl_fft_lab_uart_run(struct ad9361_rf_phy *phy)
+{
+	struct pl_fft_device dev = {
+		.context = NULL,
+		.control_base = PL_FFT_CONTROL_BASE,
+		.bank_base = {PL_FFT_BANK0_BASE, PL_FFT_BANK1_BASE},
+		.read32 = pl_fft_board_read32,
+		.read64 = pl_fft_board_read64,
+		.write32 = pl_fft_board_write32,
+		.timeout_polls = 10000000u,
+		.max_snapshot_retries = 3u
+	};
+	struct pl_fft_lab_parser parser;
+	struct pl_fft_lab_command command;
+	struct pl_fft_lab_service service = {
+		.fft = &dev,
+		.writer = {
+			.context = NULL,
+			.write = pl_fft_lab_board_write
+		},
+		.rf_context = phy,
+		.read_rf = pl_fft_lab_board_read_rf,
+		.spectrum = pl_fft_spectrum
+	};
+	int32_t status;
+
+	status = pl_fft_init(&dev);
+	if (status != PL_FFT_OK) {
+		pl_fft_lab_report_failure("INIT", status);
+		return status;
+	}
+	pl_fft_lab_parser_init(&parser);
+	printf("PL_FFT_LAB: READY protocol=1 bins=2048 baud=115200\n");
+	for (;;) {
+		int32_t event = pl_fft_lab_parser_push(
+			&parser, (uint8_t)inbyte(), &command);
+
+		if (event != PL_FFT_LAB_COMMAND_READY)
+			continue;
+		status = pl_fft_lab_service_command(&service, &command);
+		if (status != PL_FFT_LAB_OK) {
+			pl_fft_lab_report_failure("UART", status);
+			return status;
+		}
+	}
 }
 #endif
 #endif
@@ -795,6 +892,11 @@ int main(void)
 
 #ifdef PL_FFT_PERIODIC_MONITOR
 	status = pl_fft_periodic_monitor_run();
+	goto cleanup;
+#endif
+
+#ifdef PL_FFT_LAB_UART
+	status = pl_fft_lab_uart_run(ad9361_phy);
 	goto cleanup;
 #endif
 

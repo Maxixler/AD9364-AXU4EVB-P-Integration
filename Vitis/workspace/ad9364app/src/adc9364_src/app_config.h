@@ -53,13 +53,17 @@
 //#define WIFI_RF_TEST
 //#define PL_FFT_SINGLE_SHOT
 //#define PL_FFT_PERIODIC_MONITOR
+//#define PL_FFT_LAB_UART
 
-#if defined(PL_FFT_SINGLE_SHOT) && defined(PL_FFT_PERIODIC_MONITOR)
+#if (defined(PL_FFT_SINGLE_SHOT) + \
+     defined(PL_FFT_PERIODIC_MONITOR) + \
+     defined(PL_FFT_LAB_UART)) > 1
 #error "Only one PL FFT application mode may be enabled"
 #endif
 
 #if !defined(PL_FFT_SINGLE_SHOT) && \
-	!defined(PL_FFT_PERIODIC_MONITOR)
+	!defined(PL_FFT_PERIODIC_MONITOR) && \
+	!defined(PL_FFT_LAB_UART)
 #if !defined(WIFI_RF_TEST) && !defined(MONOPULSE_FOUNDATION_TEST)
 #define MONOPULSE_FOUNDATION_TEST
 #endif
@@ -81,7 +85,8 @@
 #error "WIFI_RF_TEST and DMA_EXAMPLE cannot be enabled together"
 #endif
 #if (defined(PL_FFT_SINGLE_SHOT) || \
-     defined(PL_FFT_PERIODIC_MONITOR)) && \
+     defined(PL_FFT_PERIODIC_MONITOR) || \
+     defined(PL_FFT_LAB_UART)) && \
 	(defined(MONOPULSE_FOUNDATION_TEST) || defined(WIFI_RF_TEST) || \
 	 defined(DMA_EXAMPLE))
 #error "PL FFT application modes must be enabled by themselves"
