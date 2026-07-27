@@ -69,6 +69,31 @@ if ($labByName['application'].Sha256 -ceq $referenceByName['application'].Sha256
     throw 'Lab UART application ELF must differ from the single-shot application ELF.'
 }
 
+$psuRelativePath = 'PROJECT/candidates/axu4ev-ad9364/monopulse-live-lab-v1/hardware/psu_init.tcl'
+$attributeOutput = @(& git -C $workspaceRoot check-attr text eol -- $psuRelativePath)
+if ($attributeOutput -notcontains "${psuRelativePath}: text: set" -or
+    $attributeOutput -notcontains "${psuRelativePath}: eol: crlf") {
+    throw 'Lab Candidate psu_init checkout policy is not deterministic CRLF.'
+}
+$materializationRoot = Join-Path ([IO.Path]::GetTempPath()) `
+    "axu4ev-lab-psu-init-$([guid]::NewGuid())"
+try {
+    New-Item -ItemType Directory -Path $materializationRoot -Force | Out-Null
+    & git -C $workspaceRoot -c core.autocrlf=false checkout-index `
+        --prefix="$materializationRoot\" -- $psuRelativePath
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Cannot materialize Lab Candidate psu_init from the Git index.'
+    }
+    $materialized = Join-Path $materializationRoot $psuRelativePath
+    $materializedHash = (Get-FileHash -LiteralPath $materialized -Algorithm SHA256).Hash
+    if ($materializedHash -cne $labByName['psu_init'].Sha256) {
+        throw 'Materialized Lab Candidate psu_init hash differs from its manifest.'
+    }
+}
+finally {
+    Remove-Item -LiteralPath $materializationRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 $applicationStream = [IO.File]::OpenRead([string]$labByName['application'].Path)
 try {
     $header = New-Object byte[] 4
