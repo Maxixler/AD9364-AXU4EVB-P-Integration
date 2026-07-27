@@ -180,8 +180,9 @@ timeout, geçersiz/torn snapshot veya bank hataları ise gerçek capture hatası
 - Yeni Candidate manifestindeki tüm hash ve provenance alanları doğrulanır.
 - Yeni CMD dry-run'da yalnız periodic Candidate kökünü seçer.
 - Mevcut single-shot launcher ve testleri değişmeden PASS verir.
-- Golden ve periodic Candidate donanım teslimlerinin hash'leri birebir
-  eşleşir.
+- Golden teslimleri değiştirilmez. Periodic Candidate'ın bitstream, XSA,
+  `psu_init.tcl` ve PMUFW hash'leri kartta doğrulanmış
+  `fft-single-shot-v1` Candidate ile birebir eşleşir.
 
 ### 8.3 Kart kabulü
 
