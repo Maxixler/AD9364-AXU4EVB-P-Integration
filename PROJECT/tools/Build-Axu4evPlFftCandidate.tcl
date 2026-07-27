@@ -1,11 +1,22 @@
-if {$argc != 4} {
-    error "Usage: xsct Build-Axu4evPlFftCandidate.tcl <project-root> <candidate-xsa> <vitis-workspace> <allowed-workspace-root>"
+if {$argc != 4 && $argc != 5} {
+    error "Usage: xsct Build-Axu4evPlFftCandidate.tcl <project-root> <candidate-xsa> <vitis-workspace> <allowed-workspace-root> ?compiler-symbol?"
 }
 
 set project_root [file normalize [lindex $argv 0]]
 set xsa_path [file normalize [lindex $argv 1]]
 set workspace_path [file normalize [lindex $argv 2]]
 set allowed_workspace_root [file normalize [lindex $argv 3]]
+set compiler_symbol PL_FFT_SINGLE_SHOT
+if {$argc == 5} {
+    set compiler_symbol [lindex $argv 4]
+}
+set allowed_symbols {
+    PL_FFT_SINGLE_SHOT
+    PL_FFT_PERIODIC_MONITOR
+}
+if {[lsearch -exact $allowed_symbols $compiler_symbol] == -1} {
+    error "Invalid Candidate compiler symbol: $compiler_symbol"
+}
 set source_root [file join $project_root Vitis workspace ad9364app src]
 
 if {![file exists $xsa_path]} {
@@ -65,7 +76,7 @@ foreach source_dir {adc include adc9364_src api dac dmac drivers_rf_transceiver 
 app config -name $app_name -add include-path "\${workspace_loc:/$app_name/src/iio/iio_app}"
 app config -name $app_name -add libraries m
 app config -name $app_name compiler-optimization {Optimize more (-O2)}
-app config -name $app_name define-compiler-symbols PL_FFT_SINGLE_SHOT
+app config -name $app_name define-compiler-symbols $compiler_symbol
 
 app clean -name $app_name
 app build -name $app_name
@@ -75,5 +86,5 @@ if {![file exists $elf_path]} {
     error "Candidate application build did not produce ELF: $elf_path"
 }
 
-puts "PASS: Candidate Vitis platform and PL_FFT_SINGLE_SHOT application built."
+puts "PASS: Candidate Vitis platform and $compiler_symbol application built."
 puts "CANDIDATE_ELF=$elf_path"

@@ -2,12 +2,17 @@ $ErrorActionPreference = 'Stop'
 
 $workspaceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
 $builder = Join-Path $workspaceRoot 'PROJECT\tools\Build-Axu4evPlFftCandidate.ps1'
+$buildTcl = Join-Path $workspaceRoot 'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
+$singleShotLauncher = Join-Path $workspaceRoot 'PROJECT\tools\Start-Axu4evAd9364Candidate.cmd'
+$periodicLauncher = Join-Path $workspaceRoot 'PROJECT\tools\Start-Axu4evAd9364PeriodicMonitor.cmd'
 $applicationMain = Join-Path $workspaceRoot 'Vitis\workspace\ad9364app\src\adc9364_src\main.c'
 $candidateXsa = Join-Path $workspaceRoot 'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1\hardware\system_top.xsa'
 $wrongXsa = Join-Path $workspaceRoot 'vivado\SDR_Real\sdr_wrapper.xsa'
 
-if (-not (Test-Path -LiteralPath $builder -PathType Leaf)) {
-    throw "Missing Candidate build orchestrator: $builder"
+foreach ($required in @($builder, $buildTcl, $singleShotLauncher, $periodicLauncher)) {
+    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+        throw "Missing Candidate build dependency: $required"
+    }
 }
 foreach ($xsa in @($candidateXsa, $wrongXsa)) {
     if (-not (Test-Path -LiteralPath $xsa -PathType Leaf)) {
@@ -54,12 +59,82 @@ try {
         $dryRun.fft_bank1_base -ne '0x9D010000') {
         throw 'Candidate XSA FFT addresses do not match the locked address contract.'
     }
-    if (-not $dryRun.pl_fft_single_shot) {
-        throw 'Candidate build does not enable PL_FFT_SINGLE_SHOT.'
+    if ($dryRun.application_mode -ne 'SingleShot' -or
+        -not $dryRun.pl_fft_single_shot -or
+        $dryRun.pl_fft_periodic_monitor) {
+        throw 'Default Candidate build is no longer single-shot.'
     }
     if ([IO.Path]::GetFullPath($dryRun.candidate_root) -ne
         [IO.Path]::GetFullPath($candidateRoot)) {
         throw 'Candidate build reported the wrong Candidate root.'
+    }
+
+    $periodic = ((@(
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+            -WorkspaceRoot $workspaceRoot `
+            -ApplicationMode PeriodicMonitor `
+            -SourceXsa $candidateXsa `
+            -CandidateRoot $candidateRoot `
+            -VitisWorkspace $candidateWorkspace `
+            -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+            -DryRun
+    ) -join "`n") | ConvertFrom-Json)
+    if ($periodic.application_mode -ne 'PeriodicMonitor' -or
+        $periodic.pl_fft_single_shot -or
+        -not $periodic.pl_fft_periodic_monitor -or
+        $periodic.compiler_symbol -ne 'PL_FFT_PERIODIC_MONITOR') {
+        throw 'Periodic Candidate build selected the wrong compiler mode.'
+    }
+
+    $xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'
+    $savedPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $invalidSymbolOutput = @(
+            & $xsct $buildTcl $workspaceRoot $candidateXsa $candidateWorkspace `
+                $allowedWorkspaceRoot INVALID_SYMBOL 2>&1
+        )
+        $invalidSymbolExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedPreference
+    }
+    if (($invalidSymbolOutput -join "`n") -notmatch 'Invalid Candidate compiler symbol') {
+        throw 'Candidate Tcl build accepted an invalid compiler symbol.'
+    }
+
+    $savedPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $invalidModeOutput = @(
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                -WorkspaceRoot $workspaceRoot `
+                -ApplicationMode InvalidMode `
+                -SourceXsa $candidateXsa `
+                -CandidateRoot $candidateRoot `
+                -VitisWorkspace $candidateWorkspace `
+                -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+                -DryRun 2>&1
+        )
+        $invalidModeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedPreference
+    }
+    if ($invalidModeExitCode -eq 0 -or ($invalidModeOutput -join "`n") -notmatch 'ApplicationMode') {
+        throw 'Candidate build accepted an invalid application mode.'
+    }
+
+    $singleShotLauncherContent = Get-Content -LiteralPath $singleShotLauncher -Raw
+    $periodicLauncherContent = Get-Content -LiteralPath $periodicLauncher -Raw
+    if ($singleShotLauncherContent -notmatch 'fft-single-shot-v1' -or
+        $singleShotLauncherContent -match 'fft-periodic-monitor-v1') {
+        throw 'The existing single-shot CMD no longer selects only its single-shot bundle.'
+    }
+    if ($periodicLauncherContent -notmatch 'fft-periodic-monitor-v1' -or
+        $periodicLauncherContent -match 'fft-single-shot-v1' -or
+        $periodicLauncherContent -notmatch '%\*') {
+        throw 'The periodic CMD does not select only its periodic bundle and forward arguments.'
     }
 
     $savedPreference = $ErrorActionPreference

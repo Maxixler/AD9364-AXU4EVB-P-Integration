@@ -14,6 +14,9 @@ param(
     [Parameter(Mandatory)]
     [string]$AllowedVitisWorkspaceRoot,
 
+    [ValidateSet('SingleShot', 'PeriodicMonitor')]
+    [string]$ApplicationMode = 'SingleShot',
+
     [switch]$DryRun
 )
 
@@ -35,6 +38,14 @@ $candidateBase = Join-Path $WorkspaceRoot 'PROJECT\candidates\axu4ev-ad9364'
 $releaseModule = Join-Path $WorkspaceRoot 'PROJECT\tools\Axu4evRelease.psm1'
 $buildTcl = Join-Path $WorkspaceRoot 'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
 $xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'
+$compilerSymbol = switch ($ApplicationMode) {
+    'SingleShot' { 'PL_FFT_SINGLE_SHOT' }
+    'PeriodicMonitor' { 'PL_FFT_PERIODIC_MONITOR' }
+}
+$uartMarkers = switch ($ApplicationMode) {
+    'SingleShot' { @('PL_FFT: PASS') }
+    'PeriodicMonitor' { @('PL_FFT_MONITOR: PASS') }
+}
 
 function Assert-NoReparsePointForWrite {
     param(
@@ -118,6 +129,31 @@ if ($referencePmufw.Count -ne 1) {
     throw 'The current Golden release must contain exactly one PMUFW artifact.'
 }
 
+$singleShotReferenceArtifacts = @{}
+if ($ApplicationMode -eq 'PeriodicMonitor') {
+    $singleShotReference = Join-Path $candidateBase 'fft-single-shot-v1'
+    $singleShotManifest = Read-Axu4evReleaseManifest -ReleaseRoot $singleShotReference
+    if (-not $singleShotManifest.board_verified) {
+        throw 'The fft-single-shot-v1 Candidate reference must be board verified.'
+    }
+    foreach ($artifact in @(Test-Axu4evReleaseArtifacts `
+            -ReleaseRoot $singleShotReference `
+            -Manifest $singleShotManifest)) {
+        $singleShotReferenceArtifacts[$artifact.Name] = $artifact.Path
+    }
+    foreach ($requiredArtifact in @('bitstream', 'pmufw', 'psu_init', 'xsa')) {
+        if (-not $singleShotReferenceArtifacts.ContainsKey($requiredArtifact)) {
+            throw "The fft-single-shot-v1 Candidate reference is missing '$requiredArtifact'."
+        }
+    }
+}
+$hardwareContractReferenceXsa = if ($ApplicationMode -eq 'PeriodicMonitor') {
+    $singleShotReferenceArtifacts['xsa']
+}
+else {
+    $referenceXsa[0]
+}
+
 $goldenPrefix = [IO.Path]::GetFullPath($goldenBase).TrimEnd('\') + '\'
 $candidatePrefix = [IO.Path]::GetFullPath($candidateBase).TrimEnd('\') + '\'
 if ($CandidateRoot.StartsWith($goldenPrefix, [StringComparison]::OrdinalIgnoreCase)) {
@@ -190,7 +226,7 @@ try {
     }
     Assert-Axu4evPsHardwareContract `
         -Xsa $SourceXsa `
-        -ReferenceXsa $referenceXsa[0]
+        -ReferenceXsa $hardwareContractReferenceXsa
 
     $description = [ordered]@{
         source_xsa = $SourceXsa
@@ -200,7 +236,10 @@ try {
         fft_control_base = '0x9C440000'
         fft_bank0_base = '0x9D000000'
         fft_bank1_base = '0x9D010000'
-        pl_fft_single_shot = $true
+        application_mode = $ApplicationMode
+        compiler_symbol = $compilerSymbol
+        pl_fft_single_shot = ($ApplicationMode -eq 'SingleShot')
+        pl_fft_periodic_monitor = ($ApplicationMode -eq 'PeriodicMonitor')
     }
     if ($DryRun) {
         $description | ConvertTo-Json -Depth 4
@@ -257,7 +296,7 @@ finally {
     $archive.Dispose()
 }
 
-& $xsct $buildTcl $WorkspaceRoot $candidateXsa $VitisWorkspace $AllowedVitisWorkspaceRoot
+& $xsct $buildTcl $WorkspaceRoot $candidateXsa $VitisWorkspace $AllowedVitisWorkspaceRoot $compilerSymbol
 if ($LASTEXITCODE -ne 0) {
     throw "Candidate Vitis build failed with exit code $LASTEXITCODE."
 }
@@ -266,7 +305,12 @@ $platformName = 'fmcomms2_axu4ev_fft_hw'
 $generated = [ordered]@{
     application = Join-Path $VitisWorkspace 'ad9364app\Release\ad9364app.elf'
     bitstream = Join-Path $VitisWorkspace 'ad9364app\_ide\bitstream\system_top.bit'
-    pmufw = $referencePmufw[0]
+    pmufw = if ($ApplicationMode -eq 'PeriodicMonitor') {
+        $singleShotReferenceArtifacts['pmufw']
+    }
+    else {
+        $referencePmufw[0]
+    }
     psu_init = Join-Path $VitisWorkspace 'ad9364app\_ide\psinit\psu_init.tcl'
     xsa = $candidateXsa
 }
@@ -278,6 +322,15 @@ foreach ($entry in $generated.GetEnumerator()) {
 if ((Get-FileHash -LiteralPath $generated.bitstream -Algorithm SHA256).Hash -ne
     (Get-FileHash -LiteralPath $candidateBitstream -Algorithm SHA256).Hash) {
     throw 'Candidate Vitis bitstream does not match the bitstream embedded in the Candidate XSA.'
+}
+if ($ApplicationMode -eq 'PeriodicMonitor') {
+    foreach ($artifactName in @('bitstream', 'pmufw', 'psu_init', 'xsa')) {
+        $generatedHash = (Get-FileHash -LiteralPath $generated[$artifactName] -Algorithm SHA256).Hash
+        $referenceHash = (Get-FileHash -LiteralPath $singleShotReferenceArtifacts[$artifactName] -Algorithm SHA256).Hash
+        if ($generatedHash -ne $referenceHash) {
+            throw "Periodic Candidate $artifactName must be byte-identical to the board-verified fft-single-shot-v1 reference."
+        }
+    }
 }
 
 $destinations = [ordered]@{
@@ -300,7 +353,7 @@ $manifest = New-Axu4evReleaseManifest `
         created_at = (Get-Date).ToString('o')
         source_commit = $sourceCommit
         board_verified = $false
-        uart_markers = @('PL_FFT: PASS')
+        uart_markers = $uartMarkers
     } `
     -Artifacts $destinations
 $manifest | ConvertTo-Json -Depth 6 |
