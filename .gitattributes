@@ -2,3 +2,4 @@
 /PROJECT/candidates/axu4ev-ad9364/fft-single-shot-v1/hardware/psu_init.tcl text eol=crlf
 /PROJECT/candidates/axu4ev-ad9364/fft-periodic-monitor-v1/hardware/psu_init.tcl text eol=crlf
 /PROJECT/candidates/axu4ev-ad9364/monopulse-live-lab-v1/hardware/psu_init.tcl text eol=crlf
+/PROJECT/tests/evidence/axu4ev-ad9364-live-lab-cw-capture.npz binary

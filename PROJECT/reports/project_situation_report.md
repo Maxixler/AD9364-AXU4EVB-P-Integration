@@ -614,3 +614,12 @@ Kalan bağlayıcı kabul sırası:
 Kalibrasyon bitene kadar ekrandaki güç **kalibre edilmemiş bağıl güç** olarak
 etiketlenir. Ethernet ve PetaLinux/IIO geleceğe açık kalır; mevcut teslimin
 zorunlu parçası değildir.
+
+CW kabul yazılımı da fiziksel test öncesinde hazırlandı. Python uygulamasının
+`--frames 10` modu on ardışık frame'i overwrite etmeyen tek NPZ/CSV serisine
+kaydeder. `Test-Axu4evLabCaptureEvidence.ps1`; Candidate application/bitstream
+hash'lerini, SMW200A ve AD9364 çalışma noktalarını, ardışık frame ID'lerini,
+exact 2048-bin yapıyı, protocol CRC durumunu, sıfır fatal flag'i, ±1-bin peak
+kararlılığını ve NPZ/CSV aynı-frame kimliğini doğrular. Gerçek kanıt dosyaları
+henüz olmadığı için validator beklenen şekilde RED'dir; bu fiziksel kabulün
+yapılmadığını görünür biçimde korur.

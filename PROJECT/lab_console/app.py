@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -12,7 +13,12 @@ import numpy as np
 from .model import PlotFrame, SpectrumHistory
 from .protocol import FFT_SIZE, SpectrumResponse
 from .serial_client import CaptureConfig, LabSerialClient
-from .storage import CapturePaths, save_capture
+from .storage import (
+    CapturePaths,
+    CaptureSeriesPaths,
+    save_capture,
+    save_capture_series,
+)
 
 
 SaveCallback = Callable[[PlotFrame], object]
@@ -140,7 +146,19 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--search-stop", type=int, default=2047)
     parser.add_argument("--dc-guard", type=int, default=0)
     parser.add_argument("--rf-state", type=int, default=0)
-    parser.add_argument("--single", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--single", action="store_true")
+    mode.add_argument(
+        "--frames",
+        type=int,
+        default=0,
+        help="capture a bounded series without opening the GUI",
+    )
+    parser.add_argument(
+        "--series-name",
+        default="axu4ev-ad9364-live-lab-cw",
+        help="portable basename for --frames NPZ/CSV evidence",
+    )
     return parser
 
 
@@ -149,10 +167,17 @@ def _print_capture(paths: CapturePaths) -> None:
     print(f"Saved CSV: {paths.csv}")
 
 
+def _print_capture_series(paths: CaptureSeriesPaths) -> None:
+    print(f"Saved series NPZ: {paths.npz}")
+    print(f"Saved series CSV: {paths.csv}")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _argument_parser().parse_args(argv)
     if args.interval_ms < 0:
         raise ValueError("interval-ms must be non-negative")
+    if args.frames < 0:
+        raise ValueError("frames must be non-negative")
     config = CaptureConfig(
         search_start=args.search_start,
         search_stop=args.search_stop,
@@ -178,6 +203,26 @@ def main(argv: list[str] | None = None) -> int:
             search_stop=args.search_stop,
             save_callback=save_frame,
         )
+        if args.frames:
+            captured = []
+            for index in range(args.frames):
+                frame = session.accept_response(
+                    client.capture_once(config)
+                )
+                if frame is None:
+                    return 2
+                captured.append(frame)
+                if index + 1 < args.frames and args.interval_ms:
+                    time.sleep(args.interval_ms / 1000.0)
+            paths = save_capture_series(
+                args.output_dir,
+                captured,
+                info.release_id,
+                base_name=args.series_name,
+            )
+            _print_capture_series(paths)
+            plt.close(session.figure)
+            return 0
         if args.single:
             frame = session.accept_response(client.capture_once(config))
             if frame is None:

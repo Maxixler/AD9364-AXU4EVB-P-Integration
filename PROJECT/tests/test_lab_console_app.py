@@ -6,7 +6,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from PROJECT.lab_console.app import LabConsoleSession
+from PROJECT.lab_console.app import LabConsoleSession, _argument_parser
 from PROJECT.tests.test_lab_console_model import make_response
 
 
@@ -79,6 +79,26 @@ class LabConsoleViewTests(unittest.TestCase):
         session.save_current()
 
         self.assertEqual(saved, [frame])
+
+    def test_bounded_series_mode_is_distinct_from_single_mode(self) -> None:
+        parser = _argument_parser()
+        args = parser.parse_args(
+            [
+                "--port",
+                "COM9",
+                "--frames",
+                "10",
+                "--series-name",
+                "cw-run",
+            ]
+        )
+        self.assertEqual(args.frames, 10)
+        self.assertEqual(args.series_name, "cw-run")
+        self.assertFalse(args.single)
+        with self.assertRaises(SystemExit):
+            parser.parse_args(
+                ["--port", "COM9", "--single", "--frames", "10"]
+            )
 
 
 if __name__ == "__main__":

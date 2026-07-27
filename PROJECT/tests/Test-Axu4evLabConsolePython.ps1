@@ -40,7 +40,8 @@ try {
         'PROJECT.tests.test_lab_console_model',
         'PROJECT.tests.test_lab_console_storage',
         'PROJECT.tests.test_lab_console_serial_client',
-        'PROJECT.tests.test_lab_console_app'
+        'PROJECT.tests.test_lab_console_app',
+        'PROJECT.tests.test_lab_console_evidence'
     )
     & $pythonExe -B -m unittest @modules -v
     if ($LASTEXITCODE -ne 0) {

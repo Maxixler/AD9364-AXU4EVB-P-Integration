@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from PROJECT.lab_console.model import SpectrumHistory
-from PROJECT.lab_console.storage import save_capture
+from PROJECT.lab_console.storage import save_capture, save_capture_series
 from PROJECT.tests.test_lab_console_model import make_response
 
 
@@ -90,6 +90,64 @@ class CaptureStorageTests(unittest.TestCase):
             self.assertTrue(second.npz.exists())
             self.assertTrue(second.csv.exists())
             self.assertEqual(list(output.glob("*.tmp")), [])
+
+    def test_series_saves_ten_exact_frames_for_cw_validation(self) -> None:
+        frames = []
+        for index, peak_bin in enumerate(
+            (122, 123, 124, 123, 122, 124, 123, 123, 122, 124)
+        ):
+            spectrum = np.ones(2048, dtype=np.uint64)
+            spectrum[peak_bin] = 100_000 + index
+            frames.append(
+                SpectrumHistory(history=32).append(
+                    make_response(
+                        spectrum,
+                        frame_id=100 + index,
+                        peak_bin=peak_bin,
+                    )
+                )
+            )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            paths = save_capture_series(
+                Path(temporary),
+                frames,
+                "monopulse-live-lab-v1",
+                base_name="axu4ev-ad9364-live-lab-cw",
+                captured_at=datetime(
+                    2026, 7, 27, 15, 0, 0, tzinfo=timezone.utc
+                ),
+            )
+            with np.load(paths.npz) as saved:
+                self.assertEqual(saved["spectrum"].shape, (10, 2048))
+                self.assertEqual(saved["spectrum"].dtype, np.uint64)
+                np.testing.assert_array_equal(
+                    saved["frame_id"], np.arange(100, 110)
+                )
+                np.testing.assert_array_equal(
+                    saved["protocol_crc_valid"], np.ones(10)
+                )
+                self.assertEqual(
+                    paths.npz.name,
+                    "axu4ev-ad9364-live-lab-cw-capture.npz",
+                )
+            with paths.csv.open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(len(rows), 10)
+            self.assertEqual(rows[0]["frame_id"], "100")
+            self.assertEqual(rows[-1]["frame_id"], "109")
+            self.assertEqual(
+                paths.csv.name,
+                "axu4ev-ad9364-live-lab-cw-summary.csv",
+            )
+
+            with self.assertRaises(FileExistsError):
+                save_capture_series(
+                    Path(temporary),
+                    frames,
+                    "monopulse-live-lab-v1",
+                    base_name="axu4ev-ad9364-live-lab-cw",
+                )
 
 
 if __name__ == "__main__":

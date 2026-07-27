@@ -1200,3 +1200,10 @@ ZX80-DR230-S+ ile EV1HMC936ALP6 bu yazılım Candidate'ına fiziksel olarak
 entegre edilmiş sayılmaz. M5'te BDC IF, RF1/RF2 eşlemesi, ZX80 besleme/kontrol
 seviyesi, HMC936 için 5 V level-shifter ve güvenli OE, sekiz FPGA pini/XDC ile
 ölçülmüş settle/discard değerleri kapanmadan S0-S3 sürülmeyecektir.
+
+M4 kontrollü CW kapısının yazılım önkoşulu hazırdır: `--frames 10` bounded
+capture tek bir 10-frame NPZ/CSV serisi üretir; kanıt validator'u Candidate
+hash'i, jeneratör/RF/AD9364 çalışma noktası, 2048-bin/CRC/flag/peak ve
+NPZ-CSV kimliğini birlikte zorunlu tutar. Bu araçların fixture regresyonu
+PASS'tir; gerçek SMW200A verisi bulunmadığı için M4 fiziksel checkbox'ı açık
+kalmaya devam eder.

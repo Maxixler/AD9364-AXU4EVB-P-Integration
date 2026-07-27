@@ -363,3 +363,10 @@ Kalan iki fiziksel aşama nettir:
 
 Bu nedenle mevcut Candidate yazılım teslimi hazırdır; fakat kontrollü CW kanıtı
 henüz alınmadığı için manifestte `board_verified=false` korunmuştur.
+
+CW testi için ayrıca `--frames 10` modu ve otomatik kanıt doğrulayıcısı
+hazırlandı. Doğrulayıcı Candidate hash'lerini, jeneratör/AD9364 çalışma
+noktasını, on ardışık 2048-bin frame'i, CRC/sağlık durumunu, ±1-bin peak
+kararlılığını ve NPZ/CSV aynı-frame bağını tek kapıda denetler. Sentetik
+pozitif ve negatif fixture'lar PASS'tir; gerçek laboratuvar verisi gelmeden
+fiziksel kabul vermez.

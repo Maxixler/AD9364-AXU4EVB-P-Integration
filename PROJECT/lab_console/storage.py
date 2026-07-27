@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Sequence
 
 import numpy as np
 
@@ -15,6 +17,12 @@ from .model import PlotFrame
 
 @dataclass(frozen=True)
 class CapturePaths:
+    npz: Path
+    csv: Path
+
+
+@dataclass(frozen=True)
+class CaptureSeriesPaths:
     npz: Path
     csv: Path
 
@@ -129,6 +137,148 @@ def save_capture(
             writer.writerow(fields)
             _flush_and_sync(handle)
 
+        os.replace(npz_temporary, paths.npz)
+        os.replace(csv_temporary, paths.csv)
+        return paths
+    finally:
+        npz_temporary.unlink(missing_ok=True)
+        csv_temporary.unlink(missing_ok=True)
+
+
+def _series_paths(output_dir: Path, base_name: str) -> CaptureSeriesPaths:
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", base_name):
+        raise ValueError("base_name must be a portable filename stem")
+    paths = CaptureSeriesPaths(
+        npz=output_dir / f"{base_name}-capture.npz",
+        csv=output_dir / f"{base_name}-summary.csv",
+    )
+    if paths.npz.exists() or paths.csv.exists():
+        raise FileExistsError(
+            "capture series already exists; evidence is never overwritten"
+        )
+    return paths
+
+
+def save_capture_series(
+    output_dir: Path,
+    frames: Sequence[PlotFrame],
+    release_id: str,
+    *,
+    base_name: str = "axu4ev-ad9364-live-lab-cw",
+    captured_at: datetime | None = None,
+) -> CaptureSeriesPaths:
+    """Atomically save a bounded series for controlled-CW validation."""
+
+    if not frames:
+        raise ValueError("capture series must contain at least one frame")
+    if not release_id or not release_id.isascii():
+        raise ValueError("release_id must be non-empty ASCII")
+    instant = captured_at or datetime.now(timezone.utc)
+    if instant.tzinfo is None or instant.utcoffset() is None:
+        raise ValueError("captured_at must be timezone-aware")
+    instant = instant.astimezone(timezone.utc)
+    destination = Path(output_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+    paths = _series_paths(destination, base_name)
+    npz_temporary = paths.npz.with_suffix(".npz.tmp")
+    csv_temporary = paths.csv.with_suffix(".csv.tmp")
+    responses = [frame.response for frame in frames]
+    captured_utc = instant.isoformat()
+
+    arrays = {
+        "spectrum": np.stack(
+            [frame.natural_spectrum for frame in frames]
+        ).astype(np.uint64, copy=False),
+        "frame_id": np.array(
+            [item.frame_id for item in responses], dtype=np.uint32
+        ),
+        "fft_size": np.array(
+            [item.fft_size for item in responses], dtype=np.uint16
+        ),
+        "frame_crc32": np.array(
+            [item.frame_crc32 for item in responses], dtype=np.uint32
+        ),
+        "protocol_crc_valid": np.ones(len(frames), dtype=np.uint8),
+        "peak_bin": np.array(
+            [item.peak_bin for item in responses], dtype=np.uint16
+        ),
+        "hardware_flags": np.array(
+            [item.hardware_flags for item in responses], dtype=np.uint16
+        ),
+        "lo_hz": np.array(
+            [item.lo_hz for item in responses], dtype=np.uint64
+        ),
+        "sample_rate_hz": np.array(
+            [item.sample_rate_hz for item in responses], dtype=np.uint32
+        ),
+        "rx_bandwidth_hz": np.array(
+            [item.rx_bandwidth_hz for item in responses], dtype=np.uint32
+        ),
+        "release_id": np.full(len(frames), release_id, dtype="<U32"),
+        "sequence": np.array(
+            [item.sequence for item in responses], dtype=np.uint32
+        ),
+        "peak_power": np.array(
+            [item.peak_power for item in responses], dtype=np.uint64
+        ),
+        "peak_frequency_hz": np.array(
+            [frame.peak_frequency_hz for frame in frames],
+            dtype=np.float64,
+        ),
+        "captured_utc": np.full(
+            len(frames), captured_utc, dtype="<U40"
+        ),
+    }
+    fieldnames = (
+        "frame_id",
+        "fft_size",
+        "frame_crc32",
+        "protocol_crc_valid",
+        "peak_bin",
+        "hardware_flags",
+        "lo_hz",
+        "sample_rate_hz",
+        "rx_bandwidth_hz",
+        "release_id",
+        "sequence",
+        "peak_power",
+        "peak_frequency_hz",
+        "captured_utc",
+    )
+
+    try:
+        with npz_temporary.open("xb") as handle:
+            np.savez(handle, **arrays)
+            _flush_and_sync(handle)
+        with csv_temporary.open(
+            "x", newline="", encoding="utf-8"
+        ) as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            for index, response in enumerate(responses):
+                writer.writerow(
+                    {
+                        "frame_id": response.frame_id,
+                        "fft_size": response.fft_size,
+                        "frame_crc32": f"{response.frame_crc32:08x}",
+                        "protocol_crc_valid": 1,
+                        "peak_bin": response.peak_bin,
+                        "hardware_flags": (
+                            f"{response.hardware_flags:04x}"
+                        ),
+                        "lo_hz": response.lo_hz,
+                        "sample_rate_hz": response.sample_rate_hz,
+                        "rx_bandwidth_hz": response.rx_bandwidth_hz,
+                        "release_id": release_id,
+                        "sequence": response.sequence,
+                        "peak_power": response.peak_power,
+                        "peak_frequency_hz": (
+                            f"{frames[index].peak_frequency_hz:.6f}"
+                        ),
+                        "captured_utc": captured_utc,
+                    }
+                )
+            _flush_and_sync(handle)
         os.replace(npz_temporary, paths.npz)
         os.replace(csv_temporary, paths.csv)
         return paths

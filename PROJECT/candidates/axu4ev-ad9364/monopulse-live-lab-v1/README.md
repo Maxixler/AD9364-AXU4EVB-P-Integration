@@ -66,6 +66,23 @@ Tek ölçüm alıp otomatik kaydetmek için:
 .\.venv-lab\Scripts\python.exe -m PROJECT.lab_console.app --port COMx --single
 ```
 
+Kontrollü CW kabulü için GUI açmadan 10 ardışık frame'i tek NPZ/CSV serisine
+kaydetmek için:
+
+```powershell
+.\.venv-lab\Scripts\python.exe -m PROJECT.lab_console.app `
+  --port COMx --frames 10 `
+  --output-dir PROJECT\tests\evidence `
+  --series-name axu4ev-ad9364-live-lab-cw
+```
+
+Bu komut şu iki dosyayı üretir ve mevcut kanıtın üzerine yazmaz:
+
+```text
+PROJECT/tests/evidence/axu4ev-ad9364-live-lab-cw-capture.npz
+PROJECT/tests/evidence/axu4ev-ad9364-live-lab-cw-summary.csv
+```
+
 İsteğe bağlı temel ayarlar:
 
 ```powershell
@@ -90,5 +107,33 @@ Tek ölçüm alıp otomatik kaydetmek için:
   henüz etkin değildir. Besleme, kontrol seviyeleri, level shifter, FPGA pinleri
   ve settle/discard süreleri ölçülmeden bu donanımlara kontrol kodu
   uygulanmamalıdır.
+
+Fiziksel koşudan sonra
+`PROJECT/tests/evidence/axu4ev-ad9364-live-lab-cw-pass.md` oluşturulmalı ve
+aşağıdaki alanların gerçek laboratuvar değerleri yazılmalıdır:
+
+```text
+Candidate release: monopulse-live-lab-v1
+Application SHA-256: <manifestteki application hash>
+Bitstream SHA-256: <manifestteki bitstream hash>
+SMW200A frequency Hz: <tam sayı>
+SMW200A level dBm: <değer>
+External attenuation dB: <değer>
+RF path: <kablo/attenuator/anten ve AD9364 portu>
+AD9364 LO Hz: <tam sayı>
+AD9364 sample rate Hz: <tam sayı>
+AD9364 bandwidth Hz: <tam sayı>
+Expected peak bin: <DC olmayan natural-order bin>
+Peak tolerance bins: 1
+NPZ SHA-256: <capture.npz SHA-256>
+CSV SHA-256: <summary.csv SHA-256>
+```
+
+Kabul doğrulayıcısı:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File PROJECT\tests\Test-Axu4evLabCaptureEvidence.ps1
+```
 
 Paket içeriği ve SHA-256 değerleri `manifest.json` dosyasında kayıtlıdır.

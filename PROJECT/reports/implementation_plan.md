@@ -696,3 +696,10 @@ Task 9 için yapılacaklar:
 Sonraki donanım sırası M5-M8'dir: ZX80/HMC936 elektriksel/pin sözleşmesi,
 S0-S3 çevrimi ve scalar AZ/EL, yankısız oda kalibrasyonu ve nihai Candidate
 release. Ethernet/PetaLinux mevcut staj teslimi için ertelenmiştir.
+
+Task 9'un kart öncesi iki adımı tamamlandı. `--frames 10` bounded capture modu
+sabit isimli NPZ/CSV serisini atomik üretir ve mevcut kanıtın üzerine yazmaz.
+`PROJECT/tests/Test-Axu4evLabCaptureEvidence.ps1` gerçek dosyalar yokken
+beklenen RED sonucunu verir; sentetik geçerli 10-frame fixture ve peak
+toleransı dışı negatif fixture regresyonda PASS'tir. Task 9 Step 3-7 yalnız
+gerçek laboratuvar çalışması sonrasında kapatılacaktır.

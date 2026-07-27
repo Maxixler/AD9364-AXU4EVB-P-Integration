@@ -671,3 +671,13 @@ ZX80-DR230-S+ ve EV1HMC936ALP6 planda vardır fakat bu Candidate'a fiziksel
 olarak entegre edilmiş sayılmaz. BDC IF, RF1/RF2 kablo eşlemesi, ZX80 VDD ve
 kontrol gerilimleri, HMC936 5 V level-shifter/OE, sekiz FPGA pini/XDC ile
 settle/discard ölçümleri kapanmadan S0-S3 kontrolü etkinleştirilmeyecektir.
+
+Rapor kapanışından sonra Task 9'un fiziksel test öncesi araçları da eklendi.
+`--frames 10` modu GUI açmadan on ardışık geçerli frame'i
+`axu4ev-ad9364-live-lab-cw-capture.npz` ve
+`axu4ev-ad9364-live-lab-cw-summary.csv` olarak atomik kaydeder.
+`Test-Axu4evLabCaptureEvidence.ps1`; immutable Candidate hash bağını, SMW200A
+frekans/seviye ve RF yolunu, AD9364 LO/Fs/BW değerlerini, ardışık frame
+kimliğini, exact 2048 bin, CRC, peak ±1 ve sıfır fatal flag şartlarını birlikte
+denetler. Sentetik pozitif/negatif testler PASS, gerçek kanıt eksikliği ise
+tasarlandığı gibi RED'dir.

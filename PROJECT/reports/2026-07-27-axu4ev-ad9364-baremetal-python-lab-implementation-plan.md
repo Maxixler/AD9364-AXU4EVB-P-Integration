@@ -92,7 +92,7 @@
   - `decode_spectrum(envelope: Envelope) -> SpectrumResponse`
   - `decode_error(envelope: Envelope) -> ErrorResponse`
 
-- [ ] **Step 1: Write the failing golden-envelope test**
+- [x] **Step 1: Write the failing golden-envelope test**
 
 ```python
 def test_get_info_has_exact_v1_wire_image(self) -> None:
@@ -105,7 +105,7 @@ def test_get_info_has_exact_v1_wire_image(self) -> None:
     self.assertEqual(encode_get_info(1), expected)
 ```
 
-- [ ] **Step 2: Run the protocol test RED**
+- [x] **Step 2: Run the protocol test RED**
 
 Run:
 
@@ -115,7 +115,7 @@ python -B -m unittest PROJECT.tests.test_lab_console_protocol -v
 
 Expected: import failure because `PROJECT.lab_console.protocol` does not exist.
 
-- [ ] **Step 3: Implement constants, envelope dataclasses and command encoders**
+- [x] **Step 3: Implement constants, envelope dataclasses and command encoders**
 
 ```python
 REQUEST_MAGIC = b"MPLQ"
@@ -132,7 +132,7 @@ def _encode(magic: bytes, message_type: int, flags: int,
     return prefix + struct.pack("<I", zlib.crc32(prefix) & 0xFFFFFFFF)
 ```
 
-- [ ] **Step 4: Add failing decoder rejection/resync tests**
+- [x] **Step 4: Add failing decoder rejection/resync tests**
 
 Cover separately:
 
@@ -145,19 +145,19 @@ Cover separately:
 - mismatched SPECTRUM payload length,
 - sequence retained exactly.
 
-- [ ] **Step 5: Implement bounded `MessageDecoder`**
+- [x] **Step 5: Implement bounded `MessageDecoder`**
 
 The decoder keeps at most `HEADER.size + MAX_PAYLOAD + 4` bytes after locating
 the newest possible `MPLR` prefix. It never allocates the declared payload
 before checking `payload_length <= MAX_PAYLOAD`.
 
-- [ ] **Step 6: Add failing INFO/SPECTRUM/ERROR payload tests**
+- [x] **Step 6: Add failing INFO/SPECTRUM/ERROR payload tests**
 
 Build an exact 2048-element `np.arange(2048, dtype=np.uint64)` payload and
 assert every metadata field, the last bin, signed peak Re/Im and hardware flag
 mapping.
 
-- [ ] **Step 7: Implement payload decoders**
+- [x] **Step 7: Implement payload decoders**
 
 Use explicit `struct.Struct` layouts matching the approved design:
 
@@ -170,7 +170,7 @@ ERROR_PAYLOAD = struct.Struct("<iHH")
 
 Reject nonzero reserved fields in protocol v1.
 
-- [ ] **Step 8: Run GREEN and full Python regression**
+- [x] **Step 8: Run GREEN and full Python regression**
 
 ```powershell
 python -B -m unittest PROJECT.tests.test_lab_console_protocol -v
@@ -179,7 +179,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4e
 
 Expected: all tests PASS with no skip.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```powershell
 git add PROJECT/lab_console/__init__.py PROJECT/lab_console/protocol.py PROJECT/tests/test_lab_console_protocol.py
@@ -204,7 +204,7 @@ git commit -m "feat: define monopulse lab UART protocol"
   - `pl_fft_lab_write_spectrum(const struct pl_fft_lab_writer *, uint32_t sequence, const struct pl_fft_lab_spectrum *, const uint64_t bins[2048])`
   - `pl_fft_lab_write_error(const struct pl_fft_lab_writer *, uint32_t sequence, int32_t error_code, uint16_t stage)`
 
-- [ ] **Step 1: Write the failing C golden-vector test**
+- [x] **Step 1: Write the failing C golden-vector test**
 
 The test feeds the exact Python Task 1 GET_INFO bytes one at a time and asserts:
 
@@ -218,7 +218,7 @@ CHECK(command.payload_length == 0U);
 It also captures a C INFO response into a fake writer and compares every byte
 with the Python golden vector committed in the test.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPlFftLabProtocol.ps1
@@ -226,7 +226,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4e
 
 Expected: missing protocol source/header.
 
-- [ ] **Step 3: Implement little-endian helpers and CRC**
+- [x] **Step 3: Implement little-endian helpers and CRC**
 
 Production helpers are private:
 
@@ -247,23 +247,23 @@ typedef int32_t (*pl_fft_lab_write_fn)(
 `write_all()` repeats until the exact length is sent or the writer returns an
 error/zero progress.
 
-- [ ] **Step 4: Implement bounded command parser**
+- [x] **Step 4: Implement bounded command parser**
 
 The parser stores only the 16-byte envelope header, at most 8-byte command
 payload and 4-byte CRC. It resynchronizes on `MPLQ`, rejects version/type/length
 violations and never allocates memory.
 
-- [ ] **Step 5: Implement streaming INFO/SPECTRUM/ERROR writers**
+- [x] **Step 5: Implement streaming INFO/SPECTRUM/ERROR writers**
 
 The 2048 bins are emitted one little-endian 8-byte word at a time while CRC is
 updated. A 16 KiB response buffer is not placed on the A53 stack.
 
-- [ ] **Step 6: Add and pass negative tests**
+- [x] **Step 6: Add and pass negative tests**
 
 Cover CRC corruption, noise resync, zero-progress writer, partial writer,
 invalid command payload, nonzero reserved byte and 2048-bin exact last word.
 
-- [ ] **Step 7: Run GREEN and C warnings gate**
+- [x] **Step 7: Run GREEN and C warnings gate**
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPlFftLabProtocol.ps1
@@ -271,7 +271,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4e
 
 Expected: GCC C11 `-Wall -Wextra -Werror` PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```powershell
 git add Vitis/workspace/ad9364app/src/adc9364_src/pl_fft_lab_protocol.* PROJECT/tests/pl_fft_lab_protocol_test.c PROJECT/tests/Test-Axu4evPlFftLabProtocol.ps1
@@ -316,19 +316,19 @@ int32_t pl_fft_lab_service_command(
     const struct pl_fft_lab_command *command);
 ```
 
-- [ ] **Step 1: Write failing GET_INFO service test**
+- [x] **Step 1: Write failing GET_INFO service test**
 
 Use fake RF readback `30_720_000 / 10_000_000 / 2_400_000_000`, send GET_INFO
 sequence 7 and assert one byte-exact INFO response containing
 `monopulse-live-lab-v1`.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPlFftLabService.ps1
 ```
 
-- [ ] **Step 3: Implement GET_INFO and RF readback failure**
+- [x] **Step 3: Implement GET_INFO and RF readback failure**
 
 RF readback failure produces:
 
@@ -337,7 +337,7 @@ pl_fft_lab_write_error(&service->writer, command->sequence,
                        PL_FFT_ERR_HARDWARE, PL_FFT_LAB_STAGE_CONFIG);
 ```
 
-- [ ] **Step 4: Write failing CAPTURE_ONCE tests**
+- [x] **Step 4: Write failing CAPTURE_ONCE tests**
 
 Cover:
 
@@ -349,18 +349,18 @@ Cover:
 - FFT fatal -> `ERROR stage=CAPTURE`,
 - no SPECTRUM emitted after error.
 
-- [ ] **Step 5: Add `hardware_flags` to driver result**
+- [x] **Step 5: Add `hardware_flags` to driver result**
 
 Extend `struct pl_fft_result` with `uint16_t hardware_flags`. Map the captured
 status snapshot to the v1 flag contract. Existing callers remain source
 compatible because the field is appended.
 
-- [ ] **Step 6: Implement CAPTURE_ONCE service**
+- [x] **Step 6: Implement CAPTURE_ONCE service**
 
 Use the service-owned aligned 2048-word buffer. Validate the command before
 touching hardware. Do not retry hidden hardware errors.
 
-- [ ] **Step 7: Run service, driver and monitor regression**
+- [x] **Step 7: Run service, driver and monitor regression**
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPlFftLabService.ps1
@@ -368,7 +368,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4e
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPlFftMonitor.ps1
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```powershell
 git add Vitis/workspace/ad9364app/src/adc9364_src/pl_fft_control.* Vitis/workspace/ad9364app/src/adc9364_src/pl_fft_lab_service.* PROJECT/tests/pl_fft_lab_service_test.c PROJECT/tests/Test-Axu4evPlFftLabService.ps1
@@ -390,26 +390,26 @@ git commit -m "feat: serve FFT snapshots over lab protocol"
   - `PL_FFT_LAB: READY protocol=1 bins=2048 baud=115200`
   - `PL_FFT_LAB: FAIL stage=<stage> error=<code>`
 
-- [ ] **Step 1: Write failing application-source contract test**
+- [x] **Step 1: Write failing application-source contract test**
 
 Assert `PL_FFT_LAB_UART` is mutually exclusive with all existing feature modes,
 the exact READY/FAIL strings exist once, RF values come from
 `ad9361_get_rx_sampling_freq`, `ad9361_get_rx_rf_bandwidth` and
 `ad9361_get_rx_lo_freq`, and the spectrum buffer is file-scope aligned storage.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evLabApplicationSource.ps1
 ```
 
-- [ ] **Step 3: Make feature modes exactly-one**
+- [x] **Step 3: Make feature modes exactly-one**
 
 Add `PL_FFT_LAB_UART` to the existing compile-time exclusivity expression.
 When no explicit mode is selected, preserve the current
 `MONOPULSE_FOUNDATION_TEST` default.
 
-- [ ] **Step 4: Add board adapters**
+- [x] **Step 4: Add board adapters**
 
 Use:
 
@@ -421,7 +421,7 @@ Use:
 After READY, feed each received byte to the bounded parser and dispatch only
 complete valid commands.
 
-- [ ] **Step 5: Run source and existing mode regressions**
+- [x] **Step 5: Run source and existing mode regressions**
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evLabApplicationSource.ps1
@@ -429,7 +429,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4e
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLaunch.ps1
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add Vitis/workspace/ad9364app/src/adc9364_src/app_config.h Vitis/workspace/ad9364app/src/adc9364_src/main.c PROJECT/tests/Test-Axu4evLabApplicationSource.ps1
@@ -454,7 +454,7 @@ git commit -m "feat: add bare-metal FFT lab UART mode"
   - `SpectrumHistory.append(response: SpectrumResponse) -> PlotFrame`
   - `save_capture(output_dir: Path, frame: PlotFrame, release_id: str) -> CapturePaths`
 
-- [ ] **Step 1: Write failing frequency-axis tests**
+- [x] **Step 1: Write failing frequency-axis tests**
 
 For `N=8`, `Fs=8 MHz`, `LO=100 MHz`, assert the centered axis is:
 
@@ -464,19 +464,19 @@ np.array([96, 97, 98, 99, 100, 101, 102, 103]) * 1_000_000
 
 and that natural bins are reordered `[4,5,6,7,0,1,2,3]`.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 python -B -m unittest PROJECT.tests.test_lab_console_model -v
 ```
 
-- [ ] **Step 3: Implement model with immutable accepted frames**
+- [x] **Step 3: Implement model with immutable accepted frames**
 
 `SpectrumHistory` retains at most 32 valid frames. It verifies the reported
 peak bin equals the lower-index NumPy argmax inside the requested search range.
 Peak mismatches raise `ValueError` rather than silently changing metadata.
 
-- [ ] **Step 4: Write failing NPZ/CSV tests**
+- [x] **Step 4: Write failing NPZ/CSV tests**
 
 Assert:
 
@@ -486,18 +486,18 @@ Assert:
 - a collision creates a suffixed filename and never overwrites,
 - temporary files do not remain after success.
 
-- [ ] **Step 5: Implement atomic storage**
+- [x] **Step 5: Implement atomic storage**
 
 Write temporary files in the destination directory, flush/close, then rename.
 The host supplies UTC timestamp; the board does not claim wall-clock time.
 
-- [ ] **Step 6: Run GREEN**
+- [x] **Step 6: Run GREEN**
 
 ```powershell
 python -B -m unittest PROJECT.tests.test_lab_console_model PROJECT.tests.test_lab_console_storage -v
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add PROJECT/lab_console/model.py PROJECT/lab_console/storage.py PROJECT/tests/test_lab_console_model.py PROJECT/tests/test_lab_console_storage.py
@@ -522,7 +522,7 @@ git commit -m "feat: model and save FFT lab captures"
   - `LabSerialClient.capture_once(config: CaptureConfig) -> SpectrumResponse`
   - `python -m PROJECT.lab_console.app --port COMx`
 
-- [ ] **Step 1: Write failing serial-client tests**
+- [x] **Step 1: Write failing serial-client tests**
 
 Use a deterministic fake serial object. Cover:
 
@@ -535,18 +535,18 @@ Use a deterministic fake serial object. Cover:
 - ERROR response raised with code/stage,
 - port closed in context-manager exit.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 python -B -m unittest PROJECT.tests.test_lab_console_serial_client -v
 ```
 
-- [ ] **Step 3: Implement `LabSerialClient`**
+- [x] **Step 3: Implement `LabSerialClient`**
 
 The client sends one request at a time. Retry count defaults to one and applies
 only to transport timeout/CRC, not board ERROR responses.
 
-- [ ] **Step 4: Write failing headless UI tests**
+- [x] **Step 4: Write failing headless UI tests**
 
 Use Matplotlib `Agg`. Assert:
 
@@ -557,7 +557,7 @@ Use Matplotlib `Agg`. Assert:
 - fatal frame does not enter waterfall,
 - Save callback invokes storage with current frame.
 
-- [ ] **Step 5: Implement CLI and view**
+- [x] **Step 5: Implement CLI and view**
 
 CLI:
 
@@ -569,7 +569,7 @@ The animation callback requests a new frame only after the previous response
 completes. `--single` saves one valid capture and exits without opening an
 interactive window.
 
-- [ ] **Step 6: Add dependency runner**
+- [x] **Step 6: Add dependency runner**
 
 `Test-Axu4evLabConsolePython.ps1 -InstallDependencies` creates
 `.venv-monopulse-lab` and installs exact minimums:
@@ -582,14 +582,14 @@ pyserial>=3.5
 
 Normal test mode uses the selected Python without modifying the environment.
 
-- [ ] **Step 7: Run GREEN and all Python regression**
+- [x] **Step 7: Run GREEN and all Python regression**
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evLabConsolePython.ps1
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evMonopulsePython.ps1
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```powershell
 git add PROJECT/lab_console PROJECT/tests/test_lab_console_serial_client.py PROJECT/tests/Test-Axu4evLabConsolePython.ps1
@@ -616,7 +616,7 @@ git commit -m "feat: add live FFT laboratory display"
   - UART marker `PL_FFT_LAB: READY`
   - Candidate ID `monopulse-live-lab-v1`
 
-- [ ] **Step 1: Write failing build-mode tests**
+- [x] **Step 1: Write failing build-mode tests**
 
 Dry-run must report:
 
@@ -631,18 +631,18 @@ Dry-run must report:
 It must use the board-verified single-shot hardware reference just like the
 periodic Candidate, while refusing to overwrite either accepted Candidate.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evLabCandidateBuild.ps1
 ```
 
-- [ ] **Step 3: Add LabUart build mapping**
+- [x] **Step 3: Add LabUart build mapping**
 
 Extend PowerShell `ValidateSet` and Tcl `allowed_symbols`. Do not loosen dirty
 tracked-source, reparse-point, manifest or hardware-identity gates.
 
-- [ ] **Step 4: Add launcher and package tests**
+- [x] **Step 4: Add launcher and package tests**
 
 Launcher must resolve only:
 
@@ -653,7 +653,7 @@ PROJECT/candidates/axu4ev-ad9364/monopulse-live-lab-v1
 The initial manifest uses `board_verified=false` and contains marker
 `PL_FFT_LAB: READY`.
 
-- [ ] **Step 5: Run build/launcher tests GREEN**
+- [x] **Step 5: Run build/launcher tests GREEN**
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evCandidateBuild.ps1
@@ -661,14 +661,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4e
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evLabCandidatePackage.ps1
 ```
 
-- [ ] **Step 6: Commit build support before generated Candidate**
+- [x] **Step 6: Commit build support before generated Candidate**
 
 ```powershell
 git add PROJECT/tools/Build-Axu4evPlFftCandidate.* PROJECT/tools/Start-Axu4evAd9364LabConsole.cmd PROJECT/tests/Test-Axu4evCandidateBuild.ps1 PROJECT/tests/Test-Axu4evLabCandidateBuild.ps1 PROJECT/tests/Test-Axu4evLabCandidatePackage.ps1
 git commit -m "build: add monopulse lab Candidate mode"
 ```
 
-- [ ] **Step 7: Run real Vitis 2020.1 build**
+- [x] **Step 7: Run real Vitis 2020.1 build**
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tools\Build-Axu4evPlFftCandidate.ps1 `
@@ -679,12 +679,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tools\Build-Axu4
 Expected: exact application ELF plus hardware-identical BIT/XSA/PMUFW/PSU-init
 package, manifest `board_verified=false`.
 
-- [ ] **Step 8: Run package and release gates**
+- [x] **Step 8: Run package and release gates**
 
 Run Lab package, Candidate launch dry-run, JTAG order, release integrity,
 single-shot and periodic package regressions.
 
-- [ ] **Step 9: Commit generated Candidate**
+- [x] **Step 9: Commit generated Candidate**
 
 ```powershell
 git add PROJECT/candidates/axu4ev-ad9364/monopulse-live-lab-v1
@@ -707,7 +707,7 @@ git commit -m "build: package monopulse live lab Candidate"
 - Produces exact operator sequence and prevents preflight from being reported as
   physical RF acceptance.
 
-- [ ] **Step 1: Run complete preflight**
+- [x] **Step 1: Run complete preflight**
 
 At minimum:
 
@@ -721,7 +721,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4e
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evRelease.ps1
 ```
 
-- [ ] **Step 2: Write README**
+- [x] **Step 2: Write README**
 
 Document:
 
@@ -733,12 +733,12 @@ Document:
 6. `--single` capture.
 7. RF safety and uncalibrated-relative-power label.
 
-- [ ] **Step 3: Update reports as software-ready only**
+- [x] **Step 3: Update reports as software-ready only**
 
 Record exact commit, Candidate hashes, tests and remaining controlled-CW board
 gate. Do not set `board_verified=true`.
 
-- [ ] **Step 4: Commit handoff**
+- [x] **Step 4: Commit handoff**
 
 ```powershell
 git add PROJECT/reports PROJECT/candidates/axu4ev-ad9364/monopulse-live-lab-v1/README.md
@@ -760,7 +760,7 @@ git commit -m "docs: hand off monopulse lab Candidate"
 **Interfaces:**
 - Converts Lab Candidate from software-ready to controlled-CW board-verified.
 
-- [ ] **Step 1: Write failing evidence validator**
+- [x] **Step 1: Write failing evidence validator**
 
 Require:
 
@@ -774,7 +774,7 @@ Require:
 - fatal hardware flags zero,
 - NPZ/CSV same frame identity.
 
-- [ ] **Step 2: Run validator RED**
+- [x] **Step 2: Run validator RED**
 
 Expected: missing physical evidence.
 
@@ -790,6 +790,9 @@ Expected: missing physical evidence.
 ```powershell
 PROJECT\tools\Start-Axu4evAd9364LabConsole.cmd
 python -m PROJECT.lab_console.app --port COMx
+python -m PROJECT.lab_console.app --port COMx --frames 10 `
+  --output-dir PROJECT/tests/evidence `
+  --series-name axu4ev-ad9364-live-lab-cw
 ```
 
 Save one accepted series with at least 10 frames.
