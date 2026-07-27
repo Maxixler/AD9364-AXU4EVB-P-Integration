@@ -50,15 +50,17 @@ function Assert-HeadMatchesWorktree {
     }
 }
 
-function Assert-ExactLine {
+function Assert-UniqueMetadataLine {
     param(
         [Parameter(Mandatory = $true)][string[]]$Lines,
+        [Parameter(Mandatory = $true)][string]$Key,
         [Parameter(Mandatory = $true)][string]$Expected,
         [Parameter(Mandatory = $true)][string]$Description
     )
 
-    if ([array]::IndexOf($Lines, $Expected) -lt 0) {
-        throw "Physical acceptance evidence has invalid $Description."
+    $matches = @($Lines | Where-Object { $_.StartsWith($Key, [StringComparison]::Ordinal) })
+    if ($matches.Count -ne 1 -or $matches[0] -cne $Expected) {
+        throw "Physical acceptance evidence has invalid or non-unique $Description."
     }
 }
 
@@ -88,20 +90,34 @@ function Assert-AcceptanceEvidence {
     $applicationHash = (@($Manifest.artifacts | Where-Object name -eq 'application')[0]).sha256
     $bitstreamHash = (@($Manifest.artifacts | Where-Object name -eq 'bitstream')[0]).sha256
 
-    Assert-ExactLine -Lines $lines -Expected 'Acceptance date (Europe/Istanbul): 2026-07-27' -Description 'acceptance date'
-    Assert-ExactLine -Lines $lines -Expected 'Branch at physical run: codex/axu4ev-ad9364-monopulse' -Description 'physical-run branch'
-    Assert-ExactLine -Lines $lines -Expected "Candidate manifest source commit: $($Manifest.source_commit)" -Description 'manifest source commit'
-    Assert-ExactLine -Lines $lines -Expected "Periodic application ELF SHA-256: $applicationHash" -Description 'application hash'
-    Assert-ExactLine -Lines $lines -Expected "Periodic bitstream SHA-256: $bitstreamHash" -Description 'bitstream hash'
-    Assert-ExactLine -Lines $lines -Expected "Raw PuTTY log (committed relative path): $rawRelativePath" -Description 'raw PuTTY path'
-    Assert-ExactLine -Lines $lines -Expected "Raw PuTTY log SHA-256: $rawHash" -Description 'raw PuTTY hash'
-    Assert-ExactLine -Lines $lines -Expected "JTAG launch log (committed relative path): $jtagRelativePath" -Description 'JTAG path'
-    Assert-ExactLine -Lines $lines -Expected "JTAG launch log SHA-256: $jtagHash" -Description 'JTAG hash'
-    Assert-ExactLine -Lines $lines -Expected 'PuTTY serial settings: PS_UART, 115200-8-N-1, all-session output.' -Description 'PuTTY session settings'
-    Assert-ExactLine -Lines $lines -Expected "Strict validator command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath $rawRelativePath" -Description 'strict validator command'
-    Assert-ExactLine -Lines $lines -Expected 'Strict validator output: PASS: periodic FFT monitor log contains 100 valid frames.' -Description 'strict validator output'
-    Assert-ExactLine -Lines $lines -Expected 'RF context: No controlled CW or R&S source was declared for this infrastructure acceptance. Observed low peak powers were ambient-noise input; this acceptance covers monitor transport/control only, not RF performance or DOA calibration.' -Description 'RF scope'
-    Assert-ExactLine -Lines $lines -Expected 'Antenna/port wiring: Not independently reverified during this run.' -Description 'antenna/port-wiring scope'
+    $metadata = @(
+        [pscustomobject]@{ Key = 'AXU4EVB-P + AD9364 periodic FFT monitor physical acceptance evidence'; Line = 'AXU4EVB-P + AD9364 periodic FFT monitor physical acceptance evidence'; Description = 'evidence title' },
+        [pscustomobject]@{ Key = 'Acceptance date (Europe/Istanbul):'; Line = 'Acceptance date (Europe/Istanbul): 2026-07-27'; Description = 'acceptance date' },
+        [pscustomobject]@{ Key = 'Branch at physical run:'; Line = 'Branch at physical run: codex/axu4ev-ad9364-monopulse'; Description = 'physical-run branch' },
+        [pscustomobject]@{ Key = 'Launch commit:'; Line = 'Launch commit: b0f53f36f8676b54747d417c4ae44c61ac8a3c99'; Description = 'launch commit' },
+        [pscustomobject]@{ Key = 'Candidate manifest source commit:'; Line = "Candidate manifest source commit: $($Manifest.source_commit)"; Description = 'manifest source commit' },
+        [pscustomobject]@{ Key = 'Periodic application ELF SHA-256:'; Line = "Periodic application ELF SHA-256: $applicationHash"; Description = 'application hash' },
+        [pscustomobject]@{ Key = 'Periodic bitstream SHA-256:'; Line = "Periodic bitstream SHA-256: $bitstreamHash"; Description = 'bitstream hash' },
+        [pscustomobject]@{ Key = 'Raw PuTTY log (committed relative path):'; Line = "Raw PuTTY log (committed relative path): $rawRelativePath"; Description = 'raw PuTTY path' },
+        [pscustomobject]@{ Key = 'Raw PuTTY log SHA-256:'; Line = "Raw PuTTY log SHA-256: $rawHash"; Description = 'raw PuTTY hash' },
+        [pscustomobject]@{ Key = 'JTAG launch log (committed relative path):'; Line = "JTAG launch log (committed relative path): $jtagRelativePath"; Description = 'JTAG path' },
+        [pscustomobject]@{ Key = 'JTAG launch log SHA-256:'; Line = "JTAG launch log SHA-256: $jtagHash"; Description = 'JTAG hash' },
+        [pscustomobject]@{ Key = 'PuTTY serial settings:'; Line = 'PuTTY serial settings: PS_UART, 115200-8-N-1, all-session output.'; Description = 'PuTTY session settings' },
+        [pscustomobject]@{ Key = 'Origin note:'; Line = 'Origin note: byte-for-byte source copy originated at C:\Users\DELL\Desktop\putty-periodic.log.'; Description = 'origin note' },
+        [pscustomobject]@{ Key = 'Strict validator command:'; Line = "Strict validator command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath $rawRelativePath"; Description = 'strict validator command' },
+        [pscustomobject]@{ Key = 'Strict validator output:'; Line = 'Strict validator output: PASS: periodic FFT monitor log contains 100 valid frames.'; Description = 'strict validator output' },
+        [pscustomobject]@{ Key = 'RF context:'; Line = 'RF context: No controlled CW or R&S source was declared for this infrastructure acceptance. Observed low peak powers were ambient-noise input; this acceptance covers monitor transport/control only, not RF performance or DOA calibration.'; Description = 'RF scope' },
+        [pscustomobject]@{ Key = 'Antenna/port wiring:'; Line = 'Antenna/port wiring: Not independently reverified during this run.'; Description = 'antenna/port-wiring scope' }
+    )
+    if ($lines.Count -lt $metadata.Count + 1) {
+        throw 'Physical acceptance evidence metadata is incomplete.'
+    }
+    for ($index = 0; $index -lt $metadata.Count; $index++) {
+        if ($lines[$index] -cne $metadata[$index].Line) {
+            throw "Physical acceptance evidence metadata order/value mismatch at index $index."
+        }
+        Assert-UniqueMetadataLine -Lines $lines -Key $metadata[$index].Key -Expected $metadata[$index].Line -Description $metadata[$index].Description
+    }
 
     $launchCommitMatch = [regex]::Match($EvidenceText, '(?m)^Launch commit: ([0-9a-f]{40})\r?$')
     if (-not $launchCommitMatch.Success) {
@@ -131,9 +147,13 @@ function Assert-AcceptanceEvidence {
     }
     $evidencePayload = @($lines[($markerIndexes[0] + 1)..($lines.Count - 1)] | Where-Object { $_ -ne '' })
     $rawPayload = Get-NormalizedUartPayload -RawPath $RawPath
-    if ($rawPayload.Count -ne 104 -or $evidencePayload.Count -ne 104 -or
-        (Compare-Object -ReferenceObject $rawPayload -DifferenceObject $evidencePayload)) {
-        throw 'Normalized UART evidence payload does not exactly match the committed raw PuTTY log.'
+    if ($rawPayload.Count -ne 104 -or $evidencePayload.Count -ne 104) {
+        throw "Normalized UART evidence payload must contain exactly 104 lines (raw=$($rawPayload.Count), evidence=$($evidencePayload.Count))."
+    }
+    for ($index = 0; $index -lt 104; $index++) {
+        if ($rawPayload[$index] -cne $evidencePayload[$index]) {
+            throw "Normalized UART evidence payload differs from committed raw PuTTY log at index $index."
+        }
     }
 }
 
@@ -147,6 +167,17 @@ function Assert-Rejected {
         return
     }
     throw "Acceptance evidence negative probe was incorrectly accepted: $Description"
+}
+
+function Invoke-BoardVerificationGate {
+    param(
+        [Parameter(Mandatory)]$Manifest,
+        [Parameter(Mandatory = $true)][scriptblock]$EvidenceCheck
+    )
+
+    if ([bool]$Manifest.board_verified) {
+        & $EvidenceCheck
+    }
 }
 
 function Assert-PeriodicArtifactPaths {
@@ -186,7 +217,13 @@ $periodicArtifacts = @(Test-Axu4evReleaseArtifacts -ReleaseRoot $periodicRoot -M
 if ($periodicManifest.release_id -ne 'fft-periodic-monitor-v1') {
     throw "Unexpected periodic Candidate release id: $($periodicManifest.release_id)"
 }
-if ($periodicManifest.board_verified) {
+$preAcceptanceManifest = $periodicManifest | ConvertTo-Json -Depth 6 | ConvertFrom-Json
+$preAcceptanceManifest.board_verified = $false
+Invoke-BoardVerificationGate -Manifest $preAcceptanceManifest -EvidenceCheck {
+    throw 'board_verified=false must not require physical acceptance evidence.'
+}
+
+Invoke-BoardVerificationGate -Manifest $periodicManifest -EvidenceCheck {
     $evidencePath = Join-Path $workspaceRoot $evidenceRelativePath
     $rawPath = Join-Path $workspaceRoot $rawRelativePath
     $jtagPath = Join-Path $workspaceRoot $jtagRelativePath
@@ -217,11 +254,19 @@ if ($periodicManifest.board_verified) {
     Assert-Rejected -Description 'wrong raw hash' -Action {
         Assert-AcceptanceEvidence -EvidenceText ($evidenceText.Replace('Raw PuTTY log SHA-256: B3BCA7747B6130DDF39731C39DE28FEA1E31DEC210FD8E2009B43DB751CF8129', 'Raw PuTTY log SHA-256: 0000000000000000000000000000000000000000000000000000000000000000')) -RawPath $rawPath -JtagPath $jtagPath -Manifest $periodicManifest
     }
-}
-else {
-    # Pre-acceptance manifests are valid without physical evidence.
-    $preAcceptanceManifest = $periodicManifest | ConvertTo-Json -Depth 6 | ConvertFrom-Json
-    $preAcceptanceManifest.board_verified = $false
+    Assert-Rejected -Description 'swapped initialization lines' -Action {
+        $swapped = $evidenceText.Replace("cf-ad9361-lpc: Successfully initialized (61441040 Hz)`r`nad9361_init : AD936x Rev 2 successfully initialized", "ad9361_init : AD936x Rev 2 successfully initialized`r`ncf-ad9361-lpc: Successfully initialized (61441040 Hz)")
+        Assert-AcceptanceEvidence -EvidenceText $swapped -RawPath $rawPath -JtagPath $jtagPath -Manifest $periodicManifest
+    }
+    Assert-Rejected -Description 'uppercase CRC' -Action {
+        Assert-AcceptanceEvidence -EvidenceText ($evidenceText.Replace('crc=1d8b292d', 'crc=1D8B292D')) -RawPath $rawPath -JtagPath $jtagPath -Manifest $periodicManifest
+    }
+    Assert-Rejected -Description 'duplicate blank branch' -Action {
+        Assert-AcceptanceEvidence -EvidenceText ($evidenceText.Replace('Branch at physical run: codex/axu4ev-ad9364-monopulse', "Branch at physical run: codex/axu4ev-ad9364-monopulse`r`nBranch at physical run: ")) -RawPath $rawPath -JtagPath $jtagPath -Manifest $periodicManifest
+    }
+    Assert-Rejected -Description 'duplicate contradictory raw path' -Action {
+        Assert-AcceptanceEvidence -EvidenceText ($evidenceText.Replace("Raw PuTTY log (committed relative path): $rawRelativePath", "Raw PuTTY log (committed relative path): $rawRelativePath`r`nRaw PuTTY log (committed relative path): PROJECT/tests/evidence/not-the-accepted-log.log")) -RawPath $rawPath -JtagPath $jtagPath -Manifest $periodicManifest
+    }
 }
 if (@($periodicManifest.uart_markers).Count -ne 1 -or @($periodicManifest.uart_markers)[0] -ne 'PL_FFT_MONITOR: PASS') {
     throw 'Periodic Candidate manifest must require the PL_FFT_MONITOR: PASS UART marker.'

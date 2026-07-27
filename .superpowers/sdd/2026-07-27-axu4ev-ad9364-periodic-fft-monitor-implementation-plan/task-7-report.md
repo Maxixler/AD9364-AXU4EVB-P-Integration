@@ -62,3 +62,19 @@ normalized UART payload exactly, checks anchored metadata and scope limits,
 checks the physical launch commit is an ancestor, and exercises in-memory
 negative probes for a CRC mutation, blank branch, and wrong raw hash. The
 pre-acceptance false state remains valid without evidence.
+
+## Review-round-2 exact-binding remediation
+
+The acceptance gate now compares the normalized UART payload by ordinal index
+(`0..103`) with case-sensitive equality, rather than using set-style
+comparison. Mutation probes prove that swapped initialization lines and
+uppercase CRC text are rejected. Every metadata field is now required once at
+its anchored position and once globally by its exact key prefix; duplicate
+blank/contradictory branch, hash, or path lines are rejected. An in-memory
+`board_verified=false` fixture confirms that physical evidence is not required
+before acceptance.
+
+Capture boundary note: the committed raw PuTTY source is 12,382 bytes through
+the final PASS. PuTTY later appended one trailing NUL while its external log
+remained open; that post-capture byte is intentionally outside the committed
+source and does not change its recorded SHA-256.
