@@ -136,6 +136,7 @@ static void pl_fft_board_report(void *context, uint32_t sequence,
 }
 #endif
 
+#ifdef PL_FFT_SINGLE_SHOT
 static int pl_fft_single_shot_run(void)
 {
 	struct pl_fft_device dev = {
@@ -176,6 +177,7 @@ static int pl_fft_single_shot_run(void)
 #endif
 	return 0;
 }
+#endif
 
 #ifdef PL_FFT_PERIODIC_MONITOR
 static int pl_fft_periodic_monitor_run(void)

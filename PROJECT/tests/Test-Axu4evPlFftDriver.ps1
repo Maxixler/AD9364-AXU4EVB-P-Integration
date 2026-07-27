@@ -7,12 +7,92 @@ $driverSource = Join-Path $sourceRoot 'pl_fft_control.c'
 $driverHeader = Join-Path $sourceRoot 'pl_fft_control.h'
 $mainSource = Join-Path $sourceRoot 'main.c'
 $configSource = Join-Path $sourceRoot 'app_config.h'
+$applicationSourceRoot = Join-Path $root 'Vitis\workspace\ad9364app\src'
+$bspInclude = Join-Path $root (
+    'Vitis\workspace\fmcomms2_axu4ev_hw\export\fmcomms2_axu4ev_hw\sw\' +
+    'fmcomms2_axu4ev_hw\standalone_domain\bspinclude\include')
 
 foreach ($path in @($testSource, $driverSource, $driverHeader,
         $mainSource, $configSource)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Missing PL FFT driver source: $path"
     }
+}
+if (-not (Test-Path -LiteralPath $bspInclude -PathType Container)) {
+    throw "Missing AXU4EV BSP include directory: $bspInclude"
+}
+
+$targetGcc = $env:AXU4EV_AARCH64_GCC
+if (-not $targetGcc) {
+    $targetGcc = 'C:\Xilinx\Vitis\2020.1\gnu\aarch64\nt\aarch64-none\bin\aarch64-none-elf-gcc.exe'
+}
+if (-not (Test-Path -LiteralPath $targetGcc -PathType Leaf)) {
+    throw "Unable to find AXU4EV A53 compiler. Set AXU4EV_AARCH64_GCC: $targetGcc"
+}
+
+$targetMainArguments = @(
+    '-std=c11',
+    '-fsyntax-only',
+    '-mcpu=cortex-a53',
+    '-Wformat=2',
+    '-Werror=format',
+    "-I$bspInclude",
+    "-I$applicationSourceRoot\adc",
+    "-I$applicationSourceRoot\include",
+    "-I$applicationSourceRoot\adc9364_src",
+    "-I$applicationSourceRoot\api",
+    "-I$applicationSourceRoot\dac",
+    "-I$applicationSourceRoot\dmac",
+    "-I$applicationSourceRoot\drivers_rf_transceiver",
+    "-I$applicationSourceRoot\iio",
+    "-I$applicationSourceRoot\xilinx",
+    '-DXPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR=0xA0000000u',
+    '-DXPAR_AXI_AD9364_FFT_BRAM0_S_AXI_BASEADDR=0xA0010000u',
+    '-DXPAR_AXI_AD9364_FFT_BRAM1_S_AXI_BASEADDR=0xA0020000u'
+)
+
+function Invoke-NativeCompiler {
+    param(
+        [string]$Compiler,
+        [string[]]$Arguments
+    )
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $output = & $Compiler @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Output = $output
+    }
+}
+
+function Test-Axu4evMainCompilation {
+    param(
+        [string]$Mode,
+        [string[]]$Defines
+    )
+
+    $result = Invoke-NativeCompiler -Compiler $targetGcc `
+        -Arguments ($targetMainArguments + $Defines + @($mainSource))
+    if ($result.ExitCode -ne 0) {
+        throw "AXU4EV main.c $Mode mode compilation failed:`n$($result.Output -join "`n")"
+    }
+}
+
+function Get-Axu4evMainPreprocessed {
+    param([string[]]$Defines)
+
+    $result = Invoke-NativeCompiler -Compiler $targetGcc `
+        -Arguments ($targetMainArguments + $Defines + @('-E', $mainSource))
+    if ($result.ExitCode -ne 0) {
+        throw "AXU4EV main.c periodic mode preprocessing failed:`n$($result.Output -join "`n")"
+    }
+    return $result.Output -join "`n"
 }
 
 $gcc = $env:MONOPULSE_GCC
@@ -114,11 +194,31 @@ int main(void) { return 0; }
     if ($LASTEXITCODE -ne 0) {
         throw 'PL_FFT_PERIODIC_MONITOR application-mode contract failed.'
     }
-    & $gcc -std=c11 -Wall -Wextra -Werror "-I$sourceRoot" `
-        -DPL_FFT_SINGLE_SHOT -DPL_FFT_PERIODIC_MONITOR $periodicSource `
-        -o (Join-Path $work 'dual_mode.exe')
-    if ($LASTEXITCODE -eq 0) {
+    $dualMode = Invoke-NativeCompiler -Compiler $gcc -Arguments @(
+        '-std=c11', '-Wall', '-Wextra', '-Werror', "-I$sourceRoot",
+        '-DPL_FFT_SINGLE_SHOT', '-DPL_FFT_PERIODIC_MONITOR', $periodicSource,
+        '-o', (Join-Path $work 'dual_mode.exe'))
+    if ($dualMode.ExitCode -eq 0) {
         throw 'PL FFT dual-mode application-mode contract was accepted.'
+    }
+    foreach ($invalidMode in @(
+            @('-DPL_FFT_PERIODIC_MONITOR', '-DMONOPULSE_FOUNDATION_TEST'),
+            @('-DPL_FFT_PERIODIC_MONITOR', '-DWIFI_RF_TEST'),
+            @('-DPL_FFT_PERIODIC_MONITOR', '-DDMA_EXAMPLE'))) {
+        $invalidModeResult = Invoke-NativeCompiler -Compiler $gcc -Arguments (
+            @('-std=c11', '-Wall', '-Wextra', '-Werror', "-I$sourceRoot") +
+            $invalidMode + @($periodicSource, '-o', (Join-Path $work 'invalid_mode.exe')))
+        if ($invalidModeResult.ExitCode -eq 0) {
+            throw "PL FFT periodic mode was accepted with $($invalidMode -join ' ')."
+        }
+    }
+
+    Test-Axu4evMainCompilation -Mode 'default' -Defines @()
+    Test-Axu4evMainCompilation -Mode 'single-shot' -Defines @('-DPL_FFT_SINGLE_SHOT')
+    Test-Axu4evMainCompilation -Mode 'periodic' -Defines @('-DPL_FFT_PERIODIC_MONITOR')
+    $periodicMain = Get-Axu4evMainPreprocessed -Defines @('-DPL_FFT_PERIODIC_MONITOR')
+    if ($periodicMain.Contains('static int pl_fft_single_shot_run(void)')) {
+        throw 'Single-shot runner is compiled into the periodic application mode.'
     }
 } finally {
     if (Test-Path -LiteralPath $work) {
