@@ -13,6 +13,7 @@ if {$argc == 5} {
 set allowed_symbols {
     PL_FFT_SINGLE_SHOT
     PL_FFT_PERIODIC_MONITOR
+    PL_FFT_LAB_UART
 }
 if {[lsearch -exact $allowed_symbols $compiler_symbol] == -1} {
     error "Invalid Candidate compiler symbol: $compiler_symbol"

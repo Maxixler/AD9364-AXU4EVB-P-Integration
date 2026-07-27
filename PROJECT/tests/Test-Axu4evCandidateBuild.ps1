@@ -5,11 +5,12 @@ $builder = Join-Path $workspaceRoot 'PROJECT\tools\Build-Axu4evPlFftCandidate.ps
 $buildTcl = Join-Path $workspaceRoot 'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
 $singleShotLauncher = Join-Path $workspaceRoot 'PROJECT\tools\Start-Axu4evAd9364Candidate.cmd'
 $periodicLauncher = Join-Path $workspaceRoot 'PROJECT\tools\Start-Axu4evAd9364PeriodicMonitor.cmd'
+$labLauncher = Join-Path $workspaceRoot 'PROJECT\tools\Start-Axu4evAd9364LabConsole.cmd'
 $applicationMain = Join-Path $workspaceRoot 'Vitis\workspace\ad9364app\src\adc9364_src\main.c'
 $candidateXsa = Join-Path $workspaceRoot 'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1\hardware\system_top.xsa'
 $wrongXsa = Join-Path $workspaceRoot 'vivado\SDR_Real\sdr_wrapper.xsa'
 
-foreach ($required in @($builder, $buildTcl, $singleShotLauncher, $periodicLauncher)) {
+foreach ($required in @($builder, $buildTcl, $singleShotLauncher, $periodicLauncher, $labLauncher)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "Missing Candidate build dependency: $required"
     }
@@ -62,7 +63,8 @@ try {
     }
     if ($dryRun.application_mode -ne 'SingleShot' -or
         -not $dryRun.pl_fft_single_shot -or
-        $dryRun.pl_fft_periodic_monitor) {
+        $dryRun.pl_fft_periodic_monitor -or
+        $dryRun.pl_fft_lab_uart) {
         throw 'Default Candidate build is no longer single-shot.'
     }
     if ([IO.Path]::GetFullPath($dryRun.candidate_root) -ne
@@ -83,6 +85,7 @@ try {
     if ($periodic.application_mode -ne 'PeriodicMonitor' -or
         $periodic.pl_fft_single_shot -or
         -not $periodic.pl_fft_periodic_monitor -or
+        $periodic.pl_fft_lab_uart -or
         $periodic.compiler_symbol -ne 'PL_FFT_PERIODIC_MONITOR') {
         throw 'Periodic Candidate build selected the wrong compiler mode.'
     }
@@ -110,7 +113,7 @@ try {
             $ErrorActionPreference = $savedPreference
         }
         if ($referenceRootExitCode -eq 0 -or
-            ($referenceRootOutput -join "`n") -notmatch 'board-verified fft-single-shot-v1 reference') {
+            ($referenceRootOutput -join "`n") -notmatch 'accepted Candidate bundle') {
             throw "Periodic Candidate mode accepted the board-verified single-shot reference overlap: $unsafeCandidateRoot"
         }
     }
@@ -326,6 +329,7 @@ try {
 
     $singleShotLauncherContent = Get-Content -LiteralPath $singleShotLauncher -Raw
     $periodicLauncherContent = Get-Content -LiteralPath $periodicLauncher -Raw
+    $labLauncherContent = Get-Content -LiteralPath $labLauncher -Raw
     if ($singleShotLauncherContent -notmatch 'fft-single-shot-v1' -or
         $singleShotLauncherContent -match 'fft-periodic-monitor-v1') {
         throw 'The existing single-shot CMD no longer selects only its single-shot bundle.'
@@ -334,6 +338,11 @@ try {
         $periodicLauncherContent -match 'fft-single-shot-v1' -or
         $periodicLauncherContent -notmatch '%\*') {
         throw 'The periodic CMD does not select only its periodic bundle and forward arguments.'
+    }
+    if ($labLauncherContent -notmatch 'monopulse-live-lab-v1' -or
+        $labLauncherContent -match 'fft-(single-shot|periodic-monitor)-v1' -or
+        $labLauncherContent -notmatch '%\*') {
+        throw 'The Lab CMD does not select only its Lab bundle and forward arguments.'
     }
 
     $savedPreference = $ErrorActionPreference

@@ -14,7 +14,7 @@ param(
     [Parameter(Mandatory)]
     [string]$AllowedVitisWorkspaceRoot,
 
-    [ValidateSet('SingleShot', 'PeriodicMonitor')]
+    [ValidateSet('SingleShot', 'PeriodicMonitor', 'LabUart')]
     [string]$ApplicationMode = 'SingleShot',
 
     [switch]$DryRun
@@ -41,11 +41,14 @@ $xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'
 $compilerSymbol = switch ($ApplicationMode) {
     'SingleShot' { 'PL_FFT_SINGLE_SHOT' }
     'PeriodicMonitor' { 'PL_FFT_PERIODIC_MONITOR' }
+    'LabUart' { 'PL_FFT_LAB_UART' }
 }
 $uartMarkers = switch ($ApplicationMode) {
     'SingleShot' { @('PL_FFT: PASS') }
     'PeriodicMonitor' { @('PL_FFT_MONITOR: PASS') }
+    'LabUart' { @('PL_FFT_LAB: READY') }
 }
+$usesTrustedSingleShotReference = $ApplicationMode -in @('PeriodicMonitor', 'LabUart')
 
 function Assert-NoReparsePointForWrite {
     param(
@@ -197,11 +200,29 @@ if (-not $CandidateRoot.StartsWith($candidatePrefix, [StringComparison]::Ordinal
     throw "CandidateRoot must be inside the project Candidate tree: $CandidateRoot"
 }
 Assert-NoReparsePointForWrite -Path $CandidateRoot -Boundary $candidateBase
+$protectedCandidateRoots = @(
+    (Join-Path $candidateBase 'fft-single-shot-v1'),
+    (Join-Path $candidateBase 'fft-periodic-monitor-v1')
+)
+foreach ($protectedCandidateRoot in $protectedCandidateRoots) {
+    $protectedRoot = [IO.Path]::GetFullPath($protectedCandidateRoot).TrimEnd('\')
+    $protectedPrefix = $protectedRoot + '\'
+    $selectedRoot = $CandidateRoot.TrimEnd('\')
+    $selectedPrefix = $selectedRoot + '\'
+    if ($selectedRoot.Equals($protectedRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        $selectedRoot.StartsWith($protectedPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        $protectedRoot.StartsWith($selectedPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "CandidateRoot cannot overlap an accepted Candidate bundle: $protectedRoot"
+    }
+}
+if (-not $DryRun -and (Test-Path -LiteralPath (Join-Path $CandidateRoot 'manifest.json') -PathType Leaf)) {
+    throw "CandidateRoot already contains an immutable manifest: $CandidateRoot"
+}
 Assert-CandidateTrackedSourceCleanliness -SelectedCandidateRoot $CandidateRoot
 
 Import-Module $releaseModule -Force
 $singleShotReferenceArtifacts = @{}
-$hardwareContractReferenceXsa = if ($ApplicationMode -eq 'PeriodicMonitor') {
+$hardwareContractReferenceXsa = if ($usesTrustedSingleShotReference) {
     $singleShotReference = (Resolve-Path -LiteralPath (Join-Path $candidateBase 'fft-single-shot-v1')).Path
     Assert-TrustedPeriodicReferenceProvenance -ReferenceRoot $singleShotReference
     $singleShotManifest = Read-Axu4evReleaseManifest -ReleaseRoot $singleShotReference
@@ -250,7 +271,7 @@ else {
     $referenceXsa[0]
 }
 
-if ($ApplicationMode -eq 'PeriodicMonitor') {
+if ($usesTrustedSingleShotReference) {
     $singleShotReferenceRoot = [IO.Path]::GetFullPath($singleShotReference).TrimEnd('\')
     $singleShotReferencePrefix = $singleShotReferenceRoot + '\'
     $candidateRootPrefix = $CandidateRoot.TrimEnd('\') + '\'
@@ -259,7 +280,7 @@ if ($ApplicationMode -eq 'PeriodicMonitor') {
             [StringComparison]::OrdinalIgnoreCase) -or
         $CandidateRoot.StartsWith($singleShotReferencePrefix, [StringComparison]::OrdinalIgnoreCase) -or
         $singleShotReferenceRoot.StartsWith($candidateRootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Periodic CandidateRoot cannot overlap the board-verified fft-single-shot-v1 reference: $CandidateRoot"
+        throw "$ApplicationMode CandidateRoot cannot overlap the board-verified fft-single-shot-v1 reference: $CandidateRoot"
     }
 }
 $allowedWorkspacePrefix = $AllowedVitisWorkspaceRoot.TrimEnd('\') + '\'
@@ -339,6 +360,7 @@ try {
         compiler_symbol = $compilerSymbol
         pl_fft_single_shot = ($ApplicationMode -eq 'SingleShot')
         pl_fft_periodic_monitor = ($ApplicationMode -eq 'PeriodicMonitor')
+        pl_fft_lab_uart = ($ApplicationMode -eq 'LabUart')
         tracked_source_cleanliness_checked = $true
     }
     if ($DryRun) {
@@ -389,7 +411,7 @@ $platformName = 'fmcomms2_axu4ev_fft_hw'
 $generated = [ordered]@{
     application = Join-Path $VitisWorkspace 'ad9364app\Release\ad9364app.elf'
     bitstream = Join-Path $VitisWorkspace 'ad9364app\_ide\bitstream\system_top.bit'
-    pmufw = if ($ApplicationMode -eq 'PeriodicMonitor') {
+    pmufw = if ($usesTrustedSingleShotReference) {
         $singleShotReferenceArtifacts['pmufw'].Path
     }
     else {
@@ -407,12 +429,12 @@ if ((Get-FileHash -LiteralPath $generated.bitstream -Algorithm SHA256).Hash -ne
     (Get-FileHash -LiteralPath $candidateBitstream -Algorithm SHA256).Hash) {
     throw 'Candidate Vitis bitstream does not match the bitstream embedded in the Candidate XSA.'
 }
-if ($ApplicationMode -eq 'PeriodicMonitor') {
+if ($usesTrustedSingleShotReference) {
     foreach ($artifactName in @('bitstream', 'pmufw', 'psu_init', 'xsa')) {
         $generatedHash = (Get-FileHash -LiteralPath $generated[$artifactName] -Algorithm SHA256).Hash
         $referenceHash = $singleShotReferenceArtifacts[$artifactName].Sha256
         if ($generatedHash -ne $referenceHash) {
-            throw "Periodic Candidate $artifactName must be byte-identical to the board-verified fft-single-shot-v1 reference."
+            throw "$ApplicationMode Candidate $artifactName must be byte-identical to the board-verified fft-single-shot-v1 reference."
         }
     }
 }
