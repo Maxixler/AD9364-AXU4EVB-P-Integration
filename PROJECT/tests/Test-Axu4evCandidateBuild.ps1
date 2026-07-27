@@ -241,6 +241,10 @@ try {
         if ($selectedOutputExitCode -ne 0) {
             throw "Periodic Candidate build rejected a modified selected output root.`r`n$($selectedOutputOutput -join "`r`n")"
         }
+        $selectedOutputDescription = ($selectedOutputOutput -join "`n") | ConvertFrom-Json
+        if (-not $selectedOutputDescription.tracked_source_cleanliness_checked) {
+            throw 'Periodic Candidate dry-run did not execute the tracked source cleanliness gate for the selected output root.'
+        }
 
         $fixtureManifestPath = Join-Path $fixtureReferenceRoot 'manifest.json'
         $fixtureManifest = Get-Content -LiteralPath $fixtureManifestPath -Raw | ConvertFrom-Json
@@ -272,7 +276,7 @@ try {
             $ErrorActionPreference = $savedPreference
         }
         if ($dirtyReferenceExitCode -eq 0 -or
-            ($dirtyReferenceOutput -join "`n") -notmatch 'trusted fft-single-shot-v1 reference') {
+            ($dirtyReferenceOutput -join "`n") -notmatch 'clean tracked source inputs') {
             throw 'Periodic Candidate build accepted a self-consistent but modified trusted reference PMUFW and manifest.'
         }
     }

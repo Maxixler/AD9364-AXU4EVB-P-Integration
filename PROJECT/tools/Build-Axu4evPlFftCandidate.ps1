@@ -110,6 +110,25 @@ function Get-WorkspaceRelativePath {
     return $fullPath.Substring($prefix.Length).Replace('\', '/')
 }
 
+function Assert-CandidateTrackedSourceCleanliness {
+    param([Parameter(Mandatory = $true)][string]$SelectedCandidateRoot)
+
+    $trackedChanges = @(& git -C $WorkspaceRoot status --porcelain --untracked-files=no)
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Cannot inspect the Candidate source tree state.'
+    }
+    $candidateRelative = Get-WorkspaceRelativePath -Path $SelectedCandidateRoot
+    $candidateRelativePrefix = $candidateRelative.TrimEnd('/') + '/'
+    $unexpectedTrackedChanges = @($trackedChanges | Where-Object {
+        $path = if ($_.Length -gt 3) { $_.Substring(3).Replace('\', '/') } else { '' }
+        -not $path.Equals($candidateRelative, [StringComparison]::OrdinalIgnoreCase) -and
+        -not $path.StartsWith($candidateRelativePrefix, [StringComparison]::OrdinalIgnoreCase)
+    })
+    if ($unexpectedTrackedChanges.Count -ne 0) {
+        throw "Candidate builds require clean tracked source inputs.`r`n$($unexpectedTrackedChanges -join "`r`n")"
+    }
+}
+
 function Assert-GitPathMatchesHeadAndIndex {
     param(
         [Parameter(Mandatory = $true)][string]$RelativePath,
@@ -178,6 +197,7 @@ if (-not $CandidateRoot.StartsWith($candidatePrefix, [StringComparison]::Ordinal
     throw "CandidateRoot must be inside the project Candidate tree: $CandidateRoot"
 }
 Assert-NoReparsePointForWrite -Path $CandidateRoot -Boundary $candidateBase
+Assert-CandidateTrackedSourceCleanliness -SelectedCandidateRoot $CandidateRoot
 
 Import-Module $releaseModule -Force
 $singleShotReferenceArtifacts = @{}
@@ -319,26 +339,13 @@ try {
         compiler_symbol = $compilerSymbol
         pl_fft_single_shot = ($ApplicationMode -eq 'SingleShot')
         pl_fft_periodic_monitor = ($ApplicationMode -eq 'PeriodicMonitor')
+        tracked_source_cleanliness_checked = $true
     }
     if ($DryRun) {
         $description | ConvertTo-Json -Depth 4
         return
     }
 
-    $trackedChanges = @(& git -C $WorkspaceRoot status --porcelain --untracked-files=no)
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Cannot inspect the Candidate source tree state.'
-    }
-    $candidateRelative = Get-WorkspaceRelativePath -Path $CandidateRoot
-    $candidateRelativePrefix = $candidateRelative.TrimEnd('/') + '/'
-    $unexpectedTrackedChanges = @($trackedChanges | Where-Object {
-        $path = if ($_.Length -gt 3) { $_.Substring(3).Replace('\', '/') } else { '' }
-        -not $path.Equals($candidateRelative, [StringComparison]::OrdinalIgnoreCase) -and
-        -not $path.StartsWith($candidateRelativePrefix, [StringComparison]::OrdinalIgnoreCase)
-    })
-    if ($unexpectedTrackedChanges.Count -ne 0) {
-        throw "Candidate builds require clean tracked source inputs.`r`n$($unexpectedTrackedChanges -join "`r`n")"
-    }
     $untrackedInputs = @(
         & git -C $WorkspaceRoot ls-files --others --exclude-standard -- 'Vitis/workspace/ad9364app/src'
     )

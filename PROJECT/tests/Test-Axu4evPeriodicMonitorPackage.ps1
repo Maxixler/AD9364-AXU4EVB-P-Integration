@@ -76,6 +76,49 @@ function Get-NormalizedUartPayload {
     })
 }
 
+function Get-JtagPeriodicArtifactRelativePath {
+    param([Parameter(Mandatory = $true)][string]$LoggedPath)
+
+    $releaseRootSuffix = 'PROJECT\candidates\axu4ev-ad9364\fft-periodic-monitor-v1'
+    $normalizedPath = $LoggedPath.Replace('/', '\')
+    if (-not [IO.Path]::IsPathRooted($normalizedPath) -or
+        $normalizedPath -match '(^|\\)(?:\.|\.\.)(?:\\|$)') {
+        throw "JTAG launch evidence has an unsafe artifact path: $LoggedPath"
+    }
+
+    $matches = @()
+    $searchOffset = 0
+    while ($searchOffset -lt $normalizedPath.Length) {
+        $index = $normalizedPath.IndexOf(
+            $releaseRootSuffix,
+            $searchOffset,
+            [StringComparison]::Ordinal)
+        if ($index -lt 0) {
+            break
+        }
+        $matches += $index
+        $searchOffset = $index + $releaseRootSuffix.Length
+    }
+    if ($matches.Count -ne 1) {
+        throw "JTAG launch evidence artifact path has an ambiguous Candidate release suffix: $LoggedPath"
+    }
+    $releaseIndex = $matches[0]
+    $releaseEnd = $releaseIndex + $releaseRootSuffix.Length
+    if ($releaseIndex -eq 0 -or
+        $normalizedPath[$releaseIndex - 1] -ne '\' -or
+        ($releaseEnd -lt $normalizedPath.Length -and $normalizedPath[$releaseEnd] -ne '\')) {
+        throw "JTAG launch evidence artifact path is not inside the historical periodic Candidate root: $LoggedPath"
+    }
+
+    $relativePath = $normalizedPath.Substring($releaseEnd).TrimStart('\')
+    if ([string]::IsNullOrWhiteSpace($relativePath) -or
+        $relativePath -match '(^|\\)(?:\.|\.\.)(?:\\|$)' -or
+        $relativePath.Contains('\\')) {
+        throw "JTAG launch evidence artifact path has an ambiguous Candidate-relative suffix: $LoggedPath"
+    }
+    return $relativePath
+}
+
 function Assert-JtagArtifactManifestMatchesCandidate {
     param(
         [Parameter(Mandatory = $true)][string]$JtagPath,
@@ -104,7 +147,7 @@ function Assert-JtagArtifactManifestMatchesCandidate {
             throw "Periodic Candidate manifest has an unexpected or duplicate JTAG-bound artifact: $name"
         }
         $expectedByName[$name] = [pscustomobject]@{
-            Path = [IO.Path]::GetFullPath((Join-Path $periodicRoot ([string]$artifact.path -replace '/', '\\')))
+            Path = ([string]$artifact.path).Replace('/', '\')
             Length = [int64]$artifact.length
             Sha256 = [string]$artifact.sha256
         }
@@ -123,7 +166,7 @@ function Assert-JtagArtifactManifestMatchesCandidate {
             throw "JTAG launch evidence has no path for artifact: $name"
         }
         $actualByName[$name] = [pscustomobject]@{
-            Path = [IO.Path]::GetFullPath([string]$artifact.path)
+            Path = Get-JtagPeriodicArtifactRelativePath -LoggedPath ([string]$artifact.path)
             Length = [int64]$artifact.length
             Sha256 = [string]$artifact.sha256
         }
@@ -247,6 +290,75 @@ function Assert-Rejected {
     throw "Acceptance evidence negative probe was incorrectly accepted: $Description"
 }
 
+function New-JtagManifestFixture {
+    param(
+        [Parameter(Mandatory = $true)][string]$JtagText,
+        [Parameter(Mandatory = $true)][scriptblock]$Transform
+    )
+
+    $match = [regex]::Match($JtagText, '(?m)^ARTIFACT_MANIFEST_JSON=(.+?)\r?$')
+    if (-not $match.Success) {
+        throw 'JTAG fixture source has no artifact manifest.'
+    }
+    $artifacts = $match.Groups[1].Value | ConvertFrom-Json
+    & $Transform $artifacts
+    $replacement = 'ARTIFACT_MANIFEST_JSON=' + ($artifacts | ConvertTo-Json -Compress)
+    return $JtagText.Substring(0, $match.Index) + $replacement +
+        $JtagText.Substring($match.Index + $match.Length)
+}
+
+function Invoke-JtagArtifactBindingPortabilityTests {
+    param(
+        [Parameter(Mandatory = $true)][string]$JtagPath,
+        [Parameter(Mandatory = $true)]$Manifest
+    )
+
+    $sourceText = Get-Content -LiteralPath $JtagPath -Raw
+    $historicalPrefix = 'C:\\Users\\DELL\\Desktop\\Yazilim\\FPGA-Profen-Worktrees\\axu4ev-ad9364-monopulse'
+    $relocatedPrefix = 'D:\\archived-checkouts\\axu4ev-ad9364-monopulse'
+    if (([regex]::Matches($sourceText, [regex]::Escape($historicalPrefix))).Count -ne 5) {
+        throw 'JTAG portability fixture expected five historical checkout prefixes.'
+    }
+    $relocatedText = $sourceText.Replace($historicalPrefix, $relocatedPrefix)
+    $fixturePath = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-jtag-portability-$([guid]::NewGuid()).log"
+    try {
+        Set-Content -LiteralPath $fixturePath -Value $relocatedText -Encoding Unicode
+        Assert-JtagArtifactManifestMatchesCandidate -JtagPath $fixturePath -Manifest $Manifest
+
+        Assert-Rejected -Description 'JTAG artifact path selects the wrong release' -Action {
+            $wrongRelease = New-JtagManifestFixture -JtagText $relocatedText -Transform {
+                param($artifacts)
+                $artifacts[0].path = $artifacts[0].path.Replace(
+                    'fft-periodic-monitor-v1', 'fft-single-shot-v1')
+            }
+            Set-Content -LiteralPath $fixturePath -Value $wrongRelease -Encoding Unicode
+            Assert-JtagArtifactManifestMatchesCandidate -JtagPath $fixturePath -Manifest $Manifest
+        }
+        Assert-Rejected -Description 'JTAG artifact path traversal' -Action {
+            $traversal = New-JtagManifestFixture -JtagText $relocatedText -Transform {
+                param($artifacts)
+                $artifacts[0].path = $artifacts[0].path.Replace(
+                    'hardware\system_top.bit', 'hardware\..\hardware\system_top.bit')
+            }
+            Set-Content -LiteralPath $fixturePath -Value $traversal -Encoding Unicode
+            Assert-JtagArtifactManifestMatchesCandidate -JtagPath $fixturePath -Manifest $Manifest
+        }
+        Assert-Rejected -Description 'JTAG artifact path contains a duplicate release suffix' -Action {
+            $duplicateSuffix = New-JtagManifestFixture -JtagText $relocatedText -Transform {
+                param($artifacts)
+                $artifacts[0].path = $artifacts[0].path.Replace(
+                    'fft-periodic-monitor-v1\hardware',
+                    'fft-periodic-monitor-v1\PROJECT\candidates\axu4ev-ad9364\fft-periodic-monitor-v1\hardware')
+            }
+            Set-Content -LiteralPath $fixturePath -Value $duplicateSuffix -Encoding Unicode
+            Assert-JtagArtifactManifestMatchesCandidate -JtagPath $fixturePath -Manifest $Manifest
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $fixturePath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Invoke-BoardVerificationGate {
     param(
         [Parameter(Mandatory)]$Manifest,
@@ -359,6 +471,7 @@ Invoke-BoardVerificationGate -Manifest $periodicManifest -EvidenceCheck {
 
     $evidenceText = Get-Content -LiteralPath $evidencePath -Raw
     Assert-AcceptanceEvidence -EvidenceText $evidenceText -RawPath $rawPath -JtagPath $jtagPath -Manifest $periodicManifest
+    Invoke-JtagArtifactBindingPortabilityTests -JtagPath $jtagPath -Manifest $periodicManifest
     foreach ($logPath in @($rawPath, $evidencePath)) {
         $validatorOutput = @(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $validatorPath -LogPath $logPath 2>&1)
         if ($LASTEXITCODE -ne 0 -or ($validatorOutput -join "`n") -cne 'PASS: periodic FFT monitor log contains 100 valid frames.') {
