@@ -489,7 +489,12 @@ Invoke-BoardVerificationGate -Manifest $periodicManifest -EvidenceCheck {
         Assert-AcceptanceEvidence -EvidenceText ($evidenceText.Replace('Raw PuTTY log SHA-256: B3BCA7747B6130DDF39731C39DE28FEA1E31DEC210FD8E2009B43DB751CF8129', 'Raw PuTTY log SHA-256: 0000000000000000000000000000000000000000000000000000000000000000')) -RawPath $rawPath -JtagPath $jtagPath -Manifest $periodicManifest
     }
     Assert-Rejected -Description 'swapped initialization lines' -Action {
-        $swapped = $evidenceText.Replace("cf-ad9361-lpc: Successfully initialized (61441040 Hz)`r`nad9361_init : AD936x Rev 2 successfully initialized", "ad9361_init : AD936x Rev 2 successfully initialized`r`ncf-ad9361-lpc: Successfully initialized (61441040 Hz)")
+        $initializationPair = [regex]::Escape('cf-ad9361-lpc: Successfully initialized (61441040 Hz)') +
+            '\r?\n' + [regex]::Escape('ad9361_init : AD936x Rev 2 successfully initialized')
+        $swapped = [regex]::Replace(
+            $evidenceText,
+            $initializationPair,
+            "ad9361_init : AD936x Rev 2 successfully initialized`ncf-ad9361-lpc: Successfully initialized (61441040 Hz)")
         Assert-AcceptanceEvidence -EvidenceText $swapped -RawPath $rawPath -JtagPath $jtagPath -Manifest $periodicManifest
     }
     Assert-Rejected -Description 'uppercase CRC' -Action {
