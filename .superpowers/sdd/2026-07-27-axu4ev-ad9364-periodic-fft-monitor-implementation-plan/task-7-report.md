@@ -42,3 +42,23 @@ peak powers are treated as ambient-noise input. Antenna/port wiring was not
 independently reverified during this run. This accepts monitor
 transport/control only; it does not accept RF performance, antenna wiring,
 DOA, or calibration.
+
+## Review-round-1 evidence-integrity remediation
+
+The original evidence payload was manually transcribed and was therefore not a
+durable source of truth. The corrected acceptance binds the payload to two
+committed sources: the byte-for-byte PuTTY session copy
+`PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-raw-putty.log`
+and the committed JTAG launch copy
+`PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-jtag-launch.log`.
+Their SHA-256 values are recorded in the main evidence file. The selected 104
+UART lines are mechanically regenerated from the committed raw log after only
+PuTTY framing/NUL normalization; this corrects seq015 to `crc=1d8b292d` and
+seq098 to `crc=5e2c36f2`.
+
+The package gate now requires both committed sources to match HEAD, verifies
+their recorded hashes, strict-parses the raw log and evidence, compares the
+normalized UART payload exactly, checks anchored metadata and scope limits,
+checks the physical launch commit is an ancestor, and exercises in-memory
+negative probes for a CRC mutation, blank branch, and wrong raw hash. The
+pre-acceptance false state remains valid without evidence.

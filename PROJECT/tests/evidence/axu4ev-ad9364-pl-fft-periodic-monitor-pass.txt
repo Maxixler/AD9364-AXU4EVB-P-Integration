@@ -5,15 +5,18 @@ Launch commit: b0f53f36f8676b54747d417c4ae44c61ac8a3c99
 Candidate manifest source commit: 65ff6144ee9cf02cacfe8840ad506611c17806ac
 Periodic application ELF SHA-256: 0586E9A18EA4457A622CEE84D33F81A6402C95FB12A64755D2A7C39441964002
 Periodic bitstream SHA-256: ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC
-PuTTY session output: C:\Users\DELL\Desktop\putty-periodic.log
-PuTTY serial settings: PS_UART, 115200-8-N-1, session output saved to the path above.
-JTAG launch log: PROJECT\logs\jtag\20260727-132857-candidate.log
-Strict validator command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath C:\Users\DELL\Desktop\putty-periodic.log
+Raw PuTTY log (committed relative path): PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-raw-putty.log
+Raw PuTTY log SHA-256: B3BCA7747B6130DDF39731C39DE28FEA1E31DEC210FD8E2009B43DB751CF8129
+JTAG launch log (committed relative path): PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-jtag-launch.log
+JTAG launch log SHA-256: BB49458713B04D8E3508B58FD1EC55E2A83825DF1208AEA7AB473F4DC3C23758
+PuTTY serial settings: PS_UART, 115200-8-N-1, all-session output.
+Origin note: byte-for-byte source copy originated at C:\Users\DELL\Desktop\putty-periodic.log.
+Strict validator command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-raw-putty.log
 Strict validator output: PASS: periodic FFT monitor log contains 100 valid frames.
-RF context: No controlled CW or R&S source was declared for this infrastructure acceptance. Observed peak powers were low and consistent with ambient-noise input; this acceptance covers monitor transport/control only, not RF performance or DOA calibration.
+RF context: No controlled CW or R&S source was declared for this infrastructure acceptance. Observed low peak powers were ambient-noise input; this acceptance covers monitor transport/control only, not RF performance or DOA calibration.
 Antenna/port wiring: Not independently reverified during this run.
 
-Relevant raw PuTTY UART record (AD9364 initialization, START, all 100 FRAME records, final PASS):
+Selected UART payload normalized from committed raw PuTTY log (PuTTY framing and NUL removed):
 cf-ad9361-lpc: Successfully initialized (61441040 Hz)
 ad9361_init : AD936x Rev 2 successfully initialized
 PL_FFT_MONITOR: START frames=100 interval_ms=1000 bins=2048
@@ -31,7 +34,7 @@ PL_FFT_MONITOR: FRAME seq=011/100 frame=11 bank=0 samples=2048 peak_bin=5 peak_p
 PL_FFT_MONITOR: FRAME seq=012/100 frame=12 bank=0 samples=2048 peak_bin=327 peak_power=2 dropped=360914108 crc=34602a8e
 PL_FFT_MONITOR: FRAME seq=013/100 frame=13 bank=0 samples=2048 peak_bin=2 peak_power=1 dropped=391826479 crc=6dcad768
 PL_FFT_MONITOR: FRAME seq=014/100 frame=14 bank=0 samples=2048 peak_bin=1 peak_power=2 dropped=422733507 crc=c3aeec65
-PL_FFT_MONITOR: FRAME seq=015/100 frame=15 bank=0 samples=2048 peak_bin=45 peak_power=1 dropped=453640541 crc=40f4a4dc
+PL_FFT_MONITOR: FRAME seq=015/100 frame=15 bank=0 samples=2048 peak_bin=45 peak_power=1 dropped=453640541 crc=1d8b292d
 PL_FFT_MONITOR: FRAME seq=016/100 frame=16 bank=0 samples=2048 peak_bin=1886 peak_power=2 dropped=484550239 crc=d3e2b941
 PL_FFT_MONITOR: FRAME seq=017/100 frame=17 bank=0 samples=2048 peak_bin=20 peak_power=1 dropped=515465266 crc=0952a1aa
 PL_FFT_MONITOR: FRAME seq=018/100 frame=18 bank=0 samples=2048 peak_bin=141 peak_power=4 dropped=546374970 crc=376997db
@@ -114,7 +117,7 @@ PL_FFT_MONITOR: FRAME seq=094/100 frame=94 bank=0 samples=2048 peak_bin=3 peak_p
 PL_FFT_MONITOR: FRAME seq=095/100 frame=95 bank=0 samples=2048 peak_bin=3 peak_power=1 dropped=2926642806 crc=fd05df47
 PL_FFT_MONITOR: FRAME seq=096/100 frame=96 bank=0 samples=2048 peak_bin=60 peak_power=1 dropped=2957552498 crc=b5585e90
 PL_FFT_MONITOR: FRAME seq=097/100 frame=97 bank=0 samples=2048 peak_bin=116 peak_power=4 dropped=2988464854 crc=540f8f71
-PL_FFT_MONITOR: FRAME seq=098/100 frame=98 bank=0 samples=2048 peak_bin=157 peak_power=2 dropped=3019379882 crc=0d395016
+PL_FFT_MONITOR: FRAME seq=098/100 frame=98 bank=0 samples=2048 peak_bin=157 peak_power=2 dropped=3019379882 crc=5e2c36f2
 PL_FFT_MONITOR: FRAME seq=099/100 frame=99 bank=0 samples=2048 peak_bin=99 peak_power=1 dropped=3050294910 crc=459741a3
 PL_FFT_MONITOR: FRAME seq=100/100 frame=100 bank=0 samples=2048 peak_bin=113 peak_power=1 dropped=3081207267 crc=5cd32183
 PL_FFT_MONITOR: PASS frames=100 interval_ms=1000

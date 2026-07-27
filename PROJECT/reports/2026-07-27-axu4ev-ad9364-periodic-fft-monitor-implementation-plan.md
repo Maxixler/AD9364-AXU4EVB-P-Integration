@@ -897,7 +897,7 @@ Run:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 `
-  -Path <absolute-path-to-putty-log>
+  -LogPath <absolute-path-to-putty-log>
 ```
 
 Expected:
