@@ -4,6 +4,40 @@
 
 **Kapsam:** `fmcomms2/axu4ev` Vivado projesinin şemalara göre doğrulanması, bitstream/XSA üretimi, Vitis platformu, FSBL ve AD9364 bare-metal uygulamasının tamamlanması.
 
+## 27. Periodic FFT monitor preflight checkpoint - 27 July 2026
+
+Tasks 1-5 produced a separate `fft-periodic-monitor-v1` Candidate for the
+AXU4EVB-P + AD9364. This checkpoint freshly ran the complete nine-command
+software/preflight regression: PL FFT driver, periodic monitor policy,
+Candidate build, unchanged single-shot Candidate launch, periodic package,
+periodic launch, periodic log-parser, JTAG launch ordering, and release
+integrity. Every command exited 0. The expected PASS evidence included
+`pl_fft_control single-shot driver`, `pl_fft_monitor policy`, complete and
+hardware-identical periodic packaging, isolated periodic launcher resolution,
+strict complete-log parsing, valid JTAG ordering, and immutable release `r2`
+with `CURRENT=r2`.
+
+The periodic manifest identifies AXU4EVB-P, AD9364, `xczu4ev-sfvc784-1-i`, and
+Vitis 2020.1. The Candidate is built/packaged and host/preflight verified, but
+it remains `board_verified=false`; no physical board PASS or periodic-board
+evidence has been created. Its artifact SHA-256 values are application
+`0586E9A18EA4457A622CEE84D33F81A6402C95FB12A64755D2A7C39441964002`, bitstream
+`ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC`, PMUFW
+`9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB`, `psu_init`
+`CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B`, and XSA
+`672A431A3698DFB841AD0F09A8605CD1D125314FCB6333E49A60727E8B42E574`.
+
+The protected single-shot launcher and `fft-single-shot-v1` bundle were
+separately checked against `df3e052` with no diff. The unrelated known baseline
+failure in `Test-Axu4evLaunchWrappers.ps1` remains out of scope because its
+generated Workspace Vivado/Vitis/IDE bitstreams are not in sync; this work did
+not alter it or waive it. The next physical action is
+`PROJECT\tools\Start-Axu4evAd9364PeriodicMonitor.cmd` with PuTTY PS-UART
+capture, followed by
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath <putty-log-path>`.
+Only its successful validation may supply physical acceptance evidence; the
+manifest must remain unmodified beforehand.
+
 ## 1. Çalışma yaklaşımı
 
 Projede daha önce oluşturulmuş Markdown notlarının yanıltıcı veya güncelliğini yitirmiş olabileceği kabul edildi. Bu nedenle kararlar aşağıdaki kanıt sırasına göre verildi:

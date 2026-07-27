@@ -1,5 +1,45 @@
 # AXU4EVB-P + AD9364 SDR Uygulama Planı
 
+## 25. 27 July 2026 - periodic FFT monitor software preflight
+
+The separate `fft-periodic-monitor-v1` Candidate is built and packaged for
+AXU4EVB-P + AD9364 (`xczu4ev-sfvc784-1-i`, Vitis 2020.1). Its manifest keeps
+`board_verified=false`; no physical-board PASS and no periodic-monitor board
+evidence exist. The existing `fft-single-shot-v1` Candidate and its launcher
+remain unmodified: `git diff df3e052 -- PROJECT/tools/Start-Axu4evAd9364Candidate.cmd PROJECT/candidates/axu4ev-ad9364/fft-single-shot-v1` exited 0.
+
+Fresh host/preflight verification ran all nine required commands and each
+exited 0:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPlFftDriver.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPlFftMonitor.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evCandidateBuild.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evCandidateLaunch.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorPackage.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLaunch.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLogParser.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evJtagLaunchScript.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evRelease.ps1
+```
+
+The periodic Candidate artifact hashes are: application
+`0586E9A18EA4457A622CEE84D33F81A6402C95FB12A64755D2A7C39441964002`, bitstream
+`ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC`, PMUFW
+`9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB`, `psu_init`
+`CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B`, and XSA
+`672A431A3698DFB841AD0F09A8605CD1D125314FCB6333E49A60727E8B42E574`.
+
+The known unrelated `Test-Axu4evLaunchWrappers.ps1` baseline failure remains
+outside this periodic acceptance gate because generated Workspace
+Vivado/Vitis/IDE bitstreams are out of sync; it was neither changed nor
+waived. The operator next step is to run
+`PROJECT\tools\Start-Axu4evAd9364PeriodicMonitor.cmd`, capture the complete
+PuTTY PS-UART output, then run
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath <putty-log-path>`.
+Only a log with exactly 100 valid frame records and the final monitor PASS can
+advance physical acceptance.
+
 ## 1. Proje hedefi
 
 Bu projenin ana hedefi, ALINX AXU4EVB-P (`xczu4ev-sfvc784-1-i`) kartı üzerinde FMC LPC üzerinden bağlı AD9364 tabanlı RF kartını çalıştırmak; RX/TX örneklerini ADI `axi_ad9361` ve AXI DMAC veri yollarıyla DDR belleğe aktarmak ve önce bare-metal/no-OS, daha sonra gerekirse Linux/IIO katmanında işlemek ve gözlemlemektir.

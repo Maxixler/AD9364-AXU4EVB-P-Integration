@@ -6,6 +6,32 @@
 
 **Mevcut aşama:** Vivado/Vitis kapanışı, PMUFW içeren JTAG başlatma ve temel bare-metal kart bring-up'ı tamamlandı. Tek AD9364 RX, dört analog Σ/Δ durumu ve tek 2048-point FFT kullanan monopulse Candidate tasarımı onaylandı. 21 Temmuz inceleme uzlaştırmasıyla tam 2048-bin spektrum, peak diagnostikleri, tek-kare ve ping-pong sürekli frame modları bağlayıcı hale getirildi; sıradaki ana aşama kaynak/Golden regresyonu ile RX/IQ format kapısıdır.
 
+## 20. Periodic FFT monitor Candidate status - 27 July 2026
+
+Status: **software-ready; physical-board acceptance open.** The separately
+packaged `fft-periodic-monitor-v1` Candidate targets AXU4EVB-P + AD9364
+(`xczu4ev-sfvc784-1-i`, tool version 2020.1; manifest source commit
+`65ff6144ee9cf02cacfe8840ad506611c17806ac`). It is built/packaged and the
+nine-command host/preflight suite passed fresh, including the package,
+launcher, parser, JTAG-order, and release-integrity gates.
+
+The manifest remains `board_verified=false`. There is no physical-board PASS
+and no periodic FFT monitor evidence file. The periodic application ELF SHA-256
+is `0586E9A18EA4457A622CEE84D33F81A6402C95FB12A64755D2A7C39441964002`; the
+bitstream, PMUFW, `psu_init.tcl`, and XSA remain hardware-identical to the
+accepted single-shot Candidate with hashes `ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC`,
+`9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB`,
+`CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B`, and
+`672A431A3698DFB841AD0F09A8605CD1D125314FCB6333E49A60727E8B42E574`.
+
+Next operator action: open PuTTY on the PS UART at 115200-8-N-1, run
+`PROJECT\tools\Start-Axu4evAd9364PeriodicMonitor.cmd`, save its complete
+output, and validate it with
+`PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath <putty-log-path>`.
+The test requires the exact START/PASS contract, 100 ordered valid frame lines,
+and no FAIL record. Do not set `board_verified=true` or create acceptance
+evidence until that physical run has passed.
+
 ## 1. Yönetici özeti
 
 Aktif proje, Analog Devices HDL ağacındaki aşağıdaki AXU4EV uyarlamasıdır:
