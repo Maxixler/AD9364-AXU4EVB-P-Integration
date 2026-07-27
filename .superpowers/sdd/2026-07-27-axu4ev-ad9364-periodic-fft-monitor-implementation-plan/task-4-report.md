@@ -69,3 +69,32 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 ```
 
 No board, serial-port, build, packaging, or deployment action was run.
+
+## Review round 2 fix — namespace-level protocol validation
+
+### RED evidence
+
+Added a valid log plus `PL_FFT_MONITOR:  FRAME ...` (two spaces after the
+colon).  The pre-fix validator exited zero because it only recognized the
+exact single-space FRAME header and ignored this malformed namespace record.
+
+### Fix and GREEN evidence
+
+- Lines in the `PL_FFT_MONITOR` namespace are now detected with
+  whitespace-tolerant, case-insensitive namespace recognition.  Acceptance is
+  still case-sensitive: each detected protocol line must be an exact START,
+  PASS, anchored FRAME, or FAIL record; FAIL is subsequently rejected.
+- Added TAB-after-colon and space-before-colon FRAME fixtures in addition to
+  the double-space case.  Unrelated lines outside the protocol namespace are
+  still permitted.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File PROJECT\tests\Test-Axu4evPeriodicMonitorLogParser.ps1
+# PASS: periodic FFT monitor log parser accepts only the complete contract.
+
+# Targeted valid log plus "PL_FFT_MONITOR:  FRAME ..."
+# PASS: targeted malformed namespace record was rejected.
+```
+
+No board, serial-port, build, packaging, or deployment action was run.

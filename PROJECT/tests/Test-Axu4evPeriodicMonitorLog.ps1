@@ -22,6 +22,7 @@ try {
     $startLine = 'PL_FFT_MONITOR: START frames=100 interval_ms=1000 bins=2048'
     $passLine = 'PL_FFT_MONITOR: PASS frames=100 interval_ms=1000'
     $framePattern = '^PL_FFT_MONITOR: FRAME seq=(\d{3})/100 frame=(\d+) bank=([01]) samples=2048 peak_bin=(\d+) peak_power=(\d+) dropped=(\d+) crc=([0-9a-fA-F]{8})$'
+    $failPattern = '^PL_FFT_MONITOR: FAIL\b'
 
     $startIndexes = @($lines | ForEach-Object -Begin { $index = 0 } -Process {
         $currentIndex = $index
@@ -35,21 +36,31 @@ try {
         if ($_ -ceq $passLine) { $currentIndex }
     })
     $passMarkerIndexes = @($lines | Where-Object { $_ -like 'PL_FFT_MONITOR: PASS*' })
+    $protocolIndexes = @($lines | ForEach-Object -Begin { $index = 0 } -Process {
+        $currentIndex = $index
+        $index++
+        if ([regex]::IsMatch($_, '^PL_FFT_MONITOR\s*:', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) { $currentIndex }
+    })
+    foreach ($protocolIndex in $protocolIndexes) {
+        $protocolLine = $lines[$protocolIndex]
+        $isKnownRecord = ($protocolLine -ceq $startLine) -or
+            ($protocolLine -ceq $passLine) -or
+            [regex]::IsMatch($protocolLine, $framePattern) -or
+            [regex]::IsMatch($protocolLine, $failPattern)
+        Assert-LogCondition $isKnownRecord 'PL_FFT_MONITOR protocol line does not match a known record grammar.'
+    }
     $frameIndexes = @($lines | ForEach-Object -Begin { $index = 0 } -Process {
         $currentIndex = $index
         $index++
-        if ($_ -match '^PL_FFT_MONITOR: FRAME') { $currentIndex }
+        if ([regex]::IsMatch($_, $framePattern)) { $currentIndex }
     })
 
     Assert-LogCondition ($startMarkerIndexes.Count -eq 1) 'Log must contain exactly one START line.'
     Assert-LogCondition ($startIndexes.Count -eq 1) 'START line does not match the required contract.'
     Assert-LogCondition ($passMarkerIndexes.Count -eq 1) 'Log must contain exactly one PASS line.'
     Assert-LogCondition ($passIndexes.Count -eq 1) 'PASS line does not match the required contract.'
-    foreach ($frameIndex in $frameIndexes) {
-        Assert-LogCondition ([regex]::IsMatch($lines[$frameIndex], $framePattern)) 'FRAME marker line does not match the required contract.'
-    }
     Assert-LogCondition ($frameIndexes.Count -eq 100) 'Log must contain exactly 100 FRAME lines.'
-    Assert-LogCondition (-not ($lines | Where-Object { $_ -match '^PL_FFT_MONITOR: FAIL\b' })) 'Log must not contain a FAIL line.'
+    Assert-LogCondition (-not ($lines | Where-Object { [regex]::IsMatch($_, $failPattern) })) 'Log must not contain a FAIL line.'
     Assert-LogCondition ($startIndexes[0] -lt $frameIndexes[0]) 'START must precede all FRAME lines.'
     Assert-LogCondition ($passIndexes[0] -gt $frameIndexes[-1]) 'PASS must follow all FRAME lines.'
     Assert-LogCondition ($passIndexes[0] -eq ($lines.Count - 1)) 'PASS must be the final log line.'
