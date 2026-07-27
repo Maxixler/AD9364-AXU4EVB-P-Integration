@@ -1152,7 +1152,11 @@ M4 güncel alt ayrımı:
 
 - [x] Tek-frame exact peak ve tam spectrum altyapısı.
 - [x] 100 kez host-tetiklemeli periodic monitor transport/control kart kabulü.
-- [ ] UART lab protocol ve Python spectrum/waterfall görünümü.
+- [x] CRC korumalı UART lab protocol, bare-metal `GET_INFO`/`CAPTURE_ONCE`
+  servisi ve Python spectrum/waterfall görünümü.
+- [x] NPZ tam-frame ve CSV özet kayıt yolu.
+- [x] Değişmez `monopulse-live-lab-v1` Candidate paketi ve ayrı JTAG
+  başlatıcısı.
 - [ ] Kontrollü CW peak/power kart kabulü.
 - [ ] Dört gerçek RF state üzerinde ortak `P_REF` ve CW/band-power çevrimi.
 
@@ -1167,3 +1171,32 @@ Bağlayıcı ayrıntılar:
 
 - `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-monopulse-lab-design.md`
 - `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-lab-implementation-plan.md`
+
+### 25.1 27 Temmuz yazılım teslim durumu
+
+M4 laboratuvar yazılımı ve paketleme adımları tamamlanmıştır. Candidate
+uygulaması 2048 adet `uint64` güç binini frame/peak/RF metadata ile birlikte
+CRC-32/ISO-HDLC korumalı mesajda taşır. Python istemcisi wire sözleşmesini
+byte-exact doğrular; spectrum, waterfall ve sağlık görünümünü üretir; geçerli
+frame'i NPZ/CSV olarak saklar. Windows/Vitis 2020.1 üretimi kısa workspace,
+kaynak temizliği ve tek sınırlı platform-generate retry kapılarıyla
+sertleştirilmiştir.
+
+Değişmez Candidate:
+
+- Release: `monopulse-live-lab-v1`
+- Uygulama SHA-256:
+  `9DFC2355F5A4262AFFD1455EA3D0972A80F279E8804BD371DBCFDF38452FDC14`
+- Bitstream SHA-256:
+  `ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC`
+- `board_verified=false`
+
+`board_verified=false` bilinçlidir. Bu alan ancak SMW200A ile DC dışı kontrollü
+CW testinde en az 10 ardışık CRC-valid, exact 2048-bin, sıfır fatal bayraklı ve
+beklenen peak'in ±1 bin içinde kaldığı fiziksel kanıt üretildikten sonra yeni
+bir release manifestinde `true` yapılacaktır.
+
+ZX80-DR230-S+ ile EV1HMC936ALP6 bu yazılım Candidate'ına fiziksel olarak
+entegre edilmiş sayılmaz. M5'te BDC IF, RF1/RF2 eşlemesi, ZX80 besleme/kontrol
+seviyesi, HMC936 için 5 V level-shifter ve güvenli OE, sekiz FPGA pini/XDC ile
+ölçülmüş settle/discard değerleri kapanmadan S0-S3 sürülmeyecektir.

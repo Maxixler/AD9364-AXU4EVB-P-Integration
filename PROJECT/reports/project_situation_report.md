@@ -538,3 +538,79 @@ Durum: **TAMAMLANDI ve bağımsız re-review `Approved`.**
 - Spectrum bank sentezi sekiz RAMB36 kullanır ve LUTRAM kullanmaz.
 
 Commitler `8c03a0f`, `b743312`, `67d5524`'tür. Golden bitstream/XSA/ELF ve çalışan JTAG başlatma zinciri değiştirilmedi. Sıradaki aktif iş Task 8 block-design entegrasyonu, adres/IRQ ataması, synthesis/implementation ve kart üstü DMA-shadow korelasyonudur.
+
+## 20. Block-design, kart FFT ve 100-frame kabulü — 24 Temmuz 2026
+
+Task 8 ve sonraki kart entegrasyon kapıları tamamlandı. Custom FFT IP
+FMCOMMS2/AXU4EV block design'a DMA yoluna geri basınç uygulamayan I0/Q0 shadow
+tap olarak bağlandı. Candidate bitstream üretildi ve JTAG başlatma zinciriyle
+kartta çalıştırıldı.
+
+İlk fiziksel koşuda `PL_FFT: FAIL stage=CAPTURE error=-6` görüldü. Kartın
+yeniden bağlanması ve başlatma sırasının temiz uygulanması sonrasında tek-kare
+kabul:
+
+```text
+PL_FFT: PASS frame=1 bank=0 peak_bin=88 crc=aaa532ad
+```
+
+olarak tamamlandı. Ardından 100 host-tetiklemeli frame'lik periyodik monitor
+Candidate'ı kartta kabul edildi. Bu kabul, control/status erişimini, atomik
+spectrum bank sahipliğini, tam-frame transferini ve tekrarlı capture yolunu
+kanıtlar; peak bin'in RF uyarım olmadan sabit kalması beklenmez.
+
+## 21. Bare-metal/Python FFT laboratuvar teslimi — 27 Temmuz 2026
+
+Durum: **YAZILIM VE DEĞİŞMEZ CANDIDATE HAZIR; kontrollü CW fiziksel kabulü
+bekliyor.**
+
+Tamamlananlar:
+
+1. C ve Python arasında sürümlü, little-endian, CRC-32/ISO-HDLC korumalı
+   `GET_INFO`/`CAPTURE_ONCE` wire protokolü.
+2. A53 bare-metal UART servisi ve 2048 adet `uint64` spectrum bininin
+   peak/frame/RF/health metadata ile taşınması.
+3. PySerial/NumPy/Matplotlib canlı spectrum, 32-frame waterfall, peak ve sağlık
+   ekranı.
+4. Geçerli frame için tam NPZ ve özet CSV kayıt yolu.
+5. Ayrı `LabUart` Vitis modu, ayrı JTAG launcher ve değişmez
+   `monopulse-live-lab-v1` Candidate paketi.
+6. Windows/Vitis 2020.1 için kısa workspace, kaynak-temizlik kapısı, 260
+   karakter öncesi yol kontrolü ve geçici platform file-lock durumu için tek
+   sınırlı retry.
+
+Candidate özeti:
+
+| Alan | Değer |
+|---|---|
+| Release | `monopulse-live-lab-v1` |
+| Uygulama | `865360` bayt |
+| Uygulama SHA-256 | `9DFC2355F5A4262AFFD1455EA3D0972A80F279E8804BD371DBCFDF38452FDC14` |
+| Bitstream SHA-256 | `ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC` |
+| PMUFW SHA-256 | `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB` |
+| `psu_init.tcl` SHA-256 | `CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B` |
+| XSA SHA-256 | `672A431A3698DFB841AD0F09A8605CD1D125314FCB6333E49A60727E8B42E574` |
+| Fiziksel doğrulama | `board_verified=false` |
+
+Protokol, servis, 31 Python testi, Candidate build/package, periyodik monitor
+paketi ve Golden release preflight kapılarının tamamı PASS'tir. Eski Workspace
+launcher regresyonunda ignored Vivado `impl_1/system_top.bit` ile tracked Vitis
+handoff bitstream'inin farklı olduğu görülmektedir. Bu, değişmez Lab Candidate
+paketini etkilemez; kullanıcı üretimi ignored Vivado çıktısının veya kabul
+edilmiş Vitis handoff'un üzerine yazılmamıştır.
+
+Kalan bağlayıcı kabul sırası:
+
+1. SMW200A ile DC dışındaki bilinen bir offsette düşük seviyeli CW uygula.
+2. En az 10 ardışık frame'de CRC geçerli, bin sayısı 2048, fatal bayrak sıfır
+   ve peak beklenen değerin ±1 bin içinde olduğunu NPZ/CSV kanıtıyla doğrula.
+3. Yeni fiziksel kanıtlı release manifestinde ancak bundan sonra
+   `board_verified=true` kullan.
+4. ZX80/HMC936 besleme, kontrol seviyesi, level-shifter/OE, FPGA pin/XDC,
+   RF1/RF2 ve settle/discard ölçümlerini kapat.
+5. S0-S3 state-tag, ortak `P_REF`, dört güç, Q1.31 AZ/EL ve yankısız oda
+   kalibrasyonunu tamamla.
+
+Kalibrasyon bitene kadar ekrandaki güç **kalibre edilmemiş bağıl güç** olarak
+etiketlenir. Ethernet ve PetaLinux/IIO geleceğe açık kalır; mevcut teslimin
+zorunlu parçası değildir.

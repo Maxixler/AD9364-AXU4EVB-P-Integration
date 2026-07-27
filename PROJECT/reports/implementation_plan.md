@@ -639,3 +639,60 @@ Altı dondurulmuş vektörde 2048 kompleks FFT bileşeni, 2048 güç kelimesi, p
 Paketleme artık yalnız kaynak ağacı dışındaki bir çıktı klasöründe yapılır; eksik kaynak/IP/XCI ve kaynak-altı output yolları fail-fast'tır. Pozitif paket gate'i AXI-Lite, iki BRAM, IRQ, ayrık ADC portları, sekiz RTL kaynağı ve xFFT XCI bağımlılığını açıp kontrol eder. Spectrum bank sentezi `RAMB36=8`, `RAMB18=0`, `LUT_AS_MEMORY=0` sonucunu vermiştir.
 
 Commit zinciri: `8c03a0f`, `b743312`, `67d5524`. İki bağımsız inceleme turundaki tüm Critical/Important bulgular kapatıldı ve final verdict `Approved` oldu. Sonraki adım Task 8: bu custom IP'yi AXU4EV FMCOMMS2 block design'ına backpressure oluşturmayan I0/Q0 shadow bağlantısıyla eklemek, adres/IRQ atamak ve bitstream/timing/Golden regresyonunu almaktır.
+
+## 25. 27 Temmuz 2026 — laboratuvar konsolu uygulama kapanışı
+
+Bare-metal/Python laboratuvar görünümü planındaki yazılım görevleri tamamlandı:
+
+- [x] Task 1 — Protokol sabitleri, wire formatı ve hata/sağlık sözleşmesi.
+- [x] Task 2 — C tarafında byte-exact encoder/decoder ve CRC doğrulaması.
+- [x] Task 3 — Bare-metal `GET_INFO`/`CAPTURE_ONCE` UART servisi.
+- [x] Task 4 — FFT servisini `PL_FFT_LAB_UART` uygulama moduna bağlama.
+- [x] Task 5 — Python protocol/model/storage katmanı.
+- [x] Task 6 — PySerial istemcisi, Matplotlib spectrum/waterfall ekranı ve
+  `--single` kayıt modu.
+- [x] Task 7 — Ayrı `LabUart` Vitis build modu, JTAG launcher ve immutable
+  Candidate paketleme.
+- [x] Task 8 — Operatör kılavuzu, manifest/hash ve tam yazılım preflight.
+- [ ] Task 9 — SMW200A kontrollü CW ile fiziksel peak/power kabulü.
+
+Task 8 teslimi:
+
+```text
+Candidate:
+  PROJECT/candidates/axu4ev-ad9364/monopulse-live-lab-v1
+Launcher:
+  PROJECT/tools/Start-Axu4evAd9364LabConsole.cmd
+Python:
+  python -m PROJECT.lab_console.app --port COMx
+Single:
+  python -m PROJECT.lab_console.app --port COMx --single
+UART:
+  115200-8-N-1
+Ready marker:
+  PL_FFT_LAB: READY
+```
+
+Candidate uygulama SHA-256 değeri
+`9DFC2355F5A4262AFFD1455EA3D0972A80F279E8804BD371DBCFDF38452FDC14`,
+bitstream SHA-256 değeri
+`ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC`
+olup manifestte `board_verified=false` korunmuştur.
+
+Task 9 için yapılacaklar:
+
+1. PuTTY'yi kapat ve Python'a PS_UART COM portunda tek sahiplik ver.
+2. Candidate'ı JTAG ile başlat; UART'ta `PL_FFT_LAB: READY` gör.
+3. SMW200A'yı AD9364 LO merkezinin DC bininden kaçınan bilinen bir frekans
+   offsetine ayarla; güvenli güç/attenuation onayından sonra RF ON yap.
+4. En az 10 ardışık frame kaydet.
+5. Her frame'de CRC-valid, exact 2048 bin, sıfır fatal hardware flag ve
+   beklenen peak'te ±1-bin kararlılığı ara.
+6. NPZ/CSV ile sanitise edilmiş UART/JTAG logunun SHA-256 değerlerini evidence
+   kaydına ekle.
+7. Bu kapı gerçek PASS vermeden `board_verified=true`, mutlak dBm doğruluğu
+   veya monopulse açı kabulü iddia etme.
+
+Sonraki donanım sırası M5-M8'dir: ZX80/HMC936 elektriksel/pin sözleşmesi,
+S0-S3 çevrimi ve scalar AZ/EL, yankısız oda kalibrasyonu ve nihai Candidate
+release. Ethernet/PetaLinux mevcut staj teslimi için ertelenmiştir.

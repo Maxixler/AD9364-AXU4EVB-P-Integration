@@ -265,9 +265,9 @@ Ekranda:
 - frame ID, RF state, CRC
 - frame/FFT/overflow/CDC/bank sağlık bilgileri
 
-gösterilecek.
+gösterilmektedir.
 
-Tam frame NPZ, özet CSV olarak kaydedilecek. 115200 baud'da beklenen yenileme
+Tam frame NPZ, özet CSV olarak kaydedilmektedir. 115200 baud'da beklenen yenileme
 yaklaşık 1,5-2 saniyedir. Ethernet geleceğe açık bırakılmış fakat mevcut
 teslime eklenmemiştir.
 
@@ -283,11 +283,11 @@ Uygulama planı:
 
 ### Yazılım/FFT grafik
 
-1. Python ve C byte-exact UART codec.
-2. Bare-metal GET_INFO/CAPTURE_ONCE servisi.
-3. PySerial/NumPy/Matplotlib ekranı.
-4. `monopulse-live-lab-v1` Candidate paketi.
-5. SMW200A kontrollü CW ile en az 10 stabil frame kabulü.
+1. [x] Python ve C byte-exact UART codec.
+2. [x] Bare-metal GET_INFO/CAPTURE_ONCE servisi.
+3. [x] PySerial/NumPy/Matplotlib ekranı.
+4. [x] `monopulse-live-lab-v1` Candidate paketi.
+5. [ ] SMW200A kontrollü CW ile en az 10 stabil frame kabulü.
 
 ### ZX80/HMC936
 
@@ -329,3 +329,37 @@ tekrarlanabilir JTAG başlatması, RF aktivite algılama, bit-doğru 2048 noktal
 FPGA FFT, tam spectrum belleği, 100-frame fiziksel monitor kabulü ve harici
 ZX80/HMC936 monopulse entegrasyonuna hazır modüler bir ölçüm platformuna
 dönüştürülmüştür.
+
+## 14. 27 Temmuz laboratuvar yazılımı teslimi
+
+Bare-metal ve Python katmanları birlikte tamamlandı. A53 uygulaması
+`GET_INFO`/`CAPTURE_ONCE` isteklerini işler; 2048 adet 64-bit güç binini,
+peak/CRC/frame/RF metadata'yı ve sağlık bayraklarını sürümlü binary protokolle
+PS_UART'a verir. Python tarafı paket uzunluğu, sıra numarası, CRC, metadata,
+FFT boyutu ve fatal bayrakları kabul kapısı olarak doğrular; canlı spectrum ve
+waterfall üretir; NPZ/CSV kanıtı kaydeder.
+
+Teslim tekrar üretilebilir bir Candidate olarak donduruldu:
+
+- Release kimliği: `monopulse-live-lab-v1`
+- Uygulama: `865360` bayt,
+  `9DFC2355F5A4262AFFD1455EA3D0972A80F279E8804BD371DBCFDF38452FDC14`
+- Bitstream:
+  `ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC`
+- PMUFW:
+  `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB`
+
+Protokol, servis, Python model/GUI/storage, Candidate üretimi, paket
+bütünlüğü, periyodik monitor ve Golden release regresyonları PASS durumundadır.
+Vitis 2020.1 için uzun Windows yolu ve geçici Eclipse/platform dosya kilidi
+problemleri kısa build workspace'i, erken yol sınırı kontrolü ve yalnız bir
+sınırlı retry ile kapatılmıştır.
+
+Kalan iki fiziksel aşama nettir:
+
+1. SMW200A ile DC dışındaki kontrollü CW'de en az 10 frame peak/power kabulü.
+2. ZX80/HMC936 elektriksel sözleşmesi kapandıktan sonra S0-S3 monopulse
+   çevrimi ve yankısız oda kalibrasyonu.
+
+Bu nedenle mevcut Candidate yazılım teslimi hazırdır; fakat kontrollü CW kanıtı
+henüz alınmadığı için manifestte `board_verified=false` korunmuştur.

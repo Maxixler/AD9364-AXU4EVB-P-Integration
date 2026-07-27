@@ -609,3 +609,65 @@ Nominal altı-vektör testi ilk GREEN'i aldıktan sonra bağımsız review; hard
 Final gerçek-IP suite; abort recovery, stale epoch, soft-reset epoch adoption, dolu-bank rejection, farklı live/command RF etiketi, FFT_ERROR/OVERFLOW enjeksiyonu, partial W1C ve sticky IRQ ile birlikte altı vektörün 2048'er FFT/power sonucunu geçti. Taze root koşusu exit 0 ve `PASS: axi_ad9364_fft_capture single-shot` verdi. Pozitif paketleme gate'i ve bank sentezi de PASS; kaynak ağacına üretilmiş XCI/proje eklenmedi.
 
 Commitler: `8c03a0f`, `b743312`, `67d5524`. Final bağımsız kapanış incelemesi `Approved`. Sıradaki geliştirme adımı Task 8 block-design entegrasyonudur; henüz yeni bitstream üretilmedi veya kart programlanmadı.
+
+## 27. 24-27 Temmuz 2026 — kart FFT'den canlı laboratuvar ekranına
+
+Block-design entegrasyonu ve Candidate bitstream sonrasında kartta ilk
+tek-kare koşusu `PL_FFT: FAIL stage=CAPTURE error=-6` verdi. Kart/JTAG
+bağlantısı temizlenip yeniden başlatıldığında aynı tasarım
+`PL_FFT: PASS frame=1 bank=0 peak_bin=88 crc=aaa532ad` üretti. Ardından
+100-frame periyodik monitor kartta tamamlandı. Peak bin'in uyarımsız laboratuvar
+ortamında frame'den frame'e değişmesinin normal olduğu, asıl deterministik
+kabulün kontrollü CW ile yapılacağı netleştirildi.
+
+Kullanıcı bare-metal + Python yaklaşımını, 2048-bin tam spektrum ve iki çalışma
+modunu seçti. Bunun üzerine:
+
+1. Sürümlü request/response protokolü, CRC-32/ISO-HDLC ve sequence koruması C
+   ve Python'da byte-exact uygulandı.
+2. Bare-metal `GET_INFO`/`CAPTURE_ONCE` servisi PL control/status ve iki
+   spectrum bankından atomik frame okudu.
+3. Python istemcisi paket uzunluğu, CRC, sıra numarası, metadata, exact 2048
+   bin ve fatal donanım bayraklarını doğruladı.
+4. Matplotlib canlı spectrum, 32-frame waterfall, peak ve sağlık ekranı
+   eklendi.
+5. `s` tuşuyla veya `--single` moduyla tam NPZ ve özet CSV kayıt yolu eklendi.
+6. `LabUart` Vitis modu, `Start-Axu4evAd9364LabConsole.cmd` başlatıcısı ve
+   `monopulse-live-lab-v1` değişmez Candidate'ı oluşturuldu.
+
+Gerçek Vitis 2020.1 build sırasında iki çevresel sorun ayrıştırıldı. Uzun
+Windows temp yolu BSP hedefini 260 karakter sınırının ötesine taşıyordu; build
+kısa workspace'e alındı ve erken yol kapısı eklendi. Eclipse/platform üretimi
+bazen geçici dosya kilidiyle ilk denemede düşüyordu; yalnız bu aşama için bir
+kez ve 3 saniye sonra sınırlı retry eklendi. Ardından gerçek Release build ve
+paketleme PASS verdi.
+
+Candidate:
+
+```text
+release_id: monopulse-live-lab-v1
+application: 865360 bytes
+application_sha256:
+  9DFC2355F5A4262AFFD1455EA3D0972A80F279E8804BD371DBCFDF38452FDC14
+bitstream_sha256:
+  ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC
+board_verified: false
+```
+
+Protokol, bare-metal servis, 31 Python testi, Candidate build/package,
+periyodik monitor paketi ve Golden release regresyonları PASS verdi. Eski
+Workspace launcher testi, ignored Vivado implementation bitstream'i ile
+tracked Vitis handoff bitstream'inin farklı olduğunu raporladı. Bu uyuşmazlık
+Lab Candidate'tan bağımsız olduğundan kullanıcı üretimi ignored çıktıların
+üzerine yazılmadı; immutable Candidate akışı doğrulandı.
+
+Sıradaki gerçek kabul SMW200A ile DC dışı kontrollü CW'de en az 10 ardışık
+frame'dir. Exact 2048 bin, CRC-valid mesaj, sıfır fatal flag ve beklenen
+peak'in ±1 bin içinde kalması gerekir. Bu kanıt alınana kadar
+`board_verified=false` ve güç değerleri “kalibre edilmemiş bağıl güç” olarak
+korunur.
+
+ZX80-DR230-S+ ve EV1HMC936ALP6 planda vardır fakat bu Candidate'a fiziksel
+olarak entegre edilmiş sayılmaz. BDC IF, RF1/RF2 kablo eşlemesi, ZX80 VDD ve
+kontrol gerilimleri, HMC936 5 V level-shifter/OE, sekiz FPGA pini/XDC ile
+settle/discard ölçümleri kapanmadan S0-S3 kontrolü etkinleştirilmeyecektir.
