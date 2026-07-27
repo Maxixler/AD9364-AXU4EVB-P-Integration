@@ -8,15 +8,32 @@
 
 ## 20. Periodic FFT monitor Candidate status - 27 July 2026
 
-Status: **software-ready; physical-board acceptance open.** The separately
+Status: **physical monitor transport/control acceptance passed.** One fresh
+AXU4EVB-P + AD9364 run launched from
+`b0f53f36f8676b54747d417c4ae44c61ac8a3c99` recorded AD9364 initialization,
+the exact START contract, 100 valid ordered FRAME records, and final PASS.
+The raw PS-UART PuTTY session (`115200-8-N-1`) is
+`C:\Users\DELL\Desktop\putty-periodic.log`; JTAG launch evidence is
+`PROJECT/logs/jtag/20260727-132857-candidate.log`. The strict validator invoked
+with `-LogPath` returned `PASS: periodic FFT monitor log contains 100 valid frames.`
+The committed evidence file binds this run to the Candidate ELF and bitstream
+hashes, and `board_verified=true` is now accepted only when that committed
+evidence passes the strict parser.
+
+Scope limit: no controlled CW/R&S source was declared and observed peak powers
+were low/ambient-noise; antenna/port wiring was not independently reverified.
+This accepts monitor transport/control, not RF performance, DOA, calibration,
+or antenna wiring.
+
+Historical preflight status: **software-ready; physical-board acceptance was open.** The separately
 packaged `fft-periodic-monitor-v1` Candidate targets AXU4EVB-P + AD9364
 (`xczu4ev-sfvc784-1-i`, tool version 2020.1; manifest source commit
 `65ff6144ee9cf02cacfe8840ad506611c17806ac`). It is built/packaged and the
 nine-command host/preflight suite passed fresh, including the package,
 launcher, parser, JTAG-order, and release-integrity gates.
 
-The manifest remains `board_verified=false`. There is no physical-board PASS
-and no periodic FFT monitor evidence file. The periodic application ELF SHA-256
+The manifest now records `board_verified=true` with committed physical monitor
+evidence. The periodic application ELF SHA-256
 is `0586E9A18EA4457A622CEE84D33F81A6402C95FB12A64755D2A7C39441964002`; the
 bitstream, PMUFW, `psu_init.tcl`, and XSA remain hardware-identical to the
 accepted single-shot Candidate with hashes `ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC`,
@@ -24,13 +41,13 @@ accepted single-shot Candidate with hashes `ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E8
 `CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B`, and
 `672A431A3698DFB841AD0F09A8605CD1D125314FCB6333E49A60727E8B42E574`.
 
-Next operator action: open PuTTY on the PS UART at 115200-8-N-1, run
+The historical next operator action was to open PuTTY on the PS UART at 115200-8-N-1, run
 `PROJECT\tools\Start-Axu4evAd9364PeriodicMonitor.cmd`, save its complete
 output, and validate it with
 `PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath <putty-log-path>`.
 The test requires the exact START/PASS contract, 100 ordered valid frame lines,
-and no FAIL record. Do not set `board_verified=true` or create acceptance
-evidence until that physical run has passed.
+and no FAIL record. That run has now passed; the resulting evidence remains
+subject to the package gate described above.
 
 ## 1. Yönetici özeti
 

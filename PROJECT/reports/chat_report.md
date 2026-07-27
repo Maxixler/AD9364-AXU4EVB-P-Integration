@@ -4,6 +4,23 @@
 
 **Kapsam:** `fmcomms2/axu4ev` Vivado projesinin şemalara göre doğrulanması, bitstream/XSA üretimi, Vitis platformu, FSBL ve AD9364 bare-metal uygulamasının tamamlanması.
 
+## 28. Periodic FFT monitor physical acceptance - 27 July 2026
+
+The periodic Candidate ran once on AXU4EVB-P + AD9364 from launch commit
+`b0f53f36f8676b54747d417c4ae44c61ac8a3c99`. PuTTY PS-UART output at
+115200-8-N-1 (`C:\Users\DELL\Desktop\putty-periodic.log`) includes AD9364
+initialization, one START, all 100 FRAME records, and the final PASS. The
+strict parser command used `-LogPath` and returned `PASS: periodic FFT monitor
+log contains 100 valid frames.` JTAG launch log:
+`PROJECT/logs/jtag/20260727-132857-candidate.log`.
+
+The periodic manifest is now `board_verified=true`; its package test requires
+the committed evidence, matching metadata/hashes, and a strict parser PASS.
+No artifact hash changed. This is monitor transport/control acceptance only:
+no controlled CW/R&S source was declared, observed powers were low/ambient
+noise, and antenna/port wiring was not independently reverified. It does not
+claim RF-performance, DOA, calibration, or antenna-wiring acceptance.
+
 ## 27. Periodic FFT monitor preflight checkpoint - 27 July 2026
 
 Tasks 1-5 produced a separate `fft-periodic-monitor-v1` Candidate for the
