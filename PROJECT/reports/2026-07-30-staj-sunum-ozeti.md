@@ -370,3 +370,6 @@ noktasını, on ardışık 2048-bin frame'i, CRC/sağlık durumunu, ±1-bin peak
 kararlılığını ve NPZ/CSV aynı-frame bağını tek kapıda denetler. Sentetik
 pozitif ve negatif fixture'lar PASS'tir; gerçek laboratuvar verisi gelmeden
 fiziksel kabul vermez.
+
+Sunum için izlenebilir kapanış: `3f0bcec` (Candidate ve rapor handoff),
+`c920edc` (10-frame CW capture ve otomatik evidence validator).

@@ -623,3 +623,6 @@ exact 2048-bin yapıyı, protocol CRC durumunu, sıfır fatal flag'i, ±1-bin pe
 kararlılığını ve NPZ/CSV aynı-frame kimliğini doğrular. Gerçek kanıt dosyaları
 henüz olmadığı için validator beklenen şekilde RED'dir; bu fiziksel kabulün
 yapılmadığını görünür biçimde korur.
+
+Bu teslimin dokümantasyon handoff commit'i `3f0bcec`, bounded capture ve CW
+kanıt doğrulama commit'i `c920edc`'dir.

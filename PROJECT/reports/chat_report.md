@@ -681,3 +681,5 @@ frekans/seviye ve RF yolunu, AD9364 LO/Fs/BW değerlerini, ardışık frame
 kimliğini, exact 2048 bin, CRC, peak ±1 ve sıfır fatal flag şartlarını birlikte
 denetler. Sentetik pozitif/negatif testler PASS, gerçek kanıt eksikliği ise
 tasarlandığı gibi RED'dir.
+
+Kapanış commitleri `3f0bcec` ve `c920edc`'dir.

@@ -1207,3 +1207,6 @@ hash'i, jeneratör/RF/AD9364 çalışma noktası, 2048-bin/CRC/flag/peak ve
 NPZ-CSV kimliğini birlikte zorunlu tutar. Bu araçların fixture regresyonu
 PASS'tir; gerçek SMW200A verisi bulunmadığı için M4 fiziksel checkbox'ı açık
 kalmaya devam eder.
+
+Yazılım handoff'u `3f0bcec`, CW kanıt preflight aracı `c920edc` commit'inde
+kayıtlıdır.

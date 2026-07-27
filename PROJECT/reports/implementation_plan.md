@@ -703,3 +703,6 @@ sabit isimli NPZ/CSV serisini atomik üretir ve mevcut kanıtın üzerine yazmaz
 beklenen RED sonucunu verir; sentetik geçerli 10-frame fixture ve peak
 toleransı dışı negatif fixture regresyonda PASS'tir. Task 9 Step 3-7 yalnız
 gerçek laboratuvar çalışması sonrasında kapatılacaktır.
+
+İlgili commitler: `3f0bcec` (Candidate/rapor handoff) ve `c920edc` (bounded
+capture + controlled-CW evidence validator).
