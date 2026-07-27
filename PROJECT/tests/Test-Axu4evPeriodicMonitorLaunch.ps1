@@ -17,6 +17,16 @@ if ($launcherContent -notmatch 'fft-periodic-monitor-v1' -or
     throw 'Periodic CMD must select only fft-periodic-monitor-v1.'
 }
 
+$wrapperCommand = 'echo.| call "{0}" -DryRun' -f $launcher
+$wrapperOutput = @(& cmd.exe /d /c $wrapperCommand 2>&1)
+if ($LASTEXITCODE -ne 0) {
+    throw "Periodic CMD dry-run failed with exit code $LASTEXITCODE."
+}
+$wrapperText = $wrapperOutput -join "`n"
+if ($wrapperText -notmatch 'Periodic monitor launched\. Wait for the final PASS in PuTTY\.') {
+    throw "Periodic CMD did not report a successful dry-run launch.`r`n$wrapperText"
+}
+
 $output = @(
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $orchestrator `
         -Mode Candidate `
@@ -43,6 +53,44 @@ foreach ($artifact in @($result.artifacts)) {
     $path = [IO.Path]::GetFullPath([string]$artifact.path)
     if (-not $path.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
         throw "Periodic launch artifact escaped Candidate root: $path"
+    }
+}
+
+$candidateBase = Split-Path $periodicRoot -Parent
+$junctionRoot = Join-Path $candidateBase "test-periodic-launch-junction-$([guid]::NewGuid())"
+try {
+    New-Item -ItemType Junction -Path $junctionRoot -Target $periodicRoot | Out-Null
+    $savedPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $junctionOutput = @(
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $orchestrator `
+                -Mode Candidate `
+                -WorkspaceRoot $workspaceRoot `
+                -CandidateRoot $junctionRoot `
+                -DryRun 2>&1
+        )
+        $junctionExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedPreference
+    }
+    if ($junctionExitCode -eq 0 -or
+        ($junctionOutput -join "`n") -notmatch 'reparse point') {
+        throw 'Periodic launch accepted a Candidate path redirected through a junction.'
+    }
+}
+finally {
+    if (Test-Path -LiteralPath $junctionRoot) {
+        $junctionItem = Get-Item -LiteralPath $junctionRoot
+        $candidatePrefix = [IO.Path]::GetFullPath($candidateBase).TrimEnd('\') + '\'
+        if (($junctionItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0 -or
+            -not $junctionItem.FullName.StartsWith(
+                $candidatePrefix,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to remove an unsafe periodic launch test path: $($junctionItem.FullName)"
+        }
+        [IO.Directory]::Delete($junctionItem.FullName)
     }
 }
 
