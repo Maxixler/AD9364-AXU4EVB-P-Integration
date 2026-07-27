@@ -215,6 +215,7 @@ static void test_single_shot_bank1_and_metadata(void)
 	CHECK(result.first_sample == 0x13572468u);
 	CHECK(result.frame_crc32 == 0xdeadbeefu);
 	CHECK(result.dropped_count == 3u);
+	CHECK(result.hardware_flags == 0u);
 	CHECK(pl_fft_result_crc_matches(&result, 0xdeadbeefu));
 	CHECK(!pl_fft_result_crc_matches(&result, 0xdeadbeeeu));
 	for (index = 0u; index < PL_FFT_SPECTRUM_WORDS; index++)
@@ -294,6 +295,7 @@ static void test_single_shot_dropped_samples_is_nonfatal(void)
 	CHECK(pl_fft_init(&dev) == PL_FFT_OK);
 	CHECK(pl_fft_capture_once(&dev, 0u, 2047u, 0u, 0u,
 				  &result, spectrum) == PL_FFT_OK);
+	CHECK(result.hardware_flags == (1u << 5));
 	CHECK((fake.regs[REG_STATUS / 4u] & STATUS_DROPPED_SAMPLES) == 0u);
 }
 

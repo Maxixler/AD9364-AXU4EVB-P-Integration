@@ -45,6 +45,7 @@ struct pl_fft_result {
 	int16_t peak_im;
 	uint8_t active_bank;
 	uint8_t rf_state;
+	uint16_t hardware_flags;
 };
 
 int pl_fft_init(struct pl_fft_device *dev);
