@@ -64,9 +64,13 @@
 #include "no_os_error.h"
 #include "monopulse_selftest.h"
 #include "pl_fft_control.h"
+#ifdef PL_FFT_PERIODIC_MONITOR
+#include "pl_fft_monitor.h"
+#endif
 #include "wifi_rf_test.h"
 
-#ifdef PL_FFT_SINGLE_SHOT
+#if defined(PL_FFT_SINGLE_SHOT) || \
+	defined(PL_FFT_PERIODIC_MONITOR)
 #if defined(XPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR)
 #define PL_FFT_CONTROL_BASE XPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR
 #elif defined(XPAR_AXI_AD9364_FFT_CAPTURE_BASEADDR)
@@ -83,6 +87,10 @@
 
 #define PL_FFT_BANK0_BASE XPAR_AXI_AD9364_FFT_BRAM0_S_AXI_BASEADDR
 #define PL_FFT_BANK1_BASE XPAR_AXI_AD9364_FFT_BRAM1_S_AXI_BASEADDR
+#ifdef PL_FFT_PERIODIC_MONITOR
+#define PL_FFT_MONITOR_FRAMES 100u
+#define PL_FFT_MONITOR_INTERVAL_MS 1000u
+#endif
 
 static uint64_t pl_fft_spectrum[PL_FFT_SPECTRUM_WORDS]
 	__attribute__((aligned(64)));
@@ -105,6 +113,28 @@ static void pl_fft_board_write32(void *context, uintptr_t address,
 	(void)context;
 	Xil_Out32(address, value);
 }
+
+#ifdef PL_FFT_PERIODIC_MONITOR
+static void pl_fft_board_delay(void *context, uint32_t delay_ms)
+{
+	(void)context;
+	no_os_mdelay(delay_ms);
+}
+
+static void pl_fft_board_report(void *context, uint32_t sequence,
+				uint32_t total,
+				const struct pl_fft_result *result)
+{
+	(void)context;
+	printf("PL_FFT_MONITOR: FRAME seq=%03"PRIu32"/%03"PRIu32
+	       " frame=%"PRIu32" bank=%u samples=%"PRIu32
+	       " peak_bin=%u peak_power=%"PRIu64
+	       " dropped=%"PRIu32" crc=%08"PRIx32"\n",
+	       sequence, total, result->frame_id, result->active_bank,
+	       result->sample_count, result->peak_bin, result->peak_power,
+	       result->dropped_count, result->frame_crc32);
+}
+#endif
 
 static int pl_fft_single_shot_run(void)
 {
@@ -146,6 +176,49 @@ static int pl_fft_single_shot_run(void)
 #endif
 	return 0;
 }
+
+#ifdef PL_FFT_PERIODIC_MONITOR
+static int pl_fft_periodic_monitor_run(void)
+{
+	struct pl_fft_device dev = {
+		.context = NULL,
+		.control_base = PL_FFT_CONTROL_BASE,
+		.bank_base = {PL_FFT_BANK0_BASE, PL_FFT_BANK1_BASE},
+		.read32 = pl_fft_board_read32,
+		.read64 = pl_fft_board_read64,
+		.write32 = pl_fft_board_write32,
+		.timeout_polls = 10000000u,
+		.max_snapshot_retries = 3u
+	};
+	struct pl_fft_monitor monitor = {
+		.device = &dev,
+		.callback_context = NULL,
+		.delay_ms = pl_fft_board_delay,
+		.report_frame = pl_fft_board_report
+	};
+	uint32_t completed;
+	int status;
+
+	status = pl_fft_init(&dev);
+	if (status != PL_FFT_OK) {
+		printf("PL_FFT_MONITOR: FAIL seq=001 stage=INIT error=%d\n", status);
+		return status;
+	}
+	printf("PL_FFT_MONITOR: START frames=%u interval_ms=%u bins=%u\n",
+	       PL_FFT_MONITOR_FRAMES, PL_FFT_MONITOR_INTERVAL_MS,
+	       PL_FFT_SPECTRUM_WORDS);
+	status = pl_fft_monitor_run(&monitor, PL_FFT_MONITOR_FRAMES,
+				    PL_FFT_MONITOR_INTERVAL_MS, pl_fft_spectrum,
+				    &completed);
+	if (status != PL_FFT_OK) {
+		printf("PL_FFT_MONITOR: FAIL seq=%03"PRIu32
+		       " stage=CAPTURE error=%d\n", completed + 1u, status);
+		return status;
+	}
+	printf("PL_FFT_MONITOR: PASS frames=100 interval_ms=1000\n");
+	return PL_FFT_OK;
+}
+#endif
 #endif
 
 #ifdef IIO_SUPPORT
@@ -715,6 +788,11 @@ int main(void)
 
 #ifdef PL_FFT_SINGLE_SHOT
 	status = pl_fft_single_shot_run();
+	goto cleanup;
+#endif
+
+#ifdef PL_FFT_PERIODIC_MONITOR
+	status = pl_fft_periodic_monitor_run();
 	goto cleanup;
 #endif
 

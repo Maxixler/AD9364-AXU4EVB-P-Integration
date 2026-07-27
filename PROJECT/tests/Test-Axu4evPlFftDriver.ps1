@@ -51,6 +51,12 @@ try {
             'PL_FFT_SINGLE_SHOT',
             'pl_fft_capture_once(',
             'PL_FFT: PASS frame=',
+            'PL_FFT_MONITOR_FRAMES 100u',
+            'PL_FFT_MONITOR_INTERVAL_MS 1000u',
+            'PL_FFT_MONITOR: START frames=',
+            'PL_FFT_MONITOR: FRAME seq=',
+            'PL_FFT_MONITOR: PASS frames=',
+            'PL_FFT_MONITOR: FAIL seq=',
             'MONOPULSE_FOUNDATION_TEST')) {
         if (-not $combined.Contains($fragment)) {
             throw "PL FFT application integration is missing: $fragment"
@@ -67,6 +73,16 @@ try {
 #endif
 int main(void) { return 0; }
 '@
+    $periodicMode = @'
+#include "app_config.h"
+#if !defined(PL_FFT_PERIODIC_MONITOR)
+#error PL_FFT_PERIODIC_MONITOR was not selected
+#endif
+#if defined(PL_FFT_SINGLE_SHOT) || defined(MONOPULSE_FOUNDATION_TEST)
+#error periodic mode must be exclusive
+#endif
+int main(void) { return 0; }
+'@
     $singleMode = @'
 #include "app_config.h"
 #if !defined(PL_FFT_SINGLE_SHOT)
@@ -79,8 +95,10 @@ int main(void) { return 0; }
 '@
     $defaultSource = Join-Path $work 'default_mode.c'
     $singleSource = Join-Path $work 'single_mode.c'
+    $periodicSource = Join-Path $work 'periodic_mode.c'
     Set-Content -LiteralPath $defaultSource -Value $defaultMode -Encoding Ascii
     Set-Content -LiteralPath $singleSource -Value $singleMode -Encoding Ascii
+    Set-Content -LiteralPath $periodicSource -Value $periodicMode -Encoding Ascii
     & $gcc -std=c11 -Wall -Wextra -Werror "-I$sourceRoot" `
         $defaultSource -o (Join-Path $work 'default_mode.exe')
     if ($LASTEXITCODE -ne 0) {
@@ -90,6 +108,17 @@ int main(void) { return 0; }
         -DPL_FFT_SINGLE_SHOT $singleSource -o (Join-Path $work 'single_mode.exe')
     if ($LASTEXITCODE -ne 0) {
         throw 'PL_FFT_SINGLE_SHOT application-mode contract failed.'
+    }
+    & $gcc -std=c11 -Wall -Wextra -Werror "-I$sourceRoot" `
+        -DPL_FFT_PERIODIC_MONITOR $periodicSource -o (Join-Path $work 'periodic_mode.exe')
+    if ($LASTEXITCODE -ne 0) {
+        throw 'PL_FFT_PERIODIC_MONITOR application-mode contract failed.'
+    }
+    & $gcc -std=c11 -Wall -Wextra -Werror "-I$sourceRoot" `
+        -DPL_FFT_SINGLE_SHOT -DPL_FFT_PERIODIC_MONITOR $periodicSource `
+        -o (Join-Path $work 'dual_mode.exe')
+    if ($LASTEXITCODE -eq 0) {
+        throw 'PL FFT dual-mode application-mode contract was accepted.'
     }
 } finally {
     if (Test-Path -LiteralPath $work) {
