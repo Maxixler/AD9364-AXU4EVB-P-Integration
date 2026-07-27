@@ -82,28 +82,28 @@ function Assert-AcceptanceEvidence {
         [Parameter(Mandatory = $true)]$Manifest
     )
 
-    $lines = @($EvidenceText -split "`r?`n")
+    $lines = @($EvidenceText -split "`r?`n" | Where-Object { $_ -ne '' })
     $rawHash = (Get-FileHash -LiteralPath $RawPath -Algorithm SHA256).Hash
     $jtagHash = (Get-FileHash -LiteralPath $JtagPath -Algorithm SHA256).Hash
     $applicationHash = (@($Manifest.artifacts | Where-Object name -eq 'application')[0]).sha256
     $bitstreamHash = (@($Manifest.artifacts | Where-Object name -eq 'bitstream')[0]).sha256
 
-    Assert-ExactLine $lines 'Acceptance date (Europe/Istanbul): 2026-07-27' 'acceptance date'
-    Assert-ExactLine $lines 'Branch at physical run: codex/axu4ev-ad9364-monopulse' 'physical-run branch'
-    Assert-ExactLine $lines "Candidate manifest source commit: $($Manifest.source_commit)" 'manifest source commit'
-    Assert-ExactLine $lines "Periodic application ELF SHA-256: $applicationHash" 'application hash'
-    Assert-ExactLine $lines "Periodic bitstream SHA-256: $bitstreamHash" 'bitstream hash'
-    Assert-ExactLine $lines "Raw PuTTY log (committed relative path): $rawRelativePath" 'raw PuTTY path'
-    Assert-ExactLine $lines "Raw PuTTY log SHA-256: $rawHash" 'raw PuTTY hash'
-    Assert-ExactLine $lines "JTAG launch log (committed relative path): $jtagRelativePath" 'JTAG path'
-    Assert-ExactLine $lines "JTAG launch log SHA-256: $jtagHash" 'JTAG hash'
-    Assert-ExactLine $lines 'PuTTY serial settings: PS_UART, 115200-8-N-1, all-session output.' 'PuTTY session settings'
-    Assert-ExactLine $lines "Strict validator command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath $rawRelativePath" 'strict validator command'
-    Assert-ExactLine $lines 'Strict validator output: PASS: periodic FFT monitor log contains 100 valid frames.' 'strict validator output'
-    Assert-ExactLine $lines 'RF context: No controlled CW or R&S source was declared for this infrastructure acceptance. Observed low peak powers were ambient-noise input; this acceptance covers monitor transport/control only, not RF performance or DOA calibration.' 'RF scope'
-    Assert-ExactLine $lines 'Antenna/port wiring: Not independently reverified during this run.' 'antenna/port-wiring scope'
+    Assert-ExactLine -Lines $lines -Expected 'Acceptance date (Europe/Istanbul): 2026-07-27' -Description 'acceptance date'
+    Assert-ExactLine -Lines $lines -Expected 'Branch at physical run: codex/axu4ev-ad9364-monopulse' -Description 'physical-run branch'
+    Assert-ExactLine -Lines $lines -Expected "Candidate manifest source commit: $($Manifest.source_commit)" -Description 'manifest source commit'
+    Assert-ExactLine -Lines $lines -Expected "Periodic application ELF SHA-256: $applicationHash" -Description 'application hash'
+    Assert-ExactLine -Lines $lines -Expected "Periodic bitstream SHA-256: $bitstreamHash" -Description 'bitstream hash'
+    Assert-ExactLine -Lines $lines -Expected "Raw PuTTY log (committed relative path): $rawRelativePath" -Description 'raw PuTTY path'
+    Assert-ExactLine -Lines $lines -Expected "Raw PuTTY log SHA-256: $rawHash" -Description 'raw PuTTY hash'
+    Assert-ExactLine -Lines $lines -Expected "JTAG launch log (committed relative path): $jtagRelativePath" -Description 'JTAG path'
+    Assert-ExactLine -Lines $lines -Expected "JTAG launch log SHA-256: $jtagHash" -Description 'JTAG hash'
+    Assert-ExactLine -Lines $lines -Expected 'PuTTY serial settings: PS_UART, 115200-8-N-1, all-session output.' -Description 'PuTTY session settings'
+    Assert-ExactLine -Lines $lines -Expected "Strict validator command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath $rawRelativePath" -Description 'strict validator command'
+    Assert-ExactLine -Lines $lines -Expected 'Strict validator output: PASS: periodic FFT monitor log contains 100 valid frames.' -Description 'strict validator output'
+    Assert-ExactLine -Lines $lines -Expected 'RF context: No controlled CW or R&S source was declared for this infrastructure acceptance. Observed low peak powers were ambient-noise input; this acceptance covers monitor transport/control only, not RF performance or DOA calibration.' -Description 'RF scope'
+    Assert-ExactLine -Lines $lines -Expected 'Antenna/port wiring: Not independently reverified during this run.' -Description 'antenna/port-wiring scope'
 
-    $launchCommitMatch = [regex]::Match($EvidenceText, '(?m)^Launch commit: ([0-9a-f]{40})$')
+    $launchCommitMatch = [regex]::Match($EvidenceText, '(?m)^Launch commit: ([0-9a-f]{40})\r?$')
     if (-not $launchCommitMatch.Success) {
         throw 'Physical acceptance evidence must contain one full launch commit.'
     }
