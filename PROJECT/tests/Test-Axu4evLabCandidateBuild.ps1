@@ -24,6 +24,21 @@ foreach ($path in @($sourceBuilder, $sourceBuildTcl, $sourceReleaseModule, $sour
         throw "Missing Lab Candidate build dependency: $path"
     }
 }
+$builderText = Get-Content -LiteralPath $sourceBuilder -Raw
+if (-not $builderText.Contains('VitisWorkspace path is too long for Vitis 2020.1')) {
+    throw 'Candidate build does not reject legacy Vitis workspace paths before BSP generation.'
+}
+$buildTclText = Get-Content -LiteralPath $sourceBuildTcl -Raw
+foreach ($fragment in @(
+        'proc generate_platform_with_single_retry',
+        'catch {platform generate} first_error',
+        'after 3000',
+        'generate_platform_with_single_retry'
+    )) {
+    if (-not $buildTclText.Contains($fragment)) {
+        throw "Candidate platform generation lacks its bounded file-lock recovery: $fragment"
+    }
+}
 
 try {
     New-Item -ItemType Directory -Path $fixtureTools, $allowedWorkspaceRoot -Force | Out-Null

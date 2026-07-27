@@ -20,6 +20,16 @@ if {[lsearch -exact $allowed_symbols $compiler_symbol] == -1} {
 }
 set source_root [file join $project_root Vitis workspace ad9364app src]
 
+proc generate_platform_with_single_retry {} {
+    if {[catch {platform generate} first_error]} {
+        puts "WARN: Vitis platform generation hit a transient file lock; retrying once after 3000 ms."
+        after 3000
+        if {[catch {platform generate} second_error]} {
+            error "Candidate platform generation failed after one retry.\nFirst attempt: $first_error\nSecond attempt: $second_error"
+        }
+    }
+}
+
 if {![file exists $xsa_path]} {
     error "Missing Candidate XSA: $xsa_path"
 }
@@ -51,7 +61,7 @@ platform create \
     -arch 64-bit \
     -no-boot-bsp
 bsp setlib -name xilffs
-platform generate
+generate_platform_with_single_retry
 
 set app_name "ad9364app"
 app create \
