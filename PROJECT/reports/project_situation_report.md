@@ -1,6 +1,6 @@
 # Proje Durum Raporu — AXU4EVB-P + AD9364
 
-**Son güncelleme:** 21 Temmuz 2026
+**Son güncelleme:** 27 Temmuz 2026
 
 **Ana hedef:** ALINX AXU4EVB-P üzerinde AD9364/FMCOMMS ailesi ile doğrulanmış FPGA donanım platformu ve bare-metal yazılım zinciri oluşturmak.
 
