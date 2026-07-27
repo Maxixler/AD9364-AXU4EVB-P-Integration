@@ -4,11 +4,12 @@
 
 The `fft-periodic-monitor-v1` Candidate completed one physical AXU4EVB-P +
 AD9364 monitor run from branch `codex/axu4ev-ad9364-monopulse` at launch
-commit `b0f53f36f8676b54747d417c4ae44c61ac8a3c99`. The JTAG launch record is
-`PROJECT/logs/jtag/20260727-132857-candidate.log`; the PS-UART PuTTY session
-was saved at `C:\Users\DELL\Desktop\putty-periodic.log` using 115200-8-N-1.
-The strict command used `-LogPath` and returned `PASS: periodic FFT monitor log
-contains 100 valid frames.` The committed evidence contains AD9364
+commit `b0f53f36f8676b54747d417c4ae44c61ac8a3c99`. The committed JTAG launch
+record is `PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-jtag-launch.log`;
+the committed PS-UART record is
+`PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-raw-putty.log`
+using 115200-8-N-1. The strict command used `-LogPath` and returned `PASS:
+periodic FFT monitor log contains 100 valid frames.` The committed evidence contains AD9364
 initialization, START, all 100 ordered FRAME records, and the final PASS.
 
 `board_verified=true` is now guarded by the periodic package test: it requires

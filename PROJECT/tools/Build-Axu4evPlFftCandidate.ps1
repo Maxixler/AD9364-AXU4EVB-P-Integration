@@ -98,16 +98,92 @@ function Assert-NoReparsePointForWrite {
     }
 }
 
+function Get-WorkspaceRelativePath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $root = [IO.Path]::GetFullPath($WorkspaceRoot).TrimEnd('\')
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $prefix = $root + '\'
+    if (-not $fullPath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Path is outside the Candidate workspace: $fullPath"
+    }
+    return $fullPath.Substring($prefix.Length).Replace('\', '/')
+}
+
+function Assert-GitPathMatchesHeadAndIndex {
+    param(
+        [Parameter(Mandatory = $true)][string]$RelativePath,
+        [Parameter(Mandatory = $true)][string]$Description
+    )
+
+    & git -C $WorkspaceRoot cat-file -e "HEAD:$RelativePath"
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Description is not committed at HEAD: $RelativePath"
+    }
+    $headObject = (& git -C $WorkspaceRoot rev-parse "HEAD:$RelativePath").Trim()
+    $indexObject = (& git -C $WorkspaceRoot rev-parse ":$RelativePath").Trim()
+    if ($LASTEXITCODE -ne 0 -or $headObject -cne $indexObject) {
+        throw "$Description differs between HEAD and the Git index: $RelativePath"
+    }
+    & git -C $WorkspaceRoot diff --quiet --no-ext-diff -- $RelativePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Description differs between the Git index and working tree: $RelativePath"
+    }
+}
+
+function Assert-TrustedPeriodicReferenceProvenance {
+    param([Parameter(Mandatory = $true)][string]$ReferenceRoot)
+
+    & git -C $WorkspaceRoot rev-parse --is-inside-work-tree | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Periodic Candidate builds require the trusted fft-single-shot-v1 reference to be in a Git worktree.'
+    }
+    $referenceRelative = Get-WorkspaceRelativePath -Path $ReferenceRoot
+    $referenceStatus = @(& git -C $WorkspaceRoot status --porcelain=v1 --untracked-files=all -- $referenceRelative)
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Cannot inspect the trusted fft-single-shot-v1 reference source state.'
+    }
+    if ($referenceStatus.Count -ne 0) {
+        throw "Periodic Candidate builds require a clean trusted fft-single-shot-v1 reference before reading it.`r`n$($referenceStatus -join "`r`n")"
+    }
+
+    $manifestRelative = "$referenceRelative/manifest.json"
+    Assert-GitPathMatchesHeadAndIndex -RelativePath $manifestRelative -Description 'Trusted fft-single-shot-v1 manifest'
+    $referenceManifest = Get-Content -LiteralPath (Join-Path $ReferenceRoot 'manifest.json') -Raw | ConvertFrom-Json
+    foreach ($artifact in @($referenceManifest.artifacts)) {
+        $artifactPath = [string]$artifact.path
+        if ([string]::IsNullOrWhiteSpace($artifactPath) -or
+            [IO.Path]::IsPathRooted($artifactPath) -or
+            $artifactPath -match '(^|[\\/])\.\.([\\/]|$)') {
+            throw "Trusted fft-single-shot-v1 manifest has an unsafe artifact path: $artifactPath"
+        }
+        Assert-GitPathMatchesHeadAndIndex `
+            -RelativePath "$referenceRelative/$($artifactPath.Replace('\', '/'))" `
+            -Description "Trusted fft-single-shot-v1 artifact '$($artifact.name)'"
+    }
+}
+
 foreach ($required in @($SourceXsa, $releaseModule, $buildTcl, $xsct)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "Missing Candidate build dependency: $required"
     }
 }
 
+$goldenPrefix = [IO.Path]::GetFullPath($goldenBase).TrimEnd('\') + '\'
+$candidatePrefix = [IO.Path]::GetFullPath($candidateBase).TrimEnd('\') + '\'
+if ($CandidateRoot.StartsWith($goldenPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "CandidateRoot cannot be inside the Golden release tree: $CandidateRoot"
+}
+if (-not $CandidateRoot.StartsWith($candidatePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "CandidateRoot must be inside the project Candidate tree: $CandidateRoot"
+}
+Assert-NoReparsePointForWrite -Path $CandidateRoot -Boundary $candidateBase
+
 Import-Module $releaseModule -Force
 $singleShotReferenceArtifacts = @{}
 $hardwareContractReferenceXsa = if ($ApplicationMode -eq 'PeriodicMonitor') {
     $singleShotReference = (Resolve-Path -LiteralPath (Join-Path $candidateBase 'fft-single-shot-v1')).Path
+    Assert-TrustedPeriodicReferenceProvenance -ReferenceRoot $singleShotReference
     $singleShotManifest = Read-Axu4evReleaseManifest -ReleaseRoot $singleShotReference
     if (-not $singleShotManifest.board_verified) {
         throw 'The fft-single-shot-v1 Candidate reference must be board verified.'
@@ -154,15 +230,6 @@ else {
     $referenceXsa[0]
 }
 
-$goldenPrefix = [IO.Path]::GetFullPath($goldenBase).TrimEnd('\') + '\'
-$candidatePrefix = [IO.Path]::GetFullPath($candidateBase).TrimEnd('\') + '\'
-if ($CandidateRoot.StartsWith($goldenPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "CandidateRoot cannot be inside the Golden release tree: $CandidateRoot"
-}
-if (-not $CandidateRoot.StartsWith($candidatePrefix, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "CandidateRoot must be inside the project Candidate tree: $CandidateRoot"
-}
-Assert-NoReparsePointForWrite -Path $CandidateRoot -Boundary $candidateBase
 if ($ApplicationMode -eq 'PeriodicMonitor') {
     $singleShotReferenceRoot = [IO.Path]::GetFullPath($singleShotReference).TrimEnd('\')
     $singleShotReferencePrefix = $singleShotReferenceRoot + '\'
@@ -262,14 +329,12 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw 'Cannot inspect the Candidate source tree state.'
     }
-    $candidateRelative = $candidateBase.Substring($WorkspaceRoot.Length).
-        TrimStart('\').
-        Replace('\', '/')
+    $candidateRelative = Get-WorkspaceRelativePath -Path $CandidateRoot
+    $candidateRelativePrefix = $candidateRelative.TrimEnd('/') + '/'
     $unexpectedTrackedChanges = @($trackedChanges | Where-Object {
         $path = if ($_.Length -gt 3) { $_.Substring(3).Replace('\', '/') } else { '' }
-        -not $path.StartsWith(
-            "$candidateRelative/",
-            [StringComparison]::OrdinalIgnoreCase)
+        -not $path.Equals($candidateRelative, [StringComparison]::OrdinalIgnoreCase) -and
+        -not $path.StartsWith($candidateRelativePrefix, [StringComparison]::OrdinalIgnoreCase)
     })
     if ($unexpectedTrackedChanges.Count -ne 0) {
         throw "Candidate builds require clean tracked source inputs.`r`n$($unexpectedTrackedChanges -join "`r`n")"

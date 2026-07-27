@@ -10,7 +10,7 @@ Raw PuTTY log SHA-256: B3BCA7747B6130DDF39731C39DE28FEA1E31DEC210FD8E2009B43DB75
 JTAG launch log (committed relative path): PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-jtag-launch.log
 JTAG launch log SHA-256: BB49458713B04D8E3508B58FD1EC55E2A83825DF1208AEA7AB473F4DC3C23758
 PuTTY serial settings: PS_UART, 115200-8-N-1, all-session output.
-Origin note: byte-for-byte source copy originated at C:\Users\DELL\Desktop\putty-periodic.log.
+Origin note: the committed raw PuTTY and JTAG paths above are the release evidence locators; capture staging paths are not.
 Strict validator command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-raw-putty.log
 Strict validator output: PASS: periodic FFT monitor log contains 100 valid frames.
 RF context: No controlled CW or R&S source was declared for this infrastructure acceptance. Observed low peak powers were ambient-noise input; this acceptance covers monitor transport/control only, not RF performance or DOA calibration.

@@ -12,10 +12,11 @@ Status: **physical monitor transport/control acceptance passed.** One fresh
 AXU4EVB-P + AD9364 run launched from
 `b0f53f36f8676b54747d417c4ae44c61ac8a3c99` recorded AD9364 initialization,
 the exact START contract, 100 valid ordered FRAME records, and final PASS.
-The raw PS-UART PuTTY session (`115200-8-N-1`) is
-`C:\Users\DELL\Desktop\putty-periodic.log`; JTAG launch evidence is
-`PROJECT/logs/jtag/20260727-132857-candidate.log`. The strict validator invoked
-with `-LogPath` returned `PASS: periodic FFT monitor log contains 100 valid frames.`
+The committed raw PS-UART evidence (`115200-8-N-1`) is
+`PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-raw-putty.log`;
+the committed JTAG launch evidence is
+`PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-jtag-launch.log`.
+The strict validator invoked with `-LogPath` returned `PASS: periodic FFT monitor log contains 100 valid frames.`
 The committed evidence file binds this run to the Candidate ELF and bitstream
 hashes, and `board_verified=true` is now accepted only when that committed
 evidence passes the strict parser.

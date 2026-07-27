@@ -76,6 +76,83 @@ function Get-NormalizedUartPayload {
     })
 }
 
+function Assert-JtagArtifactManifestMatchesCandidate {
+    param(
+        [Parameter(Mandatory = $true)][string]$JtagPath,
+        [Parameter(Mandatory = $true)]$Manifest
+    )
+
+    $jtagText = Get-Content -LiteralPath $JtagPath -Raw
+    $manifestLines = @([regex]::Matches(
+        $jtagText,
+        '(?m)^ARTIFACT_MANIFEST_JSON=(.+?)\r?$'))
+    if ($manifestLines.Count -ne 1) {
+        throw 'JTAG launch evidence must contain exactly one ARTIFACT_MANIFEST_JSON line.'
+    }
+    try {
+        $jtagArtifacts = $manifestLines[0].Groups[1].Value | ConvertFrom-Json
+    }
+    catch {
+        throw "JTAG launch evidence has invalid ARTIFACT_MANIFEST_JSON: $($_.Exception.Message)"
+    }
+
+    $expectedNames = @('application', 'bitstream', 'pmufw', 'psu_init', 'xsa')
+    $expectedByName = @{}
+    foreach ($artifact in @($Manifest.artifacts)) {
+        $name = [string]$artifact.name
+        if ($name -notin $expectedNames -or $expectedByName.ContainsKey($name)) {
+            throw "Periodic Candidate manifest has an unexpected or duplicate JTAG-bound artifact: $name"
+        }
+        $expectedByName[$name] = [pscustomobject]@{
+            Path = [IO.Path]::GetFullPath((Join-Path $periodicRoot ([string]$artifact.path -replace '/', '\\')))
+            Length = [int64]$artifact.length
+            Sha256 = [string]$artifact.sha256
+        }
+    }
+    if ($expectedByName.Count -ne $expectedNames.Count) {
+        throw 'Periodic Candidate manifest must expose exactly five JTAG-bound artifacts.'
+    }
+
+    $actualByName = @{}
+    foreach ($artifact in $jtagArtifacts) {
+        $name = [string]$artifact.name
+        if ($name -notin $expectedNames -or $actualByName.ContainsKey($name)) {
+            throw "JTAG launch evidence has an unexpected or duplicate artifact: $name"
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$artifact.path)) {
+            throw "JTAG launch evidence has no path for artifact: $name"
+        }
+        $actualByName[$name] = [pscustomobject]@{
+            Path = [IO.Path]::GetFullPath([string]$artifact.path)
+            Length = [int64]$artifact.length
+            Sha256 = [string]$artifact.sha256
+        }
+    }
+    if ($actualByName.Count -ne $expectedNames.Count) {
+        throw 'JTAG launch evidence must bind exactly five Candidate artifacts.'
+    }
+    foreach ($name in $expectedNames) {
+        $expected = $expectedByName[$name]
+        $actual = $actualByName[$name]
+        if ($actual.Path -cne $expected.Path -or
+            $actual.Length -ne $expected.Length -or
+            $actual.Sha256 -cne $expected.Sha256) {
+            throw "JTAG launch evidence artifact mismatch: $name"
+        }
+    }
+
+    foreach ($binding in @(
+            [pscustomobject]@{ Pattern = '(?m)^(?:RELEASE_ID|ReleaseId|release_id)=(.+?)\r?$'; Expected = [string]$Manifest.release_id; Description = 'release id' },
+            [pscustomobject]@{ Pattern = '(?m)^(?:TARGET_BOARD|TargetBoard|target_board)=(.+?)\r?$'; Expected = [string]$Manifest.target_board; Description = 'target board' }
+        )) {
+        $matches = @([regex]::Matches($jtagText, $binding.Pattern))
+        if ($matches.Count -gt 0 -and
+            ($matches.Count -ne 1 -or $matches[0].Groups[1].Value -cne $binding.Expected)) {
+            throw "JTAG launch evidence $($binding.Description) does not match the periodic Candidate."
+        }
+    }
+}
+
 function Assert-AcceptanceEvidence {
     param(
         [Parameter(Mandatory = $true)][string]$EvidenceText,
@@ -87,6 +164,7 @@ function Assert-AcceptanceEvidence {
     $lines = @($EvidenceText -split "`r?`n" | Where-Object { $_ -ne '' })
     $rawHash = (Get-FileHash -LiteralPath $RawPath -Algorithm SHA256).Hash
     $jtagHash = (Get-FileHash -LiteralPath $JtagPath -Algorithm SHA256).Hash
+    Assert-JtagArtifactManifestMatchesCandidate -JtagPath $JtagPath -Manifest $Manifest
     $applicationHash = (@($Manifest.artifacts | Where-Object name -eq 'application')[0]).sha256
     $bitstreamHash = (@($Manifest.artifacts | Where-Object name -eq 'bitstream')[0]).sha256
 
@@ -103,7 +181,7 @@ function Assert-AcceptanceEvidence {
         [pscustomobject]@{ Key = 'JTAG launch log (committed relative path):'; Line = "JTAG launch log (committed relative path): $jtagRelativePath"; Description = 'JTAG path' },
         [pscustomobject]@{ Key = 'JTAG launch log SHA-256:'; Line = "JTAG launch log SHA-256: $jtagHash"; Description = 'JTAG hash' },
         [pscustomobject]@{ Key = 'PuTTY serial settings:'; Line = 'PuTTY serial settings: PS_UART, 115200-8-N-1, all-session output.'; Description = 'PuTTY session settings' },
-        [pscustomobject]@{ Key = 'Origin note:'; Line = 'Origin note: byte-for-byte source copy originated at C:\Users\DELL\Desktop\putty-periodic.log.'; Description = 'origin note' },
+        [pscustomobject]@{ Key = 'Origin note:'; Line = 'Origin note: the committed raw PuTTY and JTAG paths above are the release evidence locators; capture staging paths are not.'; Description = 'origin note' },
         [pscustomobject]@{ Key = 'Strict validator command:'; Line = "Strict validator command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath $rawRelativePath"; Description = 'strict validator command' },
         [pscustomobject]@{ Key = 'Strict validator output:'; Line = 'Strict validator output: PASS: periodic FFT monitor log contains 100 valid frames.'; Description = 'strict validator output' },
         [pscustomobject]@{ Key = 'RF context:'; Line = 'RF context: No controlled CW or R&S source was declared for this infrastructure acceptance. Observed low peak powers were ambient-noise input; this acceptance covers monitor transport/control only, not RF performance or DOA calibration.'; Description = 'RF scope' },
@@ -208,11 +286,54 @@ function Assert-PeriodicArtifactPaths {
     }
 }
 
+function Assert-DeterministicPsuInitMaterialization {
+    param(
+        [Parameter(Mandatory = $true)]$SingleManifest,
+        [Parameter(Mandatory = $true)]$PeriodicManifest
+    )
+
+    $relativePaths = @(
+        'PROJECT/candidates/axu4ev-ad9364/fft-single-shot-v1/hardware/psu_init.tcl',
+        'PROJECT/candidates/axu4ev-ad9364/fft-periodic-monitor-v1/hardware/psu_init.tcl'
+    )
+    $attributeOutput = @(Invoke-Git -Arguments (@('check-attr', 'text', 'eol', '--') + $relativePaths))
+    foreach ($relativePath in $relativePaths) {
+        if ($attributeOutput -notcontains "${relativePath}: text: set" -or
+            $attributeOutput -notcontains "${relativePath}: eol: crlf") {
+            throw "psu_init checkout policy is not deterministic CRLF: $relativePath"
+        }
+    }
+
+    $materializationRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-psu-init-$([guid]::NewGuid())"
+    try {
+        New-Item -ItemType Directory -Path $materializationRoot -Force | Out-Null
+        & git -C $workspaceRoot -c core.autocrlf=false checkout-index `
+            --prefix="$materializationRoot\" -- $relativePaths
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Cannot materialize psu_init files with core.autocrlf=false.'
+        }
+
+        $manifests = @($SingleManifest, $PeriodicManifest)
+        for ($index = 0; $index -lt $relativePaths.Count; $index++) {
+            $expected = @($manifests[$index].artifacts |
+                Where-Object name -eq 'psu_init')[0].sha256
+            $materialized = Join-Path $materializationRoot $relativePaths[$index]
+            if ((Get-FileHash -LiteralPath $materialized -Algorithm SHA256).Hash -cne $expected) {
+                throw "psu_init materialized hash does not match its manifest: $($relativePaths[$index])"
+            }
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $materializationRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Import-Module $releaseModule -Force
 $singleManifest = Read-Axu4evReleaseManifest -ReleaseRoot $singleRoot
 $periodicManifest = Read-Axu4evReleaseManifest -ReleaseRoot $periodicRoot
 $singleArtifacts = @(Test-Axu4evReleaseArtifacts -ReleaseRoot $singleRoot -Manifest $singleManifest)
 $periodicArtifacts = @(Test-Axu4evReleaseArtifacts -ReleaseRoot $periodicRoot -Manifest $periodicManifest)
+Assert-DeterministicPsuInitMaterialization -SingleManifest $singleManifest -PeriodicManifest $periodicManifest
 
 if ($periodicManifest.release_id -ne 'fft-periodic-monitor-v1') {
     throw "Unexpected periodic Candidate release id: $($periodicManifest.release_id)"
@@ -266,6 +387,15 @@ Invoke-BoardVerificationGate -Manifest $periodicManifest -EvidenceCheck {
     }
     Assert-Rejected -Description 'duplicate contradictory raw path' -Action {
         Assert-AcceptanceEvidence -EvidenceText ($evidenceText.Replace("Raw PuTTY log (committed relative path): $rawRelativePath", "Raw PuTTY log (committed relative path): $rawRelativePath`r`nRaw PuTTY log (committed relative path): PROJECT/tests/evidence/not-the-accepted-log.log")) -RawPath $rawPath -JtagPath $jtagPath -Manifest $periodicManifest
+    }
+    $staleApplicationManifest = $periodicManifest | ConvertTo-Json -Depth 6 | ConvertFrom-Json
+    @($staleApplicationManifest.artifacts | Where-Object name -eq 'application')[0].sha256 =
+        'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'
+    $staleApplicationEvidence = $evidenceText.Replace(
+        "Periodic application ELF SHA-256: $(@($periodicManifest.artifacts | Where-Object name -eq 'application')[0].sha256)",
+        "Periodic application ELF SHA-256: $(@($staleApplicationManifest.artifacts | Where-Object name -eq 'application')[0].sha256)")
+    Assert-Rejected -Description 'stale JTAG application manifest after replacement' -Action {
+        Assert-AcceptanceEvidence -EvidenceText $staleApplicationEvidence -RawPath $rawPath -JtagPath $jtagPath -Manifest $staleApplicationManifest
     }
 }
 if (@($periodicManifest.uart_markers).Count -ne 1 -or @($periodicManifest.uart_markers)[0] -ne 'PL_FFT_MONITOR: PASS') {

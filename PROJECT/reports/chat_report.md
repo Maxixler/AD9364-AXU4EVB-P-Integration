@@ -7,12 +7,12 @@
 ## 28. Periodic FFT monitor physical acceptance - 27 July 2026
 
 The periodic Candidate ran once on AXU4EVB-P + AD9364 from launch commit
-`b0f53f36f8676b54747d417c4ae44c61ac8a3c99`. PuTTY PS-UART output at
-115200-8-N-1 (`C:\Users\DELL\Desktop\putty-periodic.log`) includes AD9364
-initialization, one START, all 100 FRAME records, and the final PASS. The
-strict parser command used `-LogPath` and returned `PASS: periodic FFT monitor
-log contains 100 valid frames.` JTAG launch log:
-`PROJECT/logs/jtag/20260727-132857-candidate.log`.
+`b0f53f36f8676b54747d417c4ae44c61ac8a3c99`. The committed PS-UART evidence
+at `PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-raw-putty.log`
+includes AD9364 initialization, one START, all 100 FRAME records, and the
+final PASS. The strict parser command used `-LogPath` and returned `PASS:
+periodic FFT monitor log contains 100 valid frames.` The committed JTAG launch
+evidence is `PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-jtag-launch.log`.
 
 The periodic manifest is now `board_verified=true`; its package test requires
 the committed evidence, matching metadata/hashes, and a strict parser PASS.

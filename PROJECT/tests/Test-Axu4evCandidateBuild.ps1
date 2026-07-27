@@ -130,6 +130,14 @@ try {
             -Destination (Join-Path $fixtureTools 'Build-Axu4evPlFftCandidate.tcl') -Force
         Copy-Item -LiteralPath $singleShotReferenceRoot -Destination $fixtureReference -Recurse -Force
         $fixtureXsa = Join-Path $fixtureReference 'hardware\system_top.xsa'
+        & git -C $goldenlessRoot init -q
+        & git -C $goldenlessRoot config user.email 'candidate-test@example.invalid'
+        & git -C $goldenlessRoot config user.name 'Candidate Build Test'
+        & git -C $goldenlessRoot add .
+        & git -C $goldenlessRoot commit -q -m 'goldenless periodic fixture'
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Cannot commit the Goldenless periodic build fixture.'
+        }
 
         $savedPreference = $ErrorActionPreference
         try {
@@ -183,6 +191,94 @@ try {
     finally {
         Remove-Item -LiteralPath $goldenlessRoot -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $fixtureAllowedWorkspaceRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $trustedReferenceFixture = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-trusted-reference-$([guid]::NewGuid())"
+    $trustedReferenceWorkspaceRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-trusted-reference-vitis-$([guid]::NewGuid())"
+    try {
+        $fixtureTools = Join-Path $trustedReferenceFixture 'PROJECT\tools'
+        $fixtureCandidateBase = Join-Path $trustedReferenceFixture 'PROJECT\candidates\axu4ev-ad9364'
+        $fixtureReferenceRoot = Join-Path $fixtureCandidateBase 'fft-single-shot-v1'
+        $fixtureCandidateRoot = Join-Path $fixtureCandidateBase 'periodic-output'
+        $fixtureVitisWorkspace = Join-Path $trustedReferenceWorkspaceRoot 'workspace'
+        New-Item -ItemType Directory -Path $fixtureTools, $fixtureCandidateRoot, $trustedReferenceWorkspaceRoot -Force | Out-Null
+        Copy-Item -LiteralPath $builder -Destination (Join-Path $fixtureTools 'Build-Axu4evPlFftCandidate.ps1') -Force
+        Copy-Item -LiteralPath (Join-Path $workspaceRoot 'PROJECT\tools\Axu4evRelease.psm1') -Destination (Join-Path $fixtureTools 'Axu4evRelease.psm1') -Force
+        Copy-Item -LiteralPath $buildTcl -Destination (Join-Path $fixtureTools 'Build-Axu4evPlFftCandidate.tcl') -Force
+        Copy-Item -LiteralPath $singleShotReferenceRoot -Destination $fixtureReferenceRoot -Recurse -Force
+        Set-Content -LiteralPath (Join-Path $fixtureCandidateRoot 'selected-output.txt') -Value 'accepted output fixture' -Encoding Ascii
+
+        & git -C $trustedReferenceFixture init -q
+        & git -C $trustedReferenceFixture config user.email 'candidate-test@example.invalid'
+        & git -C $trustedReferenceFixture config user.name 'Candidate Build Test'
+        & git -C $trustedReferenceFixture add .
+        & git -C $trustedReferenceFixture commit -q -m 'trusted reference fixture'
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Cannot commit the trusted-reference build fixture.'
+        }
+
+        Set-Content -LiteralPath (Join-Path $fixtureCandidateRoot 'selected-output.txt') -Value 'selected output changed' -Encoding Ascii
+        $fixtureBuilder = Join-Path $fixtureTools 'Build-Axu4evPlFftCandidate.ps1'
+        $fixtureXsa = Join-Path $fixtureReferenceRoot 'hardware\system_top.xsa'
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $selectedOutputOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $fixtureBuilder `
+                    -WorkspaceRoot $trustedReferenceFixture `
+                    -ApplicationMode PeriodicMonitor `
+                    -SourceXsa $fixtureXsa `
+                    -CandidateRoot $fixtureCandidateRoot `
+                    -VitisWorkspace $fixtureVitisWorkspace `
+                    -AllowedVitisWorkspaceRoot $trustedReferenceWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $selectedOutputExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($selectedOutputExitCode -ne 0) {
+            throw "Periodic Candidate build rejected a modified selected output root.`r`n$($selectedOutputOutput -join "`r`n")"
+        }
+
+        $fixtureManifestPath = Join-Path $fixtureReferenceRoot 'manifest.json'
+        $fixtureManifest = Get-Content -LiteralPath $fixtureManifestPath -Raw | ConvertFrom-Json
+        $fixturePmufw = @($fixtureManifest.artifacts | Where-Object name -eq 'pmufw')[0]
+        $fixturePmufwPath = Join-Path $fixtureReferenceRoot ($fixturePmufw.path -replace '/', '\')
+        $fixturePmufwBytes = [IO.File]::ReadAllBytes($fixturePmufwPath)
+        $fixturePmufwBytes[0] = $fixturePmufwBytes[0] -bxor 0xFF
+        [IO.File]::WriteAllBytes($fixturePmufwPath, $fixturePmufwBytes)
+        $fixturePmufw.length = [int64]$fixturePmufwBytes.LongLength
+        $fixturePmufw.sha256 = (Get-FileHash -LiteralPath $fixturePmufwPath -Algorithm SHA256).Hash
+        $fixtureManifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $fixtureManifestPath -Encoding UTF8
+
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $dirtyReferenceOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $fixtureBuilder `
+                    -WorkspaceRoot $trustedReferenceFixture `
+                    -ApplicationMode PeriodicMonitor `
+                    -SourceXsa $fixtureXsa `
+                    -CandidateRoot $fixtureCandidateRoot `
+                    -VitisWorkspace $fixtureVitisWorkspace `
+                    -AllowedVitisWorkspaceRoot $trustedReferenceWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $dirtyReferenceExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($dirtyReferenceExitCode -eq 0 -or
+            ($dirtyReferenceOutput -join "`n") -notmatch 'trusted fft-single-shot-v1 reference') {
+            throw 'Periodic Candidate build accepted a self-consistent but modified trusted reference PMUFW and manifest.'
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $trustedReferenceFixture -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $trustedReferenceWorkspaceRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     $xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'

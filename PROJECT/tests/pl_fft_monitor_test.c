@@ -34,6 +34,8 @@ struct fake_monitor {
 	uint32_t last_delay_ms;
 	uint32_t last_sequence;
 	uint32_t last_total;
+	uint32_t report_sequences[100u];
+	uint32_t report_totals[100u];
 };
 
 static int failures;
@@ -111,6 +113,9 @@ static void fake_report(void *context, uint32_t sequence, uint32_t total,
 	struct fake_monitor *fake = context;
 
 	CHECK(result != NULL);
+	CHECK(fake->report_count < 100u);
+	fake->report_sequences[fake->report_count] = sequence;
+	fake->report_totals[fake->report_count] = total;
 	fake->report_count++;
 	fake->last_sequence = sequence;
 	fake->last_total = total;
@@ -180,6 +185,10 @@ static void test_100_frames_and_99_delays(void)
 	CHECK(fake.last_delay_ms == 1000u);
 	CHECK(fake.last_sequence == 100u);
 	CHECK(fake.last_total == 100u);
+	for (uint32_t index = 0u; index < 100u; index++) {
+		CHECK(fake.report_sequences[index] == index + 1u);
+		CHECK(fake.report_totals[index] == 100u);
+	}
 }
 
 static void test_first_capture_error_is_fail_fast(void)
