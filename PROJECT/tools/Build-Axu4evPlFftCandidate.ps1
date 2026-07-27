@@ -308,13 +308,6 @@ if ($VitisWorkspace.Equals($AllowedVitisWorkspaceRoot, [StringComparison]::Ordin
     throw "Unsafe Candidate Vitis workspace path: $VitisWorkspace"
 }
 Assert-NoReparsePointForWrite -Path $VitisWorkspace -Boundary $AllowedVitisWorkspaceRoot
-if (-not $DryRun) {
-    $legacyVitisDeepSuffix = '\fmcomms2_axu4ev_fft_hw\psu_cortexa53_0\standalone_domain\bsp\psu_cortexa53_0\libsrc\standalone_v7_2\src\arm\ARMv8\64bit\platform\versal\armclang\translation_table.S'
-    $legacyVitisDeepPath = $VitisWorkspace.TrimEnd('\') + $legacyVitisDeepSuffix
-    if ($legacyVitisDeepPath.Length -ge 260) {
-        throw "VitisWorkspace path is too long for Vitis 2020.1 BSP generation ($($legacyVitisDeepPath.Length) characters at the deepest known output): $VitisWorkspace"
-    }
-}
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::OpenRead($SourceXsa)
@@ -383,6 +376,11 @@ try {
     }
     if ($untrackedInputs.Count -ne 0) {
         throw "Candidate builds reject untracked application source inputs.`r`n$($untrackedInputs -join "`r`n")"
+    }
+    $legacyVitisDeepSuffix = '\fmcomms2_axu4ev_fft_hw\psu_cortexa53_0\standalone_domain\bsp\psu_cortexa53_0\libsrc\standalone_v7_2\src\arm\ARMv8\64bit\platform\versal\armclang\translation_table.S'
+    $legacyVitisDeepPath = $VitisWorkspace.TrimEnd('\') + $legacyVitisDeepSuffix
+    if ($legacyVitisDeepPath.Length -ge 260) {
+        throw "VitisWorkspace path is too long for Vitis 2020.1 BSP generation ($($legacyVitisDeepPath.Length) characters at the deepest known output): $VitisWorkspace"
     }
     $sourceCommit = (& git -C $WorkspaceRoot rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0) {
