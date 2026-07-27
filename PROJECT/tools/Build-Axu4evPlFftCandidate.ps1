@@ -105,33 +105,9 @@ foreach ($required in @($SourceXsa, $releaseModule, $buildTcl, $xsct)) {
 }
 
 Import-Module $releaseModule -Force
-$referenceRelease = Resolve-Axu4evCurrentRelease -ReleasesRoot $goldenBase
-$referenceManifest = Read-Axu4evReleaseManifest -ReleaseRoot $referenceRelease.FullName
-$referenceArtifacts = @(
-    Test-Axu4evReleaseArtifacts `
-        -ReleaseRoot $referenceRelease.FullName `
-        -Manifest $referenceManifest
-)
-$referenceXsa = @(
-    $referenceArtifacts |
-        Where-Object Name -eq 'xsa' |
-        ForEach-Object Path
-)
-if ($referenceXsa.Count -ne 1) {
-    throw 'The current Golden release must contain exactly one XSA artifact.'
-}
-$referencePmufw = @(
-    $referenceArtifacts |
-        Where-Object Name -eq 'pmufw' |
-        ForEach-Object Path
-)
-if ($referencePmufw.Count -ne 1) {
-    throw 'The current Golden release must contain exactly one PMUFW artifact.'
-}
-
 $singleShotReferenceArtifacts = @{}
-if ($ApplicationMode -eq 'PeriodicMonitor') {
-    $singleShotReference = Join-Path $candidateBase 'fft-single-shot-v1'
+$hardwareContractReferenceXsa = if ($ApplicationMode -eq 'PeriodicMonitor') {
+    $singleShotReference = (Resolve-Path -LiteralPath (Join-Path $candidateBase 'fft-single-shot-v1')).Path
     $singleShotManifest = Read-Axu4evReleaseManifest -ReleaseRoot $singleShotReference
     if (-not $singleShotManifest.board_verified) {
         throw 'The fft-single-shot-v1 Candidate reference must be board verified.'
@@ -139,18 +115,42 @@ if ($ApplicationMode -eq 'PeriodicMonitor') {
     foreach ($artifact in @(Test-Axu4evReleaseArtifacts `
             -ReleaseRoot $singleShotReference `
             -Manifest $singleShotManifest)) {
-        $singleShotReferenceArtifacts[$artifact.Name] = $artifact.Path
+        $singleShotReferenceArtifacts[$artifact.Name] = [pscustomobject]@{
+            Path = $artifact.Path
+            Sha256 = $artifact.Sha256
+        }
     }
     foreach ($requiredArtifact in @('bitstream', 'pmufw', 'psu_init', 'xsa')) {
         if (-not $singleShotReferenceArtifacts.ContainsKey($requiredArtifact)) {
             throw "The fft-single-shot-v1 Candidate reference is missing '$requiredArtifact'."
         }
     }
-}
-$hardwareContractReferenceXsa = if ($ApplicationMode -eq 'PeriodicMonitor') {
-    $singleShotReferenceArtifacts['xsa']
+    $singleShotReferenceArtifacts['xsa'].Path
 }
 else {
+    $referenceRelease = Resolve-Axu4evCurrentRelease -ReleasesRoot $goldenBase
+    $referenceManifest = Read-Axu4evReleaseManifest -ReleaseRoot $referenceRelease.FullName
+    $referenceArtifacts = @(
+        Test-Axu4evReleaseArtifacts `
+            -ReleaseRoot $referenceRelease.FullName `
+            -Manifest $referenceManifest
+    )
+    $referenceXsa = @(
+        $referenceArtifacts |
+            Where-Object Name -eq 'xsa' |
+            ForEach-Object Path
+    )
+    if ($referenceXsa.Count -ne 1) {
+        throw 'The current Golden release must contain exactly one XSA artifact.'
+    }
+    $referencePmufw = @(
+        $referenceArtifacts |
+            Where-Object Name -eq 'pmufw' |
+            ForEach-Object Path
+    )
+    if ($referencePmufw.Count -ne 1) {
+        throw 'The current Golden release must contain exactly one PMUFW artifact.'
+    }
     $referenceXsa[0]
 }
 
@@ -161,6 +161,19 @@ if ($CandidateRoot.StartsWith($goldenPrefix, [StringComparison]::OrdinalIgnoreCa
 }
 if (-not $CandidateRoot.StartsWith($candidatePrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw "CandidateRoot must be inside the project Candidate tree: $CandidateRoot"
+}
+Assert-NoReparsePointForWrite -Path $CandidateRoot -Boundary $candidateBase
+if ($ApplicationMode -eq 'PeriodicMonitor') {
+    $singleShotReferenceRoot = [IO.Path]::GetFullPath($singleShotReference).TrimEnd('\')
+    $singleShotReferencePrefix = $singleShotReferenceRoot + '\'
+    $candidateRootPrefix = $CandidateRoot.TrimEnd('\') + '\'
+    if ($CandidateRoot.TrimEnd('\').Equals(
+            $singleShotReferenceRoot,
+            [StringComparison]::OrdinalIgnoreCase) -or
+        $CandidateRoot.StartsWith($singleShotReferencePrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        $singleShotReferenceRoot.StartsWith($candidateRootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Periodic CandidateRoot cannot overlap the board-verified fft-single-shot-v1 reference: $CandidateRoot"
+    }
 }
 $allowedWorkspacePrefix = $AllowedVitisWorkspaceRoot.TrimEnd('\') + '\'
 $vitisWorkspacePrefix = $VitisWorkspace.TrimEnd('\') + '\'
@@ -186,7 +199,6 @@ foreach ($protectedPath in @($WorkspaceRoot, $CandidateRoot, $goldenBase, (Split
 if ($VitisWorkspace.Equals($AllowedVitisWorkspaceRoot, [StringComparison]::OrdinalIgnoreCase)) {
     throw "Unsafe Candidate Vitis workspace path: $VitisWorkspace"
 }
-Assert-NoReparsePointForWrite -Path $CandidateRoot -Boundary $candidateBase
 Assert-NoReparsePointForWrite -Path $VitisWorkspace -Boundary $AllowedVitisWorkspaceRoot
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -306,7 +318,7 @@ $generated = [ordered]@{
     application = Join-Path $VitisWorkspace 'ad9364app\Release\ad9364app.elf'
     bitstream = Join-Path $VitisWorkspace 'ad9364app\_ide\bitstream\system_top.bit'
     pmufw = if ($ApplicationMode -eq 'PeriodicMonitor') {
-        $singleShotReferenceArtifacts['pmufw']
+        $singleShotReferenceArtifacts['pmufw'].Path
     }
     else {
         $referencePmufw[0]
@@ -326,7 +338,7 @@ if ((Get-FileHash -LiteralPath $generated.bitstream -Algorithm SHA256).Hash -ne
 if ($ApplicationMode -eq 'PeriodicMonitor') {
     foreach ($artifactName in @('bitstream', 'pmufw', 'psu_init', 'xsa')) {
         $generatedHash = (Get-FileHash -LiteralPath $generated[$artifactName] -Algorithm SHA256).Hash
-        $referenceHash = (Get-FileHash -LiteralPath $singleShotReferenceArtifacts[$artifactName] -Algorithm SHA256).Hash
+        $referenceHash = $singleShotReferenceArtifacts[$artifactName].Sha256
         if ($generatedHash -ne $referenceHash) {
             throw "Periodic Candidate $artifactName must be byte-identical to the board-verified fft-single-shot-v1 reference."
         }

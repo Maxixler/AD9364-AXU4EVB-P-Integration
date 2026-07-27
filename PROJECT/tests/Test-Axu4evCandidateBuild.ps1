@@ -36,6 +36,7 @@ if (-not $builderContent.Contains('Assert-NoReparsePointForWrite')) {
 }
 
 $candidateBase = Join-Path $workspaceRoot 'PROJECT\candidates\axu4ev-ad9364'
+$singleShotReferenceRoot = Join-Path $candidateBase 'fft-single-shot-v1'
 $candidateRoot = Join-Path $candidateBase "test-build-$([guid]::NewGuid())"
 $allowedWorkspaceRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-candidate-vitis-root-$([guid]::NewGuid())"
 $candidateWorkspace = Join-Path $allowedWorkspaceRoot 'workspace'
@@ -84,6 +85,104 @@ try {
         -not $periodic.pl_fft_periodic_monitor -or
         $periodic.compiler_symbol -ne 'PL_FFT_PERIODIC_MONITOR') {
         throw 'Periodic Candidate build selected the wrong compiler mode.'
+    }
+
+    foreach ($unsafeCandidateRoot in @(
+            $singleShotReferenceRoot,
+            (Join-Path $singleShotReferenceRoot 'nested-output')
+        )) {
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $referenceRootOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                    -WorkspaceRoot $workspaceRoot `
+                    -ApplicationMode PeriodicMonitor `
+                    -SourceXsa $candidateXsa `
+                    -CandidateRoot $unsafeCandidateRoot `
+                    -VitisWorkspace $candidateWorkspace `
+                    -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $referenceRootExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($referenceRootExitCode -eq 0 -or
+            ($referenceRootOutput -join "`n") -notmatch 'board-verified fft-single-shot-v1 reference') {
+            throw "Periodic Candidate mode accepted the board-verified single-shot reference overlap: $unsafeCandidateRoot"
+        }
+    }
+
+    $goldenlessRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-periodic-no-golden-$([guid]::NewGuid())"
+    try {
+        $fixtureTools = Join-Path $goldenlessRoot 'PROJECT\tools'
+        $fixtureCandidateBase = Join-Path $goldenlessRoot 'PROJECT\candidates\axu4ev-ad9364'
+        $fixtureReference = Join-Path $fixtureCandidateBase 'fft-single-shot-v1'
+        $fixtureCandidateRoot = Join-Path $fixtureCandidateBase 'periodic-output'
+        $fixtureAllowedWorkspaceRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-periodic-fixture-vitis-$([guid]::NewGuid())"
+        $fixtureVitisWorkspace = Join-Path $fixtureAllowedWorkspaceRoot 'workspace'
+        New-Item -ItemType Directory -Path $fixtureTools, $fixtureAllowedWorkspaceRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $workspaceRoot 'PROJECT\tools\Axu4evRelease.psm1') `
+            -Destination (Join-Path $fixtureTools 'Axu4evRelease.psm1') -Force
+        Copy-Item -LiteralPath $buildTcl `
+            -Destination (Join-Path $fixtureTools 'Build-Axu4evPlFftCandidate.tcl') -Force
+        Copy-Item -LiteralPath $singleShotReferenceRoot -Destination $fixtureReference -Recurse -Force
+        $fixtureXsa = Join-Path $fixtureReference 'hardware\system_top.xsa'
+
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $goldenlessPeriodicOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                    -WorkspaceRoot $goldenlessRoot `
+                    -ApplicationMode PeriodicMonitor `
+                    -SourceXsa $fixtureXsa `
+                    -CandidateRoot $fixtureCandidateRoot `
+                    -VitisWorkspace $fixtureVitisWorkspace `
+                    -AllowedVitisWorkspaceRoot $fixtureAllowedWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $goldenlessPeriodicExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($goldenlessPeriodicExitCode -ne 0) {
+            throw "Periodic Candidate dry-run unexpectedly requires Golden artifacts.`r`n$($goldenlessPeriodicOutput -join "`r`n")"
+        }
+        $goldenlessPeriodic = ($goldenlessPeriodicOutput -join "`n") | ConvertFrom-Json
+        if ($goldenlessPeriodic.application_mode -ne 'PeriodicMonitor') {
+            throw 'Goldenless periodic dry-run did not retain its selected mode.'
+        }
+
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $goldenlessSingleShotOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                    -WorkspaceRoot $goldenlessRoot `
+                    -ApplicationMode SingleShot `
+                    -SourceXsa $fixtureXsa `
+                    -CandidateRoot $fixtureCandidateRoot `
+                    -VitisWorkspace $fixtureVitisWorkspace `
+                    -AllowedVitisWorkspaceRoot $fixtureAllowedWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $goldenlessSingleShotExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($goldenlessSingleShotExitCode -eq 0 -or
+            ($goldenlessSingleShotOutput -join "`n") -notmatch 'CURRENT') {
+            throw 'SingleShot Candidate dry-run no longer requires a valid Golden release.'
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $goldenlessRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $fixtureAllowedWorkspaceRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     $xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'
