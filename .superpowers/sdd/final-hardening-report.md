@@ -40,6 +40,9 @@ dirty selected output root remains allowed.
 ## Remaining environment limitation
 
 `Test-Axu4evLaunchWrappers.ps1` reaches its workspace dry-run and fails because
-pre-existing untracked `Vitis/workspace/ad9364app/Release` handoff artifacts do
-not match the Vivado/Vitis/IDE bitstream comparison. Those user-owned outputs
-were preserved; this hardening change neither modifies nor accepts them.
+the pre-existing tracked Vivado bitstream
+(`AFC016C6...FCFD4`) differs from the identical tracked Vitis-platform and IDE
+bitstreams (`81686190...D4D5`). Those paths are unchanged from `c263389` to this
+hardening branch. The separate user-owned untracked outputs were also
+preserved; this hardening change neither modifies nor accepts any workspace
+handoff artifact.
