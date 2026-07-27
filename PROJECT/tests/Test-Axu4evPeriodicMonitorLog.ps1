@@ -38,13 +38,16 @@ try {
     $frameIndexes = @($lines | ForEach-Object -Begin { $index = 0 } -Process {
         $currentIndex = $index
         $index++
-        if ($_ -like 'PL_FFT_MONITOR: FRAME *') { $currentIndex }
+        if ($_ -match '^PL_FFT_MONITOR: FRAME') { $currentIndex }
     })
 
     Assert-LogCondition ($startMarkerIndexes.Count -eq 1) 'Log must contain exactly one START line.'
     Assert-LogCondition ($startIndexes.Count -eq 1) 'START line does not match the required contract.'
     Assert-LogCondition ($passMarkerIndexes.Count -eq 1) 'Log must contain exactly one PASS line.'
     Assert-LogCondition ($passIndexes.Count -eq 1) 'PASS line does not match the required contract.'
+    foreach ($frameIndex in $frameIndexes) {
+        Assert-LogCondition ([regex]::IsMatch($lines[$frameIndex], $framePattern)) 'FRAME marker line does not match the required contract.'
+    }
     Assert-LogCondition ($frameIndexes.Count -eq 100) 'Log must contain exactly 100 FRAME lines.'
     Assert-LogCondition (-not ($lines | Where-Object { $_ -match '^PL_FFT_MONITOR: FAIL\b' })) 'Log must not contain a FAIL line.'
     Assert-LogCondition ($startIndexes[0] -lt $frameIndexes[0]) 'START must precede all FRAME lines.'

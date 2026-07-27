@@ -42,3 +42,30 @@ Commit: `test: validate periodic FFT UART logs`
 - The validator operates on captured text logs only; no board, serial port,
   build, packaging, or deployment action was run.
 - Pre-existing unrelated untracked workspace outputs were left untouched.
+
+## Review round 1 fix — malformed FRAME markers and PASS ordering
+
+### RED evidence
+
+1. Added fixtures with a TAB after `FRAME`, no delimiter after `FRAME`, and
+   a `FRAMEX` marker.  Before the fix, the TAB case was accepted because the
+   validator only collected the literal `FRAME ` spelling and treated the
+   malformed protocol line as unrelated noise.
+2. Replaced the old frame-after-PASS fixture, which had 101 frames, with a
+   100-frame log containing frames 001..099 before PASS and frame 100 after
+   PASS.  This isolates the ordering rejection from the frame-count check.
+
+### Fix and GREEN evidence
+
+- A line beginning `PL_FFT_MONITOR: FRAME` is now always considered a frame
+  protocol marker.  Each such marker must match the anchored required frame
+  syntax before the count/order checks run.  Non-protocol UART noise remains
+  allowed.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File PROJECT\tests\Test-Axu4evPeriodicMonitorLogParser.ps1
+# PASS: periodic FFT monitor log parser accepts only the complete contract.
+```
+
+No board, serial-port, build, packaging, or deployment action was run.

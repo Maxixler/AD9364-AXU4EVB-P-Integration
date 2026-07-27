@@ -64,11 +64,14 @@ try {
         @{ Name = 'skipped-seq'; Lines = ($valid | ForEach-Object { $_ -replace 'seq=050/100', 'seq=051/100' }) },
         @{ Name = 'non-increasing-frame'; Lines = ($valid | ForEach-Object { $_ -replace 'seq=050/100 frame=50 ', 'seq=050/100 frame=49 ' }) },
         @{ Name = 'wrong-samples'; Lines = ($valid | ForEach-Object { $_ -replace 'seq=050/100 frame=50 bank=0 samples=2048', 'seq=050/100 frame=50 bank=0 samples=1024' }) },
+        @{ Name = 'frame-tab-delimiter'; Lines = @($valid[0]) + @("PL_FFT_MONITOR: FRAME`tseq=101/100 frame=101 bank=1 samples=2048 peak_bin=88 peak_power=123456 dropped=0 crc=00000065") + $valid[1..$($valid.Count - 1)] },
+        @{ Name = 'frame-no-delimiter'; Lines = @($valid[0]) + @('PL_FFT_MONITOR: FRAMEseq=101/100 frame=101 bank=1 samples=2048 peak_bin=88 peak_power=123456 dropped=0 crc=00000065') + $valid[1..$($valid.Count - 1)] },
+        @{ Name = 'framex-marker'; Lines = @($valid[0]) + @('PL_FFT_MONITOR: FRAMEX seq=101/100 frame=101 bank=1 samples=2048 peak_bin=88 peak_power=123456 dropped=0 crc=00000065') + $valid[1..$($valid.Count - 1)] },
         @{ Name = 'fail-line'; Lines = @($valid[0]) + @('PL_FFT_MONITOR: FAIL seq=050 reason=hardware') + $valid[1..$($valid.Count - 1)] },
         @{ Name = 'extra-malformed-start'; Lines = @('PL_FFT_MONITOR: START frames=99 interval_ms=1000 bins=2048') + $valid },
         @{ Name = 'missing-final-pass'; Lines = $valid[0..($valid.Count - 2)] },
         @{ Name = 'extra-malformed-pass'; Lines = $valid[0..100] + @('PL_FFT_MONITOR: PASS frames=99 interval_ms=1000') + @($valid[-1]) },
-        @{ Name = 'frame-after-pass'; Lines = $valid + @($valid[1]) }
+        @{ Name = 'frame-after-pass'; Lines = $valid[0..99] + @($valid[-1]) + @($valid[100]) }
     )
 
     foreach ($case in $cases) {
