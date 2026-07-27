@@ -4,6 +4,47 @@
 
 **Kapsam:** `fmcomms2/axu4ev` Vivado projesinin şemalara göre doğrulanması, bitstream/XSA üretimi, Vitis platformu, FSBL ve AD9364 bare-metal uygulamasının tamamlanması.
 
+## 29. Bare-metal Python FFT laboratuvar ekranı kararı — 27 Temmuz 2026
+
+Projenin kalan isterleri kart kanıtları ve güncel kaynakla yeniden
+karşılaştırıldı. PL FFT transport/control temelinin tamamlandığı; gerçek
+ZX80/HMC936 S0-S3 kontrolü, kontrollü CW RF kabulü ve açı kalibrasyonunun açık
+kaldığı doğrulandı.
+
+Stajın kalan süresinde gereksiz platform yükü oluşturmamak için kullanıcıyla
+birlikte şu karar alındı:
+
+- PetaLinux ve `pyadi-iio` şimdilik kullanılmayacak.
+- Kart mevcut bare-metal/JTAG başlatma zincirinde kalacak.
+- Tam 2048-bin spectrum UART üzerinden CRC'li binary paketle taşınacak.
+- Python tarafı PySerial + NumPy + Matplotlib kullanacak.
+- Ekran spectrum, 32-frame waterfall, peak/frekans ve sağlık bilgilerini
+  gösterecek.
+- Tam ölçüm NPZ, özet CSV olarak kaydedilecek.
+- Ethernet yalnız geleceğe açık taşıma adaptörü olacak; şimdi uygulanmayacak.
+
+UART 115200 baud'da yaklaşık 16 KiB spectrum paketinin 1,5-2 saniyede
+aktarılması kabul edildi. Host her geçerli yanıt sonrasında yeni frame
+isteyecektir; kart kendiliğinden sınırsız stream üretmeyecektir.
+
+ZX80-DR230-S+ ile EV1HMC936ALP6 nihai plana dahildir. İlk grafik tesliminden
+sonra BDC IF, RF1/RF2 eşlemesi, ZX80 beslemesi, HMC 5 V level-shifter,
+sekiz FPGA pini ve settle/discard ölçümleri kapatılacak; ardından
+`Σ±ΔAZ/Σ±ΔEL` S0-S3 çevrimi ve Q1.31 AZ/EL hesabı canlı sisteme bağlanacaktır.
+
+Yeni çalışma dalı:
+
+`codex/axu4ev-monopulse-lab-console`
+
+Tasarım commit'i:
+
+`1ce8220 docs: define bare-metal monopulse lab console`
+
+Tasarım ve ayrıntılı test-first plan:
+
+- `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-monopulse-lab-design.md`
+- `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-lab-implementation-plan.md`
+
 ## 28. Periodic FFT monitor physical acceptance - 27 July 2026
 
 The periodic Candidate ran once on AXU4EVB-P + AD9364 from launch commit

@@ -1,5 +1,48 @@
 # AXU4EVB-P + AD9364 SDR Uygulama Planı
 
+## 27. 27 Temmuz 2026 — bare-metal Python lab console planı
+
+Yeni bağlayıcı hedef, kartta doğrulanmış 2048-bin FFT sonucunu ek işletim
+sistemi yükü olmadan Python laboratuvar ekranında göstermektir. Tasarım ve
+uygulama planı sırasıyla:
+
+- `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-monopulse-lab-design.md`
+- `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-lab-implementation-plan.md`
+
+olarak donduruldu.
+
+Uygulama dokuz kapılı göreve ayrılmıştır:
+
+1. Python byte-exact protocol codec ve bounded streaming parser.
+2. Aynı golden byte sözleşmesini uygulayan saf C codec.
+3. `GET_INFO/CAPTURE_ONCE/INFO/SPECTRUM/ERROR` bare-metal servisi.
+4. `PL_FFT_LAB_UART` Vitis uygulama modu ve kart UART adapter'ı.
+5. NumPy frekans/güç modeli ve atomik NPZ/CSV kayıt.
+6. PySerial istemci ve Matplotlib spectrum/waterfall ekranı.
+7. `monopulse-live-lab-v1` Candidate build, launcher ve değişmez paket.
+8. Preflight regresyonu, README ve operatör devri.
+9. Kontrollü CW ile fiziksel kart kabulü ve evidence/hash bağlama.
+
+İlk sürüm host-controlled finite capture kullanır: Python bir
+`CAPTURE_ONCE` gönderir, kart bir tam 2048-bin spectrum döndürür, host CRC ve
+metadata'yı doğruladıktan sonra yeni istek üretir. Bu seçim UART hızında kuyruk,
+bank overrun veya gizli frame düşürme oluşturmaz.
+
+Tamamlanma ölçütleri:
+
+- C ve Python mesajları byte-exact eşleşir.
+- CRC, bounds, resync, partial UART write ve sequence negatif testleri geçer.
+- Mevcut single-shot ve periodic Candidate regresyonları bozulmaz.
+- Kontrollü CW en az 10 ardışık frame'de aynı peak'i `±1` bin içinde verir.
+- Fatal frame/FFT/overflow/CDC/bank bayrakları sıfırdır.
+- Ekran ve kaydedilen NPZ aynı frame/peak değerini taşır.
+- Fiziksel kanıt geçmeden yeni manifest `board_verified=true` yapılmaz.
+
+ZX80/HMC936, S0-S3 ve oda kalibrasyonu bu teslimden sonra iki ayrı uygulama
+planıyla yürütülecektir. Bunun nedeni kapsamı küçültmek değil; fiziksel
+level-shifter/pin/IF ölçümlerini yazılım FFT ekranından ayırarak staj süresinde
+kanıtlanabilir bir ara teslim üretmektir.
+
 ## 26. 27 July 2026 - periodic FFT monitor physical acceptance
 
 The `fft-periodic-monitor-v1` Candidate completed one physical AXU4EVB-P +

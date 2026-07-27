@@ -6,6 +6,58 @@
 
 **Mevcut aşama:** Vivado/Vitis kapanışı, PMUFW içeren JTAG başlatma ve temel bare-metal kart bring-up'ı tamamlandı. Tek AD9364 RX, dört analog Σ/Δ durumu ve tek 2048-point FFT kullanan monopulse Candidate tasarımı onaylandı. 21 Temmuz inceleme uzlaştırmasıyla tam 2048-bin spektrum, peak diagnostikleri, tek-kare ve ping-pong sürekli frame modları bağlayıcı hale getirildi; sıradaki ana aşama kaynak/Golden regresyonu ile RX/IQ format kapısıdır.
 
+## 21. Bare-metal Python laboratuvar ekranı tasarımı — 27 Temmuz 2026
+
+Durum: **Tasarım onaylandı; uygulama planı hazır, kodlama başlamadı.**
+
+Kartta kabul edilen PL FFT altyapısının sonuçlarını doğrudan gözlemlemek için
+PetaLinux/IIO eklemeden bare-metal + Python yaklaşımı seçildi. Yeni teslim ayrı
+`monopulse-live-lab-v1` Candidate olacaktır. Mevcut Golden,
+`fft-single-shot-v1` ve `fft-periodic-monitor-v1` değişmeden korunacaktır.
+
+Seçilen veri yolu:
+
+```text
+AD9364 I0/Q0
+  -> non-blocking 2048-sample shadow capture
+  -> xFFT v9.1 + magnitude-square + peak
+  -> atomik spectrum BRAM
+  -> A53 bare-metal UART servisi
+  -> CRC-32 korumalı 2048-bin binary paket
+  -> Python/NumPy/Matplotlib laboratuvar ekranı
+```
+
+İlk ekran; canlı spectrum, son 32 frame waterfall, peak bin/RF frekansı,
+relative peak power, LO/Fs/BW, frame ID, RF state, CRC ve donanım sağlık
+bayraklarını gösterecektir. Tam frame `.npz`, aynı frame'in özeti `.csv`
+olarak kaydedilecektir. UART `115200-8-N-1` kalacak; yaklaşık 16 KiB spectrum
+paketi nedeniyle beklenen görüntü yenileme hızı yaklaşık 1,5-2 saniyedir.
+Ethernet yalnız gelecekte aynı mesaj codec'ine bağlanabilecek taşıma adaptörü
+olarak bırakılmış, bu staj tesliminin kapsamına alınmamıştır.
+
+ZX80-DR230-S+ ve EV1HMC936ALP6 nihai ürün kapsamından çıkarılmamıştır.
+Python/FFT tesliminden sonra fiziksel RF kontrol işi şu sırayla devam edecektir:
+
+1. BDC IF, RF1/RF2 kablo takibi, ZX80 VDD, HMC 5 V level-shifter ve sekiz
+   FPGA pininin elektriksel sözleşmesini kapatmak.
+2. S0-S3 durumlarını fiziksel switch/phase kodlarıyla sürmek.
+3. Her FFT frame'ini gerçek RF state etiketiyle atomik eşlemek.
+4. Dört spectrumdan ortak CW peak veya configured band-power üretmek.
+5. Q1.31 AZ/EL normalize hatalarını hesaplamak.
+6. SMW200A ile phase-code, mekanik sıfır ve `-theta/0/+theta` kalibrasyonu
+   yapmak.
+
+Bağlayıcı tasarım:
+
+`PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-monopulse-lab-design.md`
+
+Test-first uygulama planı:
+
+`PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-lab-implementation-plan.md`
+
+Bu aşama henüz RF performans, DOA veya açı kalibrasyonu PASS iddiası taşımaz.
+Bir sonraki yazılım teslimi UART protocol golden-byte testleriyle başlayacaktır.
+
 ## 20. Periodic FFT monitor Candidate status - 27 July 2026
 
 Status: **physical monitor transport/control acceptance passed.** One fresh

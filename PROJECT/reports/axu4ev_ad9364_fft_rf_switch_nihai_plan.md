@@ -1125,3 +1125,45 @@ Tek-kare Candidate veri yolu tamamlandı: geri basınçsız AD9364 I0/Q0 shadow 
 Kabul yalnız nominal spektruma dayanmaz. Abort ve soft-reset xFFT/replay/magnitude yolunu deterministik recovery state'ine alır; core en az üç ADC clock resetlenir ve `16'h0D57` yeniden handshaking yapılmadan yeni START kabul edilmez. Dolu single-shot bank yeni replay başlamadan reddedilir. FFT error, overflow, dropped sample, stale epoch, frame error ve bank overrun CPU'ya atomik result flags ile taşınır; STATUS W1C ve IRQ kalan sticky nedenleri korur.
 
 Altı deterministik vektörün tüm 2048 kompleks FFT bileşeni ve 2048 güç kelimesi gerçek Vivado xFFT modeliyle sıfır LSB farkla geçmiştir. BRAM kabulü `RAMB36=8`, `RAMB18=0`, `LUT_AS_MEMORY=0`'dır. Bu kapanış RTL/simülasyon ve paket sözleşmesidir; AXU4EV block-design bağlantısı, timing/DRC, DMA ile aynı-frame CRC korelasyonu ve fiziksel RF kabulü sonraki paketlerde açık kalır.
+
+## 25. Bare-metal Python laboratuvar görünümü — 27 Temmuz 2026
+
+Periyodik Candidate'ın 100-frame kart kabulünden sonra tam spectrumun kullanıcı
+tarafından görülebilir ve kaydedilebilir olması yeni ara teslim olarak
+seçilmiştir. Ürün mimarisi değiştirilmemiştir: AXU4EVB-P + AD9364, tek 2048
+noktalı FFT ve sonraki S0-S3 monopulse zinciri korunur.
+
+Yeni `monopulse-live-lab-v1` Candidate:
+
+- `PL_FFT_LAB_UART` compile-time modu kullanır.
+- `GET_INFO` ve `CAPTURE_ONCE` komutlarını kabul eder.
+- `INFO`, `SPECTRUM` veya `ERROR` yanıtı üretir.
+- Tam 2048 adet `uint64` güç binini frame/peak/RF metadata ile taşır.
+- Mesajı CRC-32/ISO-HDLC ve protocol sequence ile korur.
+- UART'ta `115200-8-N-1` kullanır.
+- Python tarafında spectrum, waterfall, peak ve sağlık görünümü üretir.
+- Tam frame'i NPZ, özetini CSV olarak saklar.
+
+İlk kontrollü CW kabulü, en az 10 ardışık CRC-valid frame, exact 2048 bin,
+`±1` peak-bin kararlılığı ve sıfır fatal donanım bayrağı ister. Bu kabul
+monopulse açı kabulü değildir.
+
+M4 güncel alt ayrımı:
+
+- [x] Tek-frame exact peak ve tam spectrum altyapısı.
+- [x] 100 kez host-tetiklemeli periodic monitor transport/control kart kabulü.
+- [ ] UART lab protocol ve Python spectrum/waterfall görünümü.
+- [ ] Kontrollü CW peak/power kart kabulü.
+- [ ] Dört gerçek RF state üzerinde ortak `P_REF` ve CW/band-power çevrimi.
+
+M5-M8 değişmez:
+
+- M5 fiziksel ZX80/HMC936 elektriksel/pin sözleşmesi.
+- M6 S0-S3 FSM, state-tag, dört güç ve Q1.31 AZ/EL.
+- M7 SMW200A/yankısız oda kalibrasyonu.
+- M8 Candidate release kapanışı.
+
+Bağlayıcı ayrıntılar:
+
+- `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-monopulse-lab-design.md`
+- `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-lab-implementation-plan.md`
