@@ -46,3 +46,23 @@ bitstreams (`81686190...D4D5`). Those paths are unchanged from `c263389` to this
 hardening branch. The separate user-owned untracked outputs were also
 preserved; this hardening change neither modifies nor accepts any workspace
 handoff artifact.
+
+## Round 2: portability and non-vacuous dry-run closure
+
+The JTAG launch record retains its original absolute historical checkout paths,
+but the package gate now accepts only one separator-normalized, ordinal
+`PROJECT/candidates/axu4ev-ad9364/fft-periodic-monitor-v1` suffix and compares
+the resulting exact release-relative path with name, length, and SHA-256. The
+regression rewrites only the historical checkout prefix and passes; wrong
+release, traversal, and duplicate-release-suffix probes are rejected.
+
+Tracked-source cleanliness now runs before every dry-run return. The Candidate
+fixture changes a tracked file in the selected output root and observes the
+dry-run JSON gate marker, while a self-consistent modified trusted reference is
+rejected by the same tracked-source filter before it can be read.
+
+Fresh validation passed in both the current checkout and a detached, differently
+located `core.autocrlf=false` checkout: package, Candidate build/dry-runs,
+monitor/driver, parser, both strict evidence logs, and Candidate launch gates.
+`git diff --check c263389..HEAD` passed and the protected single-shot Candidate
+tree remains unchanged.
