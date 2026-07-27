@@ -1,0 +1,56 @@
+$ErrorActionPreference = 'Stop'
+
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$includeDir = Join-Path $root 'Vitis\workspace\ad9364app\src\adc9364_src'
+$testSource = Join-Path $PSScriptRoot 'monopulse_foundation_test.c'
+$mathSource = Join-Path $includeDir 'monopulse_math.c'
+$sequenceSource = Join-Path $includeDir 'monopulse_sequence.c'
+$spectrumSource = Join-Path $includeDir 'monopulse_spectrum.c'
+$selftestSource = Join-Path $includeDir 'monopulse_selftest.c'
+
+$selftestContent = Get-Content -LiteralPath $selftestSource -Raw
+foreach ($fragment in @(
+    'monopulse_find_common_peak(',
+    'monopulse_integrate_cw(',
+    'monopulse_integrate_band(',
+    'SPECTRUM_PEAK',
+    'SPECTRUM_CW',
+    'SPECTRUM_BAND',
+    'SPECTRUM_SATURATION'
+)) {
+    if (-not $selftestContent.Contains($fragment)) {
+        throw "Cortex-A53 self-test is missing spectrum coverage: $fragment"
+    }
+}
+
+if ($env:MONOPULSE_GCC) {
+    $gcc = $env:MONOPULSE_GCC
+} else {
+    $command = Get-Command gcc -ErrorAction SilentlyContinue
+    if ($command) {
+        $gcc = $command.Source
+    } elseif (Test-Path 'C:\MinGW\bin\gcc.exe') {
+        $gcc = 'C:\MinGW\bin\gcc.exe'
+    } else {
+        throw 'Unable to find gcc. Set MONOPULSE_GCC or add gcc to PATH.'
+    }
+}
+
+$executable = Join-Path ([System.IO.Path]::GetTempPath()) (
+    'monopulse_foundation_' + [guid]::NewGuid().ToString('N') + '.exe')
+
+try {
+    & $gcc -std=c11 -Wall -Wextra -Werror -I $includeDir $testSource $mathSource $sequenceSource $spectrumSource -o $executable
+    if ($LASTEXITCODE -ne 0) {
+        throw "Compilation failed with exit code $LASTEXITCODE."
+    }
+
+    & $executable
+    if ($LASTEXITCODE -ne 0) {
+        throw "Test executable failed with exit code $LASTEXITCODE."
+    }
+} finally {
+    if (Test-Path $executable) {
+        Remove-Item -LiteralPath $executable -Force
+    }
+}

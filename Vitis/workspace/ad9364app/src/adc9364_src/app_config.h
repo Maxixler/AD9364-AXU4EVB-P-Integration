@@ -50,6 +50,43 @@
 //#define AXI_ADC_NOT_PRESENT
 //#define TDD_SWITCH_STATE_EXAMPLE
 
+//#define WIFI_RF_TEST
+//#define PL_FFT_SINGLE_SHOT
+//#define PL_FFT_PERIODIC_MONITOR
+
+#if defined(PL_FFT_SINGLE_SHOT) && defined(PL_FFT_PERIODIC_MONITOR)
+#error "Only one PL FFT application mode may be enabled"
+#endif
+
+#if !defined(PL_FFT_SINGLE_SHOT) && \
+	!defined(PL_FFT_PERIODIC_MONITOR)
+#if !defined(WIFI_RF_TEST) && !defined(MONOPULSE_FOUNDATION_TEST)
+#define MONOPULSE_FOUNDATION_TEST
+#endif
+#endif
+
+#if defined(WIFI_RF_TEST)
+#define CANDIDATE_RX_BANDWIDTH_HZ 18000000UL
+#else
+#define CANDIDATE_RX_BANDWIDTH_HZ 10000000UL
+#endif
+
+#if defined(MONOPULSE_FOUNDATION_TEST) && defined(WIFI_RF_TEST)
+#error "MONOPULSE_FOUNDATION_TEST and WIFI_RF_TEST cannot be enabled together"
+#endif
+#if defined(MONOPULSE_FOUNDATION_TEST) && defined(DMA_EXAMPLE)
+#error "MONOPULSE_FOUNDATION_TEST and DMA_EXAMPLE cannot be enabled together"
+#endif
+#if defined(WIFI_RF_TEST) && defined(DMA_EXAMPLE)
+#error "WIFI_RF_TEST and DMA_EXAMPLE cannot be enabled together"
+#endif
+#if (defined(PL_FFT_SINGLE_SHOT) || \
+     defined(PL_FFT_PERIODIC_MONITOR)) && \
+	(defined(MONOPULSE_FOUNDATION_TEST) || defined(WIFI_RF_TEST) || \
+	 defined(DMA_EXAMPLE))
+#error "PL FFT application modes must be enabled by themselves"
+#endif
+
 //#define IIO_SUPPORT
 
 #ifndef IIO_SUPPORT

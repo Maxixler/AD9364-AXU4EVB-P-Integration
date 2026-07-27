@@ -1,0 +1,153 @@
+set script_dir [file dirname [file normalize [info script]]]
+
+# Keep this list explicit: missing production RTL must stop packaging before
+# ADI's project/package helpers can create any output in the source tree.
+set rtl_sources [list \
+  [file join $script_dir axi_ad9364_fft_capture.v] \
+  [file join $script_dir adc_frame_capture.v] \
+  [file join $script_dir adc_frame_replay.v] \
+  [file join $script_dir magnitude_peak.v] \
+  [file join $script_dir spectrum_pingpong.v] \
+  [file join $script_dir fft_command_cdc.v] \
+  [file join $script_dir fft_result_cdc.v] \
+  [file join $script_dir axi_ad9364_fft_regs.v]]
+set constraint_sources [list \
+  [file join $script_dir axi_ad9364_fft_capture_constr.xdc]]
+
+foreach source_file [concat $rtl_sources $constraint_sources] {
+  if {![file isfile $source_file]} {
+    error "Missing required RTL source '$source_file'. Run the matching implementation task before packaging axi_ad9364_fft_capture."
+  }
+}
+
+set fft_ips [get_ips -quiet ad9364_fft_2048]
+if {[llength $fft_ips] != 1} {
+  error "Missing required FFT IP 'ad9364_fft_2048'. Source fft_v9_1_config.tcl in Vivado 2020.1 before packaging."
+}
+
+set fft_xci [get_property IP_FILE [lindex $fft_ips 0]]
+if {$fft_xci eq {} || ![file isfile $fft_xci]} {
+  error "Missing required FFT IP artifact for 'ad9364_fft_2048'; generate its XCI before packaging."
+}
+set fft_xci [file normalize $fft_xci]
+
+if {![info exists ::env(FFT_PACKAGE_OUTPUT_DIR)]} {
+  error "FFT_PACKAGE_OUTPUT_DIR is required; package products must be written outside the RTL source directory."
+}
+set package_output_dir [file normalize $::env(FFT_PACKAGE_OUTPUT_DIR)]
+set source_path_key [string tolower [string map {\\ /} $script_dir]]
+set output_path_key [string tolower [string map {\\ /} $package_output_dir]]
+if {$output_path_key eq $source_path_key ||
+    [string first "${source_path_key}/" "${output_path_key}/"] == 0} {
+  error "FFT_PACKAGE_OUTPUT_DIR must not be the RTL source directory or any descendant."
+}
+file mkdir $package_output_dir
+
+# ADI's helper creates the packaging project, so preserve the generated xFFT
+# path and close the generation project only after every fail-fast check passes.
+close_project
+set REQUIRED_VIVADO_VERSION 2020.1
+source [file join $script_dir .. .. scripts adi_env.tcl]
+source [file join $ad_hdl_dir library scripts adi_ip_xilinx.tcl]
+
+cd $package_output_dir
+adi_ip_create axi_ad9364_fft_capture
+adi_ip_files axi_ad9364_fft_capture \
+  [concat $rtl_sources $constraint_sources [list $fft_xci]]
+adi_ip_properties_lite axi_ad9364_fft_capture
+
+set core [ipx::current_core]
+set_property display_name {ADI AD9364 FFT Capture} $core
+set_property description {Deterministic AD9364 frame capture, FFT, and dual spectrum-bank readout} $core
+
+proc map_ip_port {bus logical_name physical_name} {
+  set port_map [ipx::add_port_map $logical_name $bus]
+  set_property physical_name $physical_name $port_map
+}
+
+# CPU AXI-Lite control/status interface.
+set s_axi [ipx::add_bus_interface s_axi $core]
+set_property abstraction_type_vlnv xilinx.com:interface:aximm_rtl:1.0 $s_axi
+set_property bus_type_vlnv xilinx.com:interface:aximm:1.0 $s_axi
+set_property interface_mode slave $s_axi
+foreach mapping {
+  {AWADDR s_axi_awaddr} {AWPROT s_axi_awprot} {AWVALID s_axi_awvalid} {AWREADY s_axi_awready}
+  {WDATA s_axi_wdata} {WSTRB s_axi_wstrb} {WVALID s_axi_wvalid} {WREADY s_axi_wready}
+  {BRESP s_axi_bresp} {BVALID s_axi_bvalid} {BREADY s_axi_bready}
+  {ARADDR s_axi_araddr} {ARPROT s_axi_arprot} {ARVALID s_axi_arvalid} {ARREADY s_axi_arready}
+  {RDATA s_axi_rdata} {RRESP s_axi_rresp} {RVALID s_axi_rvalid} {RREADY s_axi_rready}
+} {
+  map_ip_port $s_axi [lindex $mapping 0] [lindex $mapping 1]
+}
+set s_axi_map [ipx::add_memory_map s_axi $core]
+set_property slave_memory_map_ref s_axi $s_axi
+set s_axi_regs [ipx::add_address_block registers $s_axi_map]
+set_property range 256 $s_axi_regs
+set_property width 32 $s_axi_regs
+
+# Two independent read-only BRAM slave ports expose complete spectrum banks.
+set spectrum_bank0 [ipx::add_bus_interface spectrum_bank0 $core]
+set_property abstraction_type_vlnv xilinx.com:interface:bram_rtl:1.0 $spectrum_bank0
+set_property bus_type_vlnv xilinx.com:interface:bram:1.0 $spectrum_bank0
+set_property interface_mode slave $spectrum_bank0
+# The AXI BRAM controller drives MEM_WIDTH into its BRAM_PORTA interface.
+# Make the slave value dependent on the HDL model parameter, which gives the
+# BD cell a CONFIG property it can accept during parameter propagation.
+set spectrum_bank0_mem_width [ipx::add_bus_parameter MEM_WIDTH $spectrum_bank0]
+set_property -dict [list \
+  value_resolve_type dependent \
+  value_dependency {spirit:decode(id('MODELPARAM_VALUE.SPECTRUM_BANK_DATA_WIDTH'))} \
+  value_format long value 64] \
+  $spectrum_bank0_mem_width
+foreach mapping {{EN bank0_bram_en} {ADDR bank0_bram_addr} {DOUT bank0_bram_rddata}} {
+  map_ip_port $spectrum_bank0 [lindex $mapping 0] [lindex $mapping 1]
+}
+
+set spectrum_bank1 [ipx::add_bus_interface spectrum_bank1 $core]
+set_property abstraction_type_vlnv xilinx.com:interface:bram_rtl:1.0 $spectrum_bank1
+set_property bus_type_vlnv xilinx.com:interface:bram:1.0 $spectrum_bank1
+set_property interface_mode slave $spectrum_bank1
+# Keep the second independent spectrum bank dependent on the same accepted
+# model parameter.
+set spectrum_bank1_mem_width [ipx::add_bus_parameter MEM_WIDTH $spectrum_bank1]
+set_property -dict [list \
+  value_resolve_type dependent \
+  value_dependency {spirit:decode(id('MODELPARAM_VALUE.SPECTRUM_BANK_DATA_WIDTH'))} \
+  value_format long value 64] \
+  $spectrum_bank1_mem_width
+foreach mapping {{EN bank1_bram_en} {ADDR bank1_bram_addr} {DOUT bank1_bram_rddata}} {
+  map_ip_port $spectrum_bank1 [lindex $mapping 0] [lindex $mapping 1]
+}
+
+# AD9364 shadow tap. This is deliberately discrete and non-backpressured:
+# a sample is accepted only on adc_valid && adc_enable and there is no ready
+# path toward the existing ADI receive chain.
+foreach {port_name port_description} {
+  adc_valid  {One-cycle AD9364 source-valid indication}
+  adc_enable {I0/Q0 sample-enable indication}
+  adc_i      {Signed I0 sample component in Q1.15 format}
+  adc_q      {Signed Q0 sample component in Q1.15 format}
+  rf_state   {Three-bit RF-state tag sampled at command acceptance}
+} {
+  set_property description $port_description [ipx::get_ports $port_name -of_objects $core]
+}
+
+# Completion/error interrupt output.
+set irq [ipx::add_bus_interface irq $core]
+set_property abstraction_type_vlnv xilinx.com:signal:interrupt_rtl:1.0 $irq
+set_property bus_type_vlnv xilinx.com:signal:interrupt:1.0 $irq
+set_property interface_mode master $irq
+map_ip_port $irq INTERRUPT irq
+
+ipx::infer_bus_interface s_axi_aclk xilinx.com:signal:clock_rtl:1.0 $core
+ipx::infer_bus_interface s_axi_aresetn xilinx.com:signal:reset_rtl:1.0 $core
+ipx::infer_bus_interface adc_clk xilinx.com:signal:clock_rtl:1.0 $core
+ipx::infer_bus_interface adc_resetn xilinx.com:signal:reset_rtl:1.0 $core
+ipx::associate_bus_interfaces -busif s_axi -clock s_axi_aclk $core
+ipx::associate_bus_interfaces -clock s_axi_aclk -reset s_axi_aresetn $core
+ipx::associate_bus_interfaces -busif spectrum_bank0 -clock s_axi_aclk $core
+ipx::associate_bus_interfaces -busif spectrum_bank1 -clock s_axi_aclk $core
+ipx::associate_bus_interfaces -clock adc_clk -reset adc_resetn $core
+
+ipx::update_checksums $core
+ipx::save_core $core

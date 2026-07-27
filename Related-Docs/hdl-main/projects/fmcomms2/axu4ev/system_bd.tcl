@@ -3,7 +3,12 @@
 ### SPDX short identifier: ADIBSD
 ###############################################################################
 
-source $ad_hdl_dir/projects/common/axu4ev/axu4ev_system_bd.tcl
+if {[info exists ::AXU4EV_FFT_SHADOW_PATH] && $::AXU4EV_FFT_SHADOW_PATH} {
+  source [file normalize [file join [file dirname [info script]] \
+    .. .. common axu4ev axu4ev_system_bd.tcl]]
+} else {
+  source $ad_hdl_dir/projects/common/axu4ev/axu4ev_system_bd.tcl
+}
 source ../common/fmcomms2_bd.tcl
 source $ad_hdl_dir/projects/scripts/adi_pd.tcl
 

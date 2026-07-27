@@ -1,0 +1,123 @@
+AXU4EVB-P + AD9364 periodic FFT monitor physical acceptance evidence
+Acceptance date (Europe/Istanbul): 2026-07-27
+Branch at physical run: codex/axu4ev-ad9364-monopulse
+Launch commit: b0f53f36f8676b54747d417c4ae44c61ac8a3c99
+Candidate manifest source commit: 65ff6144ee9cf02cacfe8840ad506611c17806ac
+Periodic application ELF SHA-256: 0586E9A18EA4457A622CEE84D33F81A6402C95FB12A64755D2A7C39441964002
+Periodic bitstream SHA-256: ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC
+Raw PuTTY log (committed relative path): PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-raw-putty.log
+Raw PuTTY log SHA-256: B3BCA7747B6130DDF39731C39DE28FEA1E31DEC210FD8E2009B43DB751CF8129
+JTAG launch log (committed relative path): PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-jtag-launch.log
+JTAG launch log SHA-256: BB49458713B04D8E3508B58FD1EC55E2A83825DF1208AEA7AB473F4DC3C23758
+PuTTY serial settings: PS_UART, 115200-8-N-1, all-session output.
+Origin note: the committed raw PuTTY and JTAG paths above are the release evidence locators; capture staging paths are not.
+Strict validator command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evPeriodicMonitorLog.ps1 -LogPath PROJECT/tests/evidence/axu4ev-ad9364-pl-fft-periodic-monitor-raw-putty.log
+Strict validator output: PASS: periodic FFT monitor log contains 100 valid frames.
+RF context: No controlled CW or R&S source was declared for this infrastructure acceptance. Observed low peak powers were ambient-noise input; this acceptance covers monitor transport/control only, not RF performance or DOA calibration.
+Antenna/port wiring: Not independently reverified during this run.
+
+Selected UART payload normalized from committed raw PuTTY log (PuTTY framing and NUL removed):
+cf-ad9361-lpc: Successfully initialized (61441040 Hz)
+ad9361_init : AD936x Rev 2 successfully initialized
+PL_FFT_MONITOR: START frames=100 interval_ms=1000 bins=2048
+PL_FFT_MONITOR: FRAME seq=001/100 frame=1 bank=0 samples=2048 peak_bin=46 peak_power=1 dropped=20805983 crc=4ae5f063
+PL_FFT_MONITOR: FRAME seq=002/100 frame=2 bank=0 samples=2048 peak_bin=30 peak_power=1 dropped=51838448 crc=e1695401
+PL_FFT_MONITOR: FRAME seq=003/100 frame=3 bank=0 samples=2048 peak_bin=33 peak_power=1 dropped=82742812 crc=78370568
+PL_FFT_MONITOR: FRAME seq=004/100 frame=4 bank=0 samples=2048 peak_bin=133 peak_power=4 dropped=113647185 crc=47711be4
+PL_FFT_MONITOR: FRAME seq=005/100 frame=5 bank=0 samples=2048 peak_bin=64 peak_power=1 dropped=144556882 crc=0d395016
+PL_FFT_MONITOR: FRAME seq=006/100 frame=6 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=175463913 crc=04caf2f6
+PL_FFT_MONITOR: FRAME seq=007/100 frame=7 bank=0 samples=2048 peak_bin=79 peak_power=1 dropped=206368286 crc=98e5ecf5
+PL_FFT_MONITOR: FRAME seq=008/100 frame=8 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=237275319 crc=1fe2816e
+PL_FFT_MONITOR: FRAME seq=009/100 frame=9 bank=0 samples=2048 peak_bin=1965 peak_power=2 dropped=268179685 crc=b6e3c5a6
+PL_FFT_MONITOR: FRAME seq=010/100 frame=10 bank=0 samples=2048 peak_bin=2001 peak_power=2 dropped=299092050 crc=a146c921
+PL_FFT_MONITOR: FRAME seq=011/100 frame=11 bank=0 samples=2048 peak_bin=5 peak_power=1 dropped=330007082 crc=2a7417d9
+PL_FFT_MONITOR: FRAME seq=012/100 frame=12 bank=0 samples=2048 peak_bin=327 peak_power=2 dropped=360914108 crc=34602a8e
+PL_FFT_MONITOR: FRAME seq=013/100 frame=13 bank=0 samples=2048 peak_bin=2 peak_power=1 dropped=391826479 crc=6dcad768
+PL_FFT_MONITOR: FRAME seq=014/100 frame=14 bank=0 samples=2048 peak_bin=1 peak_power=2 dropped=422733507 crc=c3aeec65
+PL_FFT_MONITOR: FRAME seq=015/100 frame=15 bank=0 samples=2048 peak_bin=45 peak_power=1 dropped=453640541 crc=1d8b292d
+PL_FFT_MONITOR: FRAME seq=016/100 frame=16 bank=0 samples=2048 peak_bin=1886 peak_power=2 dropped=484550239 crc=d3e2b941
+PL_FFT_MONITOR: FRAME seq=017/100 frame=17 bank=0 samples=2048 peak_bin=20 peak_power=1 dropped=515465266 crc=0952a1aa
+PL_FFT_MONITOR: FRAME seq=018/100 frame=18 bank=0 samples=2048 peak_bin=141 peak_power=4 dropped=546374970 crc=376997db
+PL_FFT_MONITOR: FRAME seq=019/100 frame=19 bank=0 samples=2048 peak_bin=931 peak_power=2 dropped=577287329 crc=b2827fb7
+PL_FFT_MONITOR: FRAME seq=020/100 frame=20 bank=0 samples=2048 peak_bin=133 peak_power=5 dropped=608199694 crc=b02cdfc8
+PL_FFT_MONITOR: FRAME seq=021/100 frame=21 bank=0 samples=2048 peak_bin=117 peak_power=4 dropped=639112058 crc=e86299cb
+PL_FFT_MONITOR: FRAME seq=022/100 frame=22 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=670024427 crc=b229e952
+PL_FFT_MONITOR: FRAME seq=023/100 frame=23 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=700931453 crc=1c3bbf44
+PL_FFT_MONITOR: FRAME seq=024/100 frame=24 bank=0 samples=2048 peak_bin=13 peak_power=1 dropped=731838487 crc=f88bfa21
+PL_FFT_MONITOR: FRAME seq=025/100 frame=25 bank=0 samples=2048 peak_bin=9 peak_power=1 dropped=762748184 crc=a33ecfdd
+PL_FFT_MONITOR: FRAME seq=026/100 frame=26 bank=0 samples=2048 peak_bin=101 peak_power=1 dropped=793655209 crc=8b97c0e9
+PL_FFT_MONITOR: FRAME seq=027/100 frame=27 bank=0 samples=2048 peak_bin=2027 peak_power=2 dropped=824567572 crc=ba6bf7a8
+PL_FFT_MONITOR: FRAME seq=028/100 frame=28 bank=0 samples=2048 peak_bin=8 peak_power=1 dropped=855482605 crc=0eae5d8d
+PL_FFT_MONITOR: FRAME seq=029/100 frame=29 bank=0 samples=2048 peak_bin=1 peak_power=4 dropped=886389635 crc=23c17966
+PL_FFT_MONITOR: FRAME seq=030/100 frame=30 bank=0 samples=2048 peak_bin=141 peak_power=2 dropped=917296661 crc=51524798
+PL_FFT_MONITOR: FRAME seq=031/100 frame=31 bank=0 samples=2048 peak_bin=130 peak_power=8 dropped=948209028 crc=d2d649b0
+PL_FFT_MONITOR: FRAME seq=032/100 frame=32 bank=0 samples=2048 peak_bin=136 peak_power=20 dropped=979121390 crc=639f4b68
+PL_FFT_MONITOR: FRAME seq=033/100 frame=33 bank=0 samples=2048 peak_bin=135 peak_power=8 dropped=1010036421 crc=72b2e759
+PL_FFT_MONITOR: FRAME seq=034/100 frame=34 bank=0 samples=2048 peak_bin=4 peak_power=1 dropped=1040951447 crc=72c94825
+PL_FFT_MONITOR: FRAME seq=035/100 frame=35 bank=0 samples=2048 peak_bin=123 peak_power=4 dropped=1071861145 crc=40f4a4dc
+PL_FFT_MONITOR: FRAME seq=036/100 frame=36 bank=0 samples=2048 peak_bin=150 peak_power=5 dropped=1102776170 crc=95f99241
+PL_FFT_MONITOR: FRAME seq=037/100 frame=37 bank=0 samples=2048 peak_bin=97 peak_power=1 dropped=1133691200 crc=ce4c72cb
+PL_FFT_MONITOR: FRAME seq=038/100 frame=38 bank=0 samples=2048 peak_bin=17 peak_power=1 dropped=1164603567 crc=c126a979
+PL_FFT_MONITOR: FRAME seq=039/100 frame=39 bank=0 samples=2048 peak_bin=2017 peak_power=2 dropped=1195515929 crc=6b3b6318
+PL_FFT_MONITOR: FRAME seq=040/100 frame=40 bank=0 samples=2048 peak_bin=136 peak_power=5 dropped=1226433624 crc=1fd4aef0
+PL_FFT_MONITOR: FRAME seq=041/100 frame=41 bank=0 samples=2048 peak_bin=71 peak_power=1 dropped=1257348649 crc=d01e107e
+PL_FFT_MONITOR: FRAME seq=042/100 frame=42 bank=0 samples=2048 peak_bin=1941 peak_power=2 dropped=1288261017 crc=b1132bab
+PL_FFT_MONITOR: FRAME seq=043/100 frame=43 bank=0 samples=2048 peak_bin=7 peak_power=1 dropped=1319178711 crc=675db11a
+PL_FFT_MONITOR: FRAME seq=044/100 frame=44 bank=0 samples=2048 peak_bin=51 peak_power=1 dropped=1350088407 crc=b6496597
+PL_FFT_MONITOR: FRAME seq=045/100 frame=45 bank=0 samples=2048 peak_bin=2 peak_power=1 dropped=1381000767 crc=52656cea
+PL_FFT_MONITOR: FRAME seq=046/100 frame=46 bank=0 samples=2048 peak_bin=159 peak_power=2 dropped=1411910465 crc=744af348
+PL_FFT_MONITOR: FRAME seq=047/100 frame=47 bank=0 samples=2048 peak_bin=2047 peak_power=4 dropped=1442825496 crc=80a253b1
+PL_FFT_MONITOR: FRAME seq=048/100 frame=48 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=1473743190 crc=e4d4724d
+PL_FFT_MONITOR: FRAME seq=049/100 frame=49 bank=0 samples=2048 peak_bin=67 peak_power=1 dropped=1504652885 crc=9e8a53db
+PL_FFT_MONITOR: FRAME seq=050/100 frame=50 bank=0 samples=2048 peak_bin=2 peak_power=1 dropped=1535565247 crc=26d4c4da
+PL_FFT_MONITOR: FRAME seq=051/100 frame=51 bank=0 samples=2048 peak_bin=123 peak_power=1 dropped=1566474943 crc=5f08483c
+PL_FFT_MONITOR: FRAME seq=052/100 frame=52 bank=0 samples=2048 peak_bin=47 peak_power=1 dropped=1597389974 crc=b35b3362
+PL_FFT_MONITOR: FRAME seq=053/100 frame=53 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=1628302332 crc=2b89fdf4
+PL_FFT_MONITOR: FRAME seq=054/100 frame=54 bank=0 samples=2048 peak_bin=139 peak_power=1 dropped=1659212028 crc=5baef67b
+PL_FFT_MONITOR: FRAME seq=055/100 frame=55 bank=0 samples=2048 peak_bin=137 peak_power=1 dropped=1690127060 crc=08a8ea57
+PL_FFT_MONITOR: FRAME seq=056/100 frame=56 bank=0 samples=2048 peak_bin=9 peak_power=1 dropped=1721042089 crc=7aec2151
+PL_FFT_MONITOR: FRAME seq=057/100 frame=57 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=1751951786 crc=a7ebc4a3
+PL_FFT_MONITOR: FRAME seq=058/100 frame=58 bank=0 samples=2048 peak_bin=43 peak_power=1 dropped=1782861475 crc=e92bd209
+PL_FFT_MONITOR: FRAME seq=059/100 frame=59 bank=0 samples=2048 peak_bin=10 peak_power=1 dropped=1813773842 crc=bcd05c22
+PL_FFT_MONITOR: FRAME seq=060/100 frame=60 bank=0 samples=2048 peak_bin=113 peak_power=1 dropped=1844686201 crc=d329193d
+PL_FFT_MONITOR: FRAME seq=061/100 frame=61 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=1875601225 crc=6cd8c50f
+PL_FFT_MONITOR: FRAME seq=062/100 frame=62 bank=0 samples=2048 peak_bin=121 peak_power=4 dropped=1906510920 crc=a63d5a22
+PL_FFT_MONITOR: FRAME seq=063/100 frame=63 bank=0 samples=2048 peak_bin=14 peak_power=1 dropped=1937425950 crc=525a76a6
+PL_FFT_MONITOR: FRAME seq=064/100 frame=64 bank=0 samples=2048 peak_bin=24 peak_power=1 dropped=1968338308 crc=4ecb05cd
+PL_FFT_MONITOR: FRAME seq=065/100 frame=65 bank=0 samples=2048 peak_bin=50 peak_power=1 dropped=1999250674 crc=169ba573
+PL_FFT_MONITOR: FRAME seq=066/100 frame=66 bank=0 samples=2048 peak_bin=3 peak_power=1 dropped=2030163028 crc=e2c77057
+PL_FFT_MONITOR: FRAME seq=067/100 frame=67 bank=0 samples=2048 peak_bin=2025 peak_power=2 dropped=2061072723 crc=da2427b2
+PL_FFT_MONITOR: FRAME seq=068/100 frame=68 bank=0 samples=2048 peak_bin=132 peak_power=8 dropped=2091990420 crc=5af1514c
+PL_FFT_MONITOR: FRAME seq=069/100 frame=69 bank=0 samples=2048 peak_bin=1998 peak_power=2 dropped=2122905448 crc=bbeb25ca
+PL_FFT_MONITOR: FRAME seq=070/100 frame=70 bank=0 samples=2048 peak_bin=2 peak_power=1 dropped=2153823141 crc=102eec7a
+PL_FFT_MONITOR: FRAME seq=071/100 frame=71 bank=0 samples=2048 peak_bin=57 peak_power=1 dropped=2184732837 crc=41f10e31
+PL_FFT_MONITOR: FRAME seq=072/100 frame=72 bank=0 samples=2048 peak_bin=44 peak_power=1 dropped=2215645196 crc=386d3afc
+PL_FFT_MONITOR: FRAME seq=073/100 frame=73 bank=0 samples=2048 peak_bin=1766 peak_power=2 dropped=2246557556 crc=01140bbd
+PL_FFT_MONITOR: FRAME seq=074/100 frame=74 bank=0 samples=2048 peak_bin=124 peak_power=1 dropped=2277475248 crc=dd84ed4c
+PL_FFT_MONITOR: FRAME seq=075/100 frame=75 bank=0 samples=2048 peak_bin=4 peak_power=1 dropped=2308390281 crc=20e02a06
+PL_FFT_MONITOR: FRAME seq=076/100 frame=76 bank=0 samples=2048 peak_bin=45 peak_power=1 dropped=2339299969 crc=30e369e2
+PL_FFT_MONITOR: FRAME seq=077/100 frame=77 bank=0 samples=2048 peak_bin=43 peak_power=1 dropped=2370212330 crc=8c382fe4
+PL_FFT_MONITOR: FRAME seq=078/100 frame=78 bank=0 samples=2048 peak_bin=41 peak_power=1 dropped=2401124690 crc=2a65e52e
+PL_FFT_MONITOR: FRAME seq=079/100 frame=79 bank=0 samples=2048 peak_bin=1949 peak_power=2 dropped=2432037056 crc=9771f2e3
+PL_FFT_MONITOR: FRAME seq=080/100 frame=80 bank=0 samples=2048 peak_bin=6 peak_power=1 dropped=2462954748 crc=f2e7511f
+PL_FFT_MONITOR: FRAME seq=081/100 frame=81 bank=0 samples=2048 peak_bin=77 peak_power=1 dropped=2493864442 crc=42f8e3d5
+PL_FFT_MONITOR: FRAME seq=082/100 frame=82 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=2524776801 crc=ffbeafef
+PL_FFT_MONITOR: FRAME seq=083/100 frame=83 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=2555686493 crc=8375322c
+PL_FFT_MONITOR: FRAME seq=084/100 frame=84 bank=0 samples=2048 peak_bin=8 peak_power=1 dropped=2586596182 crc=e2635b1b
+PL_FFT_MONITOR: FRAME seq=085/100 frame=85 bank=0 samples=2048 peak_bin=52 peak_power=1 dropped=2617505880 crc=58561ab6
+PL_FFT_MONITOR: FRAME seq=086/100 frame=86 bank=0 samples=2048 peak_bin=1 peak_power=1 dropped=2648418236 crc=c7c65116
+PL_FFT_MONITOR: FRAME seq=087/100 frame=87 bank=0 samples=2048 peak_bin=142 peak_power=36 dropped=2679327932 crc=a1bf6f93
+PL_FFT_MONITOR: FRAME seq=088/100 frame=88 bank=0 samples=2048 peak_bin=195 peak_power=2 dropped=2710245621 crc=c6016bbc
+PL_FFT_MONITOR: FRAME seq=089/100 frame=89 bank=0 samples=2048 peak_bin=35 peak_power=1 dropped=2741160649 crc=a570349d
+PL_FFT_MONITOR: FRAME seq=090/100 frame=90 bank=0 samples=2048 peak_bin=123 peak_power=4 dropped=2772073007 crc=62c6b3ad
+PL_FFT_MONITOR: FRAME seq=091/100 frame=91 bank=0 samples=2048 peak_bin=51 peak_power=1 dropped=2802988030 crc=75de8804
+PL_FFT_MONITOR: FRAME seq=092/100 frame=92 bank=0 samples=2048 peak_bin=2041 peak_power=2 dropped=2833900393 crc=118c3ff1
+PL_FFT_MONITOR: FRAME seq=093/100 frame=93 bank=0 samples=2048 peak_bin=119 peak_power=4 dropped=2864818085 crc=df3becb4
+PL_FFT_MONITOR: FRAME seq=094/100 frame=94 bank=0 samples=2048 peak_bin=3 peak_power=1 dropped=2895733113 crc=c6aee642
+PL_FFT_MONITOR: FRAME seq=095/100 frame=95 bank=0 samples=2048 peak_bin=3 peak_power=1 dropped=2926642806 crc=fd05df47
+PL_FFT_MONITOR: FRAME seq=096/100 frame=96 bank=0 samples=2048 peak_bin=60 peak_power=1 dropped=2957552498 crc=b5585e90
+PL_FFT_MONITOR: FRAME seq=097/100 frame=97 bank=0 samples=2048 peak_bin=116 peak_power=4 dropped=2988464854 crc=540f8f71
+PL_FFT_MONITOR: FRAME seq=098/100 frame=98 bank=0 samples=2048 peak_bin=157 peak_power=2 dropped=3019379882 crc=5e2c36f2
+PL_FFT_MONITOR: FRAME seq=099/100 frame=99 bank=0 samples=2048 peak_bin=99 peak_power=1 dropped=3050294910 crc=459741a3
+PL_FFT_MONITOR: FRAME seq=100/100 frame=100 bank=0 samples=2048 peak_bin=113 peak_power=1 dropped=3081207267 crc=5cd32183
+PL_FFT_MONITOR: PASS frames=100 interval_ms=1000

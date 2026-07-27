@@ -41,6 +41,7 @@
 #ifdef XILINX_PLATFORM
 #include <xparameters.h>
 #include <xil_cache.h>
+#include <xil_io.h>
 #include "xilinx_spi.h"
 #include "xilinx_gpio.h"
 #include "no_os_irq.h"
@@ -61,6 +62,166 @@
 #include "axi_dac_core.h"
 #include "axi_dmac.h"
 #include "no_os_error.h"
+#include "monopulse_selftest.h"
+#include "pl_fft_control.h"
+#ifdef PL_FFT_PERIODIC_MONITOR
+#include "pl_fft_monitor.h"
+#endif
+#include "wifi_rf_test.h"
+
+#if defined(PL_FFT_SINGLE_SHOT) || \
+	defined(PL_FFT_PERIODIC_MONITOR)
+#if defined(XPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR)
+#define PL_FFT_CONTROL_BASE XPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR
+#elif defined(XPAR_AXI_AD9364_FFT_CAPTURE_BASEADDR)
+#define PL_FFT_CONTROL_BASE XPAR_AXI_AD9364_FFT_CAPTURE_BASEADDR
+#else
+#error "Candidate XSA is missing the PL FFT control base address"
+#endif
+#ifndef XPAR_AXI_AD9364_FFT_BRAM0_S_AXI_BASEADDR
+#error "Candidate XSA is missing PL FFT bank 0"
+#endif
+#ifndef XPAR_AXI_AD9364_FFT_BRAM1_S_AXI_BASEADDR
+#error "Candidate XSA is missing PL FFT bank 1"
+#endif
+
+#define PL_FFT_BANK0_BASE XPAR_AXI_AD9364_FFT_BRAM0_S_AXI_BASEADDR
+#define PL_FFT_BANK1_BASE XPAR_AXI_AD9364_FFT_BRAM1_S_AXI_BASEADDR
+#ifdef PL_FFT_PERIODIC_MONITOR
+#define PL_FFT_MONITOR_FRAMES 100u
+#define PL_FFT_MONITOR_INTERVAL_MS 1000u
+#endif
+
+static uint64_t pl_fft_spectrum[PL_FFT_SPECTRUM_WORDS]
+	__attribute__((aligned(64)));
+
+static uint32_t pl_fft_board_read32(void *context, uintptr_t address)
+{
+	(void)context;
+	return Xil_In32(address);
+}
+
+static uint64_t pl_fft_board_read64(void *context, uintptr_t address)
+{
+	(void)context;
+	return Xil_In64(address);
+}
+
+static void pl_fft_board_write32(void *context, uintptr_t address,
+				 uint32_t value)
+{
+	(void)context;
+	Xil_Out32(address, value);
+}
+
+#ifdef PL_FFT_PERIODIC_MONITOR
+static void pl_fft_board_delay(void *context, uint32_t delay_ms)
+{
+	(void)context;
+	no_os_mdelay(delay_ms);
+}
+
+static void pl_fft_board_report(void *context, uint32_t sequence,
+				uint32_t total,
+				const struct pl_fft_result *result)
+{
+	(void)context;
+	printf("PL_FFT_MONITOR: FRAME seq=%03"PRIu32"/%03"PRIu32
+	       " frame=%"PRIu32" bank=%u samples=%"PRIu32
+	       " peak_bin=%u peak_power=%"PRIu64
+	       " dropped=%"PRIu32" crc=%08"PRIx32"\n",
+	       sequence, total, result->frame_id, result->active_bank,
+	       result->sample_count, result->peak_bin, result->peak_power,
+	       result->dropped_count, result->frame_crc32);
+}
+#endif
+
+#ifdef PL_FFT_SINGLE_SHOT
+static int pl_fft_single_shot_run(void)
+{
+	struct pl_fft_device dev = {
+		.context = NULL,
+		.control_base = PL_FFT_CONTROL_BASE,
+		.bank_base = {PL_FFT_BANK0_BASE, PL_FFT_BANK1_BASE},
+		.read32 = pl_fft_board_read32,
+		.read64 = pl_fft_board_read64,
+		.write32 = pl_fft_board_write32,
+		.timeout_polls = 10000000u,
+		.max_snapshot_retries = 3u
+	};
+	struct pl_fft_result result;
+	uint32_t index;
+	int status;
+
+	status = pl_fft_init(&dev);
+	if (status != PL_FFT_OK) {
+		printf("PL_FFT: FAIL stage=INIT error=%d\n", status);
+		return status;
+	}
+	status = pl_fft_capture_once(&dev, 0u, 2047u, 0u, 0u,
+				     &result, pl_fft_spectrum);
+	if (status != PL_FFT_OK) {
+		printf("PL_FFT: FAIL stage=CAPTURE error=%d\n", status);
+		return status;
+	}
+	printf("PL_FFT: PASS frame=%"PRIu32" bank=%u peak_bin=%u crc=%08"PRIx32"\n",
+	       result.frame_id, result.active_bank, result.peak_bin,
+	       result.frame_crc32);
+#ifdef PL_FFT_UART_DUMP_BINS
+	for (index = 0u; index < PL_FFT_SPECTRUM_WORDS; index++) {
+		printf("BIN=%"PRIu32" WORD=%016"PRIx64"\n",
+		       index, pl_fft_spectrum[index]);
+	}
+#else
+	(void)index;
+#endif
+	return 0;
+}
+#endif
+
+#ifdef PL_FFT_PERIODIC_MONITOR
+static int pl_fft_periodic_monitor_run(void)
+{
+	struct pl_fft_device dev = {
+		.context = NULL,
+		.control_base = PL_FFT_CONTROL_BASE,
+		.bank_base = {PL_FFT_BANK0_BASE, PL_FFT_BANK1_BASE},
+		.read32 = pl_fft_board_read32,
+		.read64 = pl_fft_board_read64,
+		.write32 = pl_fft_board_write32,
+		.timeout_polls = 10000000u,
+		.max_snapshot_retries = 3u
+	};
+	struct pl_fft_monitor monitor = {
+		.device = &dev,
+		.callback_context = NULL,
+		.delay_ms = pl_fft_board_delay,
+		.report_frame = pl_fft_board_report
+	};
+	uint32_t completed;
+	int status;
+
+	status = pl_fft_init(&dev);
+	if (status != PL_FFT_OK) {
+		printf("PL_FFT_MONITOR: FAIL seq=001 stage=INIT error=%d\n", status);
+		return status;
+	}
+	printf("PL_FFT_MONITOR: START frames=%u interval_ms=%u bins=%u\n",
+	       PL_FFT_MONITOR_FRAMES, PL_FFT_MONITOR_INTERVAL_MS,
+	       PL_FFT_SPECTRUM_WORDS);
+	status = pl_fft_monitor_run(&monitor, PL_FFT_MONITOR_FRAMES,
+				    PL_FFT_MONITOR_INTERVAL_MS, pl_fft_spectrum,
+				    &completed);
+	if (status != PL_FFT_OK) {
+		printf("PL_FFT_MONITOR: FAIL seq=%03"PRIu32
+		       " stage=CAPTURE error=%d\n", completed + 1u, status);
+		return status;
+	}
+	printf("PL_FFT_MONITOR: PASS frames=100 interval_ms=1000\n");
+	return PL_FFT_OK;
+}
+#endif
+#endif
 
 #ifdef IIO_SUPPORT
 
@@ -222,13 +383,13 @@ AD9361_InitParam default_init_param = {
 	/* Rate & BW Control */
 	{983040000, 245760000, 122880000, 61440000, 30720000, 30720000},// rx_path_clock_frequencies[6] *** adi,rx-path-clock-frequencies
 	{983040000, 122880000, 122880000, 61440000, 30720000, 30720000},// tx_path_clock_frequencies[6] *** adi,tx-path-clock-frequencies
-	18000000,//rf_rx_bandwidth_hz *** adi,rf-rx-bandwidth-hz
+	CANDIDATE_RX_BANDWIDTH_HZ,//rf_rx_bandwidth_hz *** adi,rf-rx-bandwidth-hz
 	18000000,//rf_tx_bandwidth_hz *** adi,rf-tx-bandwidth-hz
 	/* RF Port Control */
 	0,		//rx_rf_port_input_select *** adi,rx-rf-port-input-select
 	0,		//tx_rf_port_input_select *** adi,tx-rf-port-input-select
 	/* TX Attenuation Control */
-	10000,	//tx_attenuation_mdB *** adi,tx-attenuation-mdB
+	89750,	//tx_attenuation_mdB *** adi,tx-attenuation-mdB
 	0,		//update_tx_gain_in_alert_enable *** adi,update-tx-gain-in-alert-enable
 	/* Reference Clock Control */
 	0,		//xo_disable_use_ext_refclk_enable *** adi,xo-disable-use-ext-refclk-enable
@@ -559,7 +720,7 @@ static int ad9361_iio_axi_adc_get_sampling_freq(struct axi_adc *dev,
 *******************************************************************************/
 int main(void)
 {
-	int32_t status;
+	int32_t status = 0;
 #ifdef XILINX_PLATFORM
 	Xil_ICacheEnable();
 	Xil_DCacheEnable();
@@ -621,7 +782,26 @@ int main(void)
 	default_init_param.digital_interface_tune_fir_disable = 1;
 #endif
 
-	ad9361_init(&ad9361_phy, &default_init_param);
+	status = ad9361_init(&ad9361_phy, &default_init_param);
+	if (status < 0) {
+		printf("PLATFORM: FAIL stage=AD9364_INIT error=%"PRIi32"\n", status);
+		goto cleanup;
+	}
+
+#ifdef PL_FFT_SINGLE_SHOT
+	status = pl_fft_single_shot_run();
+	goto cleanup;
+#endif
+
+#ifdef PL_FFT_PERIODIC_MONITOR
+	status = pl_fft_periodic_monitor_run();
+	goto cleanup;
+#endif
+
+#ifdef MONOPULSE_FOUNDATION_TEST
+	status = monopulse_selftest_run(ad9361_phy);
+	goto cleanup;
+#endif
 
 	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);
 	ad9361_set_rx_fir_config(ad9361_phy, rx_fir_config);
@@ -650,16 +830,27 @@ int main(void)
 	ad9361_set_tx_fir_config(ad9361_phy_b, tx_fir_config);
 	ad9361_set_rx_fir_config(ad9361_phy_b, rx_fir_config);
 #endif
+#ifndef WIFI_RF_TEST
 	status = axi_dmac_init(&tx_dmac, &tx_dmac_init);
 	if (status < 0) {
 		printf("axi_dmac_init tx init error: %"PRIi32"\n", status);
-		return status;
+		goto cleanup;
 	}
+#endif
 	status = axi_dmac_init(&rx_dmac, &rx_dmac_init);
 	if (status < 0) {
 		printf("axi_dmac_init rx init error: %"PRIi32"\n", status);
-		return status;
+		goto cleanup;
 	}
+
+#ifdef WIFI_RF_TEST
+	status = wifi_rf_test_run(ad9361_phy, rx_dmac,
+				  (int16_t *)adc_buffer,
+				  NO_OS_ARRAY_SIZE(adc_buffer) / 2U);
+	goto cleanup;
+#endif
+
+#ifndef WIFI_RF_TEST
 #ifndef AXI_ADC_NOT_PRESENT
 #if defined XILINX_PLATFORM || defined LINUX_PLATFORM || defined ALTERA_PLATFORM
 #ifdef DMA_EXAMPLE
@@ -689,6 +880,7 @@ int main(void)
 #endif
 	axi_dac_init(&ad9361_phy->tx_dac, &tx_dac_init);
 	axi_dac_set_datasel(ad9361_phy->tx_dac, -1, AXI_DAC_DATA_SEL_DDS);
+#endif
 #endif
 #endif
 #endif
@@ -1215,9 +1407,12 @@ int main(void)
 	}
 #endif
 
-	ad9361_remove(ad9361_phy);
+cleanup:
+	if (ad9361_phy)
+		ad9361_remove(ad9361_phy);
 #ifdef FMCOMMS5
-	ad9361_remove(ad9361_phy_b);
+	if (ad9361_phy_b)
+		ad9361_remove(ad9361_phy_b);
 #endif
 
 #ifdef XILINX_PLATFORM
@@ -1231,6 +1426,5 @@ int main(void)
 		return -1;
 	}
 #endif
-
-	return 0;
+	return status;
 }

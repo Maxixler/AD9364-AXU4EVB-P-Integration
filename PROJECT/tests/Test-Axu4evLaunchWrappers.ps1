@@ -8,25 +8,43 @@ if (-not (Test-Path -LiteralPath $orchestrator -PathType Leaf)) {
 $orchestratorContent = Get-Content -LiteralPath $orchestrator -Raw
 foreach ($fragment in @(
     'Set-Content -LiteralPath $logPath -Encoding Unicode',
-    'Add-Content -LiteralPath $logPath -Encoding Unicode'
+    'Add-Content -LiteralPath $logPath -Encoding Unicode',
+    'ConvertTo-Json -InputObject @($artifacts) -Depth 4 -Compress',
+    'ARTIFACT_MANIFEST_JSON=$artifactManifest'
 )) {
     if (-not $orchestratorContent.Contains($fragment)) {
         throw "Launch orchestrator does not keep the XSCT log in one Windows PowerShell encoding: $fragment"
     }
 }
+if ($orchestratorContent.Contains('Format-Table')) {
+    throw 'Launch orchestrator still writes a truncating artifact table to real launch logs.'
+}
 
 function Invoke-DryRun {
-    param([Parameter(Mandatory)][ValidateSet('Golden', 'Workspace')][string]$Mode)
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Golden', 'Workspace', 'Candidate')]
+        [string]$Mode,
 
-    $lines = @(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $orchestrator -Mode $Mode -WorkspaceRoot $workspaceRoot -DryRun)
+        [string]$CandidateRoot,
+
+        [string]$TestWorkspaceRoot = $workspaceRoot
+    )
+
+    $arguments = @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $orchestrator,
+        '-Mode', $Mode, '-WorkspaceRoot', $TestWorkspaceRoot, '-DryRun'
+    )
+    if ($CandidateRoot) {
+        $arguments += @('-CandidateRoot', $CandidateRoot)
+    }
+    $lines = @(& powershell.exe @arguments)
     if ($LASTEXITCODE -ne 0) {
         throw "$Mode dry-run failed with exit code $LASTEXITCODE."
     }
-
     return (($lines -join "`n") | ConvertFrom-Json)
 }
 
-$expectedNames = @('application', 'bitstream', 'pmufw', 'psu_init')
 foreach ($mode in @('Golden', 'Workspace')) {
     $result = Invoke-DryRun -Mode $mode
     if ($result.mode -ne $mode) {
@@ -42,6 +60,7 @@ foreach ($mode in @('Golden', 'Workspace')) {
         throw "$mode dry-run log is outside PROJECT\logs\jtag."
     }
 
+    $expectedNames = @('application', 'bitstream', 'pmufw', 'psu_init')
     $artifacts = @($result.artifacts)
     $actualNames = @($artifacts.name | Sort-Object)
     if (($actualNames -join ',') -ne ($expectedNames -join ',')) {
@@ -61,7 +80,27 @@ foreach ($mode in @('Golden', 'Workspace')) {
     }
 }
 
-foreach ($mode in @('Golden', 'Workspace')) {
+$candidateRoot = Join-Path $workspaceRoot 'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1'
+$candidate = Invoke-DryRun -Mode Candidate -CandidateRoot $candidateRoot
+$candidateNames = @($candidate.artifacts.name | Sort-Object)
+$expectedCandidateNames = @('application', 'bitstream', 'pmufw', 'psu_init', 'xsa')
+if (($candidateNames -join ',') -ne ($expectedCandidateNames -join ',')) {
+    throw 'Candidate dry-run did not resolve the complete five-artifact bundle.'
+}
+foreach ($artifact in @($candidate.artifacts)) {
+    $fullPath = [IO.Path]::GetFullPath($artifact.path)
+    if (-not $fullPath.StartsWith(
+            [IO.Path]::GetFullPath($candidateRoot) + [IO.Path]::DirectorySeparatorChar,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Candidate artifact escaped the Candidate bundle: $fullPath"
+    }
+}
+
+if (-not $orchestratorContent.Contains('Write-Verbose ($handoffOutput -join [Environment]::NewLine)')) {
+    throw 'Workspace launch no longer reports successful handoff verification in verbose mode.'
+}
+
+foreach ($mode in @('Golden', 'Workspace', 'Candidate')) {
     $launcher = Join-Path $workspaceRoot "PROJECT\tools\Start-Axu4evAd9364$mode.cmd"
     if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
         throw "Missing $mode launcher: $launcher"
@@ -91,4 +130,4 @@ if (-not $ignoreContent.Contains('*') -or -not $ignoreContent.Contains('!.gitign
     throw 'JTAG log ignore file does not exclude runtime logs while retaining itself.'
 }
 
-Write-Output 'PASS: Golden and Workspace launchers and dry-runs resolve verified artifacts.'
+Write-Output 'PASS: Golden, Workspace, and Candidate launchers resolve the intended verified artifacts.'

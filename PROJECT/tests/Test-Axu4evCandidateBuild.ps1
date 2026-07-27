@@ -1,0 +1,458 @@
+$ErrorActionPreference = 'Stop'
+
+$workspaceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
+$builder = Join-Path $workspaceRoot 'PROJECT\tools\Build-Axu4evPlFftCandidate.ps1'
+$buildTcl = Join-Path $workspaceRoot 'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
+$singleShotLauncher = Join-Path $workspaceRoot 'PROJECT\tools\Start-Axu4evAd9364Candidate.cmd'
+$periodicLauncher = Join-Path $workspaceRoot 'PROJECT\tools\Start-Axu4evAd9364PeriodicMonitor.cmd'
+$applicationMain = Join-Path $workspaceRoot 'Vitis\workspace\ad9364app\src\adc9364_src\main.c'
+$candidateXsa = Join-Path $workspaceRoot 'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1\hardware\system_top.xsa'
+$wrongXsa = Join-Path $workspaceRoot 'vivado\SDR_Real\sdr_wrapper.xsa'
+
+foreach ($required in @($builder, $buildTcl, $singleShotLauncher, $periodicLauncher)) {
+    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+        throw "Missing Candidate build dependency: $required"
+    }
+}
+foreach ($xsa in @($candidateXsa, $wrongXsa)) {
+    if (-not (Test-Path -LiteralPath $xsa -PathType Leaf)) {
+        throw "Missing Candidate build test XSA: $xsa"
+    }
+}
+if (-not (Select-String -LiteralPath $applicationMain `
+        -Pattern 'XPAR_AXI_AD9364_FFT_CAPTURE_BASEADDR' -Quiet)) {
+    throw 'Application does not support the FFT control macro emitted by the locked Candidate XSA.'
+}
+$builderContent = Get-Content -LiteralPath $builder -Raw
+if (-not $builderContent.Contains('git -C $WorkspaceRoot status --porcelain --untracked-files=no')) {
+    throw 'Candidate build does not reject dirty tracked source trees before recording provenance.'
+}
+if (-not $builderContent.Contains(
+        "git -C `$WorkspaceRoot ls-files --others --exclude-standard -- 'Vitis/workspace/ad9364app/src'")) {
+    throw 'Candidate build does not reject untracked application sources before recording provenance.'
+}
+if (-not $builderContent.Contains('Assert-NoReparsePointForWrite')) {
+    throw 'Candidate build does not guard output paths against junction/reparse redirection.'
+}
+
+$candidateBase = Join-Path $workspaceRoot 'PROJECT\candidates\axu4ev-ad9364'
+$singleShotReferenceRoot = Join-Path $candidateBase 'fft-single-shot-v1'
+$candidateRoot = Join-Path $candidateBase "test-build-$([guid]::NewGuid())"
+$allowedWorkspaceRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-candidate-vitis-root-$([guid]::NewGuid())"
+$candidateWorkspace = Join-Path $allowedWorkspaceRoot 'workspace'
+try {
+    New-Item -ItemType Directory -Path $allowedWorkspaceRoot -Force | Out-Null
+    $dryRunLines = @(
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+            -WorkspaceRoot $workspaceRoot `
+            -SourceXsa $candidateXsa `
+            -CandidateRoot $candidateRoot `
+            -VitisWorkspace $candidateWorkspace `
+            -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+            -DryRun
+    )
+    if ($LASTEXITCODE -ne 0) {
+        throw "Candidate build dry-run failed with exit code $LASTEXITCODE."
+    }
+    $dryRun = ($dryRunLines -join "`n") | ConvertFrom-Json
+    if ($dryRun.fft_control_base -ne '0x9C440000' -or
+        $dryRun.fft_bank0_base -ne '0x9D000000' -or
+        $dryRun.fft_bank1_base -ne '0x9D010000') {
+        throw 'Candidate XSA FFT addresses do not match the locked address contract.'
+    }
+    if ($dryRun.application_mode -ne 'SingleShot' -or
+        -not $dryRun.pl_fft_single_shot -or
+        $dryRun.pl_fft_periodic_monitor) {
+        throw 'Default Candidate build is no longer single-shot.'
+    }
+    if ([IO.Path]::GetFullPath($dryRun.candidate_root) -ne
+        [IO.Path]::GetFullPath($candidateRoot)) {
+        throw 'Candidate build reported the wrong Candidate root.'
+    }
+
+    $periodic = ((@(
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+            -WorkspaceRoot $workspaceRoot `
+            -ApplicationMode PeriodicMonitor `
+            -SourceXsa $candidateXsa `
+            -CandidateRoot $candidateRoot `
+            -VitisWorkspace $candidateWorkspace `
+            -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+            -DryRun
+    ) -join "`n") | ConvertFrom-Json)
+    if ($periodic.application_mode -ne 'PeriodicMonitor' -or
+        $periodic.pl_fft_single_shot -or
+        -not $periodic.pl_fft_periodic_monitor -or
+        $periodic.compiler_symbol -ne 'PL_FFT_PERIODIC_MONITOR') {
+        throw 'Periodic Candidate build selected the wrong compiler mode.'
+    }
+
+    foreach ($unsafeCandidateRoot in @(
+            $singleShotReferenceRoot,
+            (Join-Path $singleShotReferenceRoot 'nested-output')
+        )) {
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $referenceRootOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                    -WorkspaceRoot $workspaceRoot `
+                    -ApplicationMode PeriodicMonitor `
+                    -SourceXsa $candidateXsa `
+                    -CandidateRoot $unsafeCandidateRoot `
+                    -VitisWorkspace $candidateWorkspace `
+                    -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $referenceRootExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($referenceRootExitCode -eq 0 -or
+            ($referenceRootOutput -join "`n") -notmatch 'board-verified fft-single-shot-v1 reference') {
+            throw "Periodic Candidate mode accepted the board-verified single-shot reference overlap: $unsafeCandidateRoot"
+        }
+    }
+
+    $goldenlessRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-periodic-no-golden-$([guid]::NewGuid())"
+    try {
+        $fixtureTools = Join-Path $goldenlessRoot 'PROJECT\tools'
+        $fixtureCandidateBase = Join-Path $goldenlessRoot 'PROJECT\candidates\axu4ev-ad9364'
+        $fixtureReference = Join-Path $fixtureCandidateBase 'fft-single-shot-v1'
+        $fixtureCandidateRoot = Join-Path $fixtureCandidateBase 'periodic-output'
+        $fixtureAllowedWorkspaceRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-periodic-fixture-vitis-$([guid]::NewGuid())"
+        $fixtureVitisWorkspace = Join-Path $fixtureAllowedWorkspaceRoot 'workspace'
+        New-Item -ItemType Directory -Path $fixtureTools, $fixtureAllowedWorkspaceRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $workspaceRoot 'PROJECT\tools\Axu4evRelease.psm1') `
+            -Destination (Join-Path $fixtureTools 'Axu4evRelease.psm1') -Force
+        Copy-Item -LiteralPath $buildTcl `
+            -Destination (Join-Path $fixtureTools 'Build-Axu4evPlFftCandidate.tcl') -Force
+        Copy-Item -LiteralPath $singleShotReferenceRoot -Destination $fixtureReference -Recurse -Force
+        $fixtureXsa = Join-Path $fixtureReference 'hardware\system_top.xsa'
+        & git -C $goldenlessRoot init -q
+        & git -C $goldenlessRoot config user.email 'candidate-test@example.invalid'
+        & git -C $goldenlessRoot config user.name 'Candidate Build Test'
+        & git -C $goldenlessRoot add .
+        & git -C $goldenlessRoot commit -q -m 'goldenless periodic fixture'
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Cannot commit the Goldenless periodic build fixture.'
+        }
+
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $goldenlessPeriodicOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                    -WorkspaceRoot $goldenlessRoot `
+                    -ApplicationMode PeriodicMonitor `
+                    -SourceXsa $fixtureXsa `
+                    -CandidateRoot $fixtureCandidateRoot `
+                    -VitisWorkspace $fixtureVitisWorkspace `
+                    -AllowedVitisWorkspaceRoot $fixtureAllowedWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $goldenlessPeriodicExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($goldenlessPeriodicExitCode -ne 0) {
+            throw "Periodic Candidate dry-run unexpectedly requires Golden artifacts.`r`n$($goldenlessPeriodicOutput -join "`r`n")"
+        }
+        $goldenlessPeriodic = ($goldenlessPeriodicOutput -join "`n") | ConvertFrom-Json
+        if ($goldenlessPeriodic.application_mode -ne 'PeriodicMonitor') {
+            throw 'Goldenless periodic dry-run did not retain its selected mode.'
+        }
+
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $goldenlessSingleShotOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                    -WorkspaceRoot $goldenlessRoot `
+                    -ApplicationMode SingleShot `
+                    -SourceXsa $fixtureXsa `
+                    -CandidateRoot $fixtureCandidateRoot `
+                    -VitisWorkspace $fixtureVitisWorkspace `
+                    -AllowedVitisWorkspaceRoot $fixtureAllowedWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $goldenlessSingleShotExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($goldenlessSingleShotExitCode -eq 0 -or
+            ($goldenlessSingleShotOutput -join "`n") -notmatch 'CURRENT') {
+            throw 'SingleShot Candidate dry-run no longer requires a valid Golden release.'
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $goldenlessRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $fixtureAllowedWorkspaceRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $trustedReferenceFixture = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-trusted-reference-$([guid]::NewGuid())"
+    $trustedReferenceWorkspaceRoot = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-trusted-reference-vitis-$([guid]::NewGuid())"
+    try {
+        $fixtureTools = Join-Path $trustedReferenceFixture 'PROJECT\tools'
+        $fixtureCandidateBase = Join-Path $trustedReferenceFixture 'PROJECT\candidates\axu4ev-ad9364'
+        $fixtureReferenceRoot = Join-Path $fixtureCandidateBase 'fft-single-shot-v1'
+        $fixtureCandidateRoot = Join-Path $fixtureCandidateBase 'periodic-output'
+        $fixtureVitisWorkspace = Join-Path $trustedReferenceWorkspaceRoot 'workspace'
+        New-Item -ItemType Directory -Path $fixtureTools, $fixtureCandidateRoot, $trustedReferenceWorkspaceRoot -Force | Out-Null
+        Copy-Item -LiteralPath $builder -Destination (Join-Path $fixtureTools 'Build-Axu4evPlFftCandidate.ps1') -Force
+        Copy-Item -LiteralPath (Join-Path $workspaceRoot 'PROJECT\tools\Axu4evRelease.psm1') -Destination (Join-Path $fixtureTools 'Axu4evRelease.psm1') -Force
+        Copy-Item -LiteralPath $buildTcl -Destination (Join-Path $fixtureTools 'Build-Axu4evPlFftCandidate.tcl') -Force
+        Copy-Item -LiteralPath $singleShotReferenceRoot -Destination $fixtureReferenceRoot -Recurse -Force
+        Set-Content -LiteralPath (Join-Path $fixtureCandidateRoot 'selected-output.txt') -Value 'accepted output fixture' -Encoding Ascii
+
+        & git -C $trustedReferenceFixture init -q
+        & git -C $trustedReferenceFixture config user.email 'candidate-test@example.invalid'
+        & git -C $trustedReferenceFixture config user.name 'Candidate Build Test'
+        & git -C $trustedReferenceFixture add .
+        & git -C $trustedReferenceFixture commit -q -m 'trusted reference fixture'
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Cannot commit the trusted-reference build fixture.'
+        }
+
+        Set-Content -LiteralPath (Join-Path $fixtureCandidateRoot 'selected-output.txt') -Value 'selected output changed' -Encoding Ascii
+        $fixtureBuilder = Join-Path $fixtureTools 'Build-Axu4evPlFftCandidate.ps1'
+        $fixtureXsa = Join-Path $fixtureReferenceRoot 'hardware\system_top.xsa'
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $selectedOutputOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $fixtureBuilder `
+                    -WorkspaceRoot $trustedReferenceFixture `
+                    -ApplicationMode PeriodicMonitor `
+                    -SourceXsa $fixtureXsa `
+                    -CandidateRoot $fixtureCandidateRoot `
+                    -VitisWorkspace $fixtureVitisWorkspace `
+                    -AllowedVitisWorkspaceRoot $trustedReferenceWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $selectedOutputExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($selectedOutputExitCode -ne 0) {
+            throw "Periodic Candidate build rejected a modified selected output root.`r`n$($selectedOutputOutput -join "`r`n")"
+        }
+        $selectedOutputDescription = ($selectedOutputOutput -join "`n") | ConvertFrom-Json
+        if (-not $selectedOutputDescription.tracked_source_cleanliness_checked) {
+            throw 'Periodic Candidate dry-run did not execute the tracked source cleanliness gate for the selected output root.'
+        }
+
+        $fixtureManifestPath = Join-Path $fixtureReferenceRoot 'manifest.json'
+        $fixtureManifest = Get-Content -LiteralPath $fixtureManifestPath -Raw | ConvertFrom-Json
+        $fixturePmufw = @($fixtureManifest.artifacts | Where-Object name -eq 'pmufw')[0]
+        $fixturePmufwPath = Join-Path $fixtureReferenceRoot ($fixturePmufw.path -replace '/', '\')
+        $fixturePmufwBytes = [IO.File]::ReadAllBytes($fixturePmufwPath)
+        $fixturePmufwBytes[0] = $fixturePmufwBytes[0] -bxor 0xFF
+        [IO.File]::WriteAllBytes($fixturePmufwPath, $fixturePmufwBytes)
+        $fixturePmufw.length = [int64]$fixturePmufwBytes.LongLength
+        $fixturePmufw.sha256 = (Get-FileHash -LiteralPath $fixturePmufwPath -Algorithm SHA256).Hash
+        $fixtureManifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $fixtureManifestPath -Encoding UTF8
+
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $dirtyReferenceOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $fixtureBuilder `
+                    -WorkspaceRoot $trustedReferenceFixture `
+                    -ApplicationMode PeriodicMonitor `
+                    -SourceXsa $fixtureXsa `
+                    -CandidateRoot $fixtureCandidateRoot `
+                    -VitisWorkspace $fixtureVitisWorkspace `
+                    -AllowedVitisWorkspaceRoot $trustedReferenceWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $dirtyReferenceExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($dirtyReferenceExitCode -eq 0 -or
+            ($dirtyReferenceOutput -join "`n") -notmatch 'clean tracked source inputs') {
+            throw 'Periodic Candidate build accepted a self-consistent but modified trusted reference PMUFW and manifest.'
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $trustedReferenceFixture -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $trustedReferenceWorkspaceRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'
+    $savedPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $invalidSymbolOutput = @(
+            & $xsct $buildTcl $workspaceRoot $candidateXsa $candidateWorkspace `
+                $allowedWorkspaceRoot INVALID_SYMBOL 2>&1
+        )
+        $invalidSymbolExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedPreference
+    }
+    if (($invalidSymbolOutput -join "`n") -notmatch 'Invalid Candidate compiler symbol') {
+        throw 'Candidate Tcl build accepted an invalid compiler symbol.'
+    }
+
+    $savedPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $invalidModeOutput = @(
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                -WorkspaceRoot $workspaceRoot `
+                -ApplicationMode InvalidMode `
+                -SourceXsa $candidateXsa `
+                -CandidateRoot $candidateRoot `
+                -VitisWorkspace $candidateWorkspace `
+                -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+                -DryRun 2>&1
+        )
+        $invalidModeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedPreference
+    }
+    if ($invalidModeExitCode -eq 0 -or ($invalidModeOutput -join "`n") -notmatch 'ApplicationMode') {
+        throw 'Candidate build accepted an invalid application mode.'
+    }
+
+    $singleShotLauncherContent = Get-Content -LiteralPath $singleShotLauncher -Raw
+    $periodicLauncherContent = Get-Content -LiteralPath $periodicLauncher -Raw
+    if ($singleShotLauncherContent -notmatch 'fft-single-shot-v1' -or
+        $singleShotLauncherContent -match 'fft-periodic-monitor-v1') {
+        throw 'The existing single-shot CMD no longer selects only its single-shot bundle.'
+    }
+    if ($periodicLauncherContent -notmatch 'fft-periodic-monitor-v1' -or
+        $periodicLauncherContent -match 'fft-single-shot-v1' -or
+        $periodicLauncherContent -notmatch '%\*') {
+        throw 'The periodic CMD does not select only its periodic bundle and forward arguments.'
+    }
+
+    $savedPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $wrongOutput = @(
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                -WorkspaceRoot $workspaceRoot `
+                -SourceXsa $wrongXsa `
+                -CandidateRoot $candidateRoot `
+                -VitisWorkspace $candidateWorkspace `
+                -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+                -DryRun 2>&1
+        )
+        $wrongExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedPreference
+    }
+    if ($wrongExitCode -eq 0) {
+        throw 'Candidate build accepted an XSA without the PL FFT hardware.'
+    }
+    if (($wrongOutput -join "`n") -notmatch 'FFT') {
+        throw "Wrong XSA was rejected for an unrelated reason.`r`n$($wrongOutput -join "`r`n")"
+    }
+
+    $unsafeWorkspace = Join-Path $workspaceRoot 'PROJECT'
+    $savedPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $unsafeOutput = @(
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                -WorkspaceRoot $workspaceRoot `
+                -SourceXsa $candidateXsa `
+                -CandidateRoot $candidateRoot `
+                -VitisWorkspace $unsafeWorkspace `
+                -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+                -DryRun 2>&1
+        )
+        $unsafeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedPreference
+    }
+    if ($unsafeExitCode -eq 0 -or ($unsafeOutput -join "`n") -notmatch 'approved root') {
+        throw 'Candidate build did not reject an unsafe Vitis workspace deletion target.'
+    }
+
+    $untrackedInput = Join-Path $workspaceRoot 'Vitis\workspace\ad9364app\src\candidate_untracked_test.c'
+    try {
+        Set-Content -LiteralPath $untrackedInput -Value 'int candidate_untracked_test;' -Encoding Ascii
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $untrackedOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                    -WorkspaceRoot $workspaceRoot `
+                    -SourceXsa $candidateXsa `
+                    -CandidateRoot $candidateRoot `
+                    -VitisWorkspace $candidateWorkspace `
+                    -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot 2>&1
+            )
+            $untrackedExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($untrackedExitCode -eq 0 -or ($untrackedOutput -join "`n") -notmatch 'untracked application source') {
+            throw 'Candidate build did not reject an untracked application build input.'
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $untrackedInput -Force -ErrorAction SilentlyContinue
+    }
+
+    $junctionTarget = Join-Path ([IO.Path]::GetTempPath()) "axu4ev-candidate-junction-target-$([guid]::NewGuid())"
+    $junctionPath = Join-Path $candidateBase "test-junction-$([guid]::NewGuid())"
+    try {
+        New-Item -ItemType Directory -Path $junctionTarget -Force | Out-Null
+        New-Item -ItemType Junction -Path $junctionPath -Target $junctionTarget | Out-Null
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $junctionOutput = @(
+                & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $builder `
+                    -WorkspaceRoot $workspaceRoot `
+                    -SourceXsa $candidateXsa `
+                    -CandidateRoot (Join-Path $junctionPath 'bundle') `
+                    -VitisWorkspace $candidateWorkspace `
+                    -AllowedVitisWorkspaceRoot $allowedWorkspaceRoot `
+                    -DryRun 2>&1
+            )
+            $junctionExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedPreference
+        }
+        if ($junctionExitCode -eq 0 -or ($junctionOutput -join "`n") -notmatch 'reparse point') {
+            throw 'Candidate build accepted a Candidate output redirected through a junction.'
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $junctionPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $junctionTarget -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+finally {
+    foreach ($path in @($candidateWorkspace, $allowedWorkspaceRoot)) {
+        $fullPath = [IO.Path]::GetFullPath($path)
+        $tempPath = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+        if ($fullPath.StartsWith($tempPath, [StringComparison]::OrdinalIgnoreCase)) {
+            Remove-Item -LiteralPath $fullPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    $candidatePath = [IO.Path]::GetFullPath($candidateRoot)
+    $candidatePrefix = [IO.Path]::GetFullPath($candidateBase).TrimEnd('\') + '\'
+    if ($candidatePath.StartsWith($candidatePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $candidatePath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Output 'PASS: Candidate build accepts only the locked PL FFT XSA contract.'

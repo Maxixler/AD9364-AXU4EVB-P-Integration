@@ -1,5 +1,8 @@
-set script_dir [file dirname [file normalize [info script]]]
-set workspace_root [file dirname [file dirname $script_dir]]
+if {![info exists ::env(FPGA_PROFEN_ROOT)]} {
+  error "FPGA_PROFEN_ROOT environment variable is required."
+}
+
+set workspace_root [string map {\\ /} $::env(FPGA_PROFEN_ROOT)]
 set workspace [file join $workspace_root "Vitis" "workspace"]
 set platform_name "fmcomms2_axu4ev_hw"
 set platform_file [file join $workspace $platform_name "platform.spr"]
