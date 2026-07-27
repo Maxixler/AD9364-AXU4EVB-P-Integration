@@ -58,6 +58,9 @@ try {
     Assert-Condition ($positive.ExitCode -eq 0) "Valid log was rejected: $($positive.Output)"
     Assert-Condition ($positive.Output -match [regex]::Escape('PASS: periodic FFT monitor log contains 100 valid frames.')) 'Valid log did not produce the required PASS message.'
 
+    $noisePositive = Invoke-Validator (Write-LogFixture -Name 'unrelated-noise.log' -Lines (@('UART noise: PL_FFT_MONITOR: FRAME not-a-protocol-record') + $valid))
+    Assert-Condition ($noisePositive.ExitCode -eq 0) "Unrelated UART noise was rejected: $($noisePositive.Output)"
+
     $cases = @(
         @{ Name = '99-frames'; Lines = @($valid[0]) + $valid[1..99] + @($valid[-1]) },
         @{ Name = 'duplicate-seq'; Lines = ($valid | ForEach-Object { $_ -replace 'seq=050/100', 'seq=049/100' }) },
@@ -70,6 +73,9 @@ try {
         @{ Name = 'frame-double-space-after-colon'; Lines = @($valid[0]) + @('PL_FFT_MONITOR:  FRAME seq=101/100 frame=101 bank=1 samples=2048 peak_bin=88 peak_power=123456 dropped=0 crc=00000065') + $valid[1..$($valid.Count - 1)] },
         @{ Name = 'frame-tab-after-colon'; Lines = @($valid[0]) + @("PL_FFT_MONITOR:`tFRAME seq=101/100 frame=101 bank=1 samples=2048 peak_bin=88 peak_power=123456 dropped=0 crc=00000065") + $valid[1..$($valid.Count - 1)] },
         @{ Name = 'frame-space-before-colon'; Lines = @($valid[0]) + @('PL_FFT_MONITOR : FRAME seq=101/100 frame=101 bank=1 samples=2048 peak_bin=88 peak_power=123456 dropped=0 crc=00000065') + $valid[1..$($valid.Count - 1)] },
+        @{ Name = 'frame-missing-colon'; Lines = @($valid[0]) + @('PL_FFT_MONITOR FRAME seq=101/100 frame=101 bank=1 samples=2048 peak_bin=88 peak_power=123456 dropped=0 crc=00000065') + $valid[1..$($valid.Count - 1)] },
+        @{ Name = 'frame-semicolon-delimiter'; Lines = @($valid[0]) + @('PL_FFT_MONITOR; FRAME seq=101/100 frame=101 bank=1 samples=2048 peak_bin=88 peak_power=123456 dropped=0 crc=00000065') + $valid[1..$($valid.Count - 1)] },
+        @{ Name = 'frame-leading-whitespace'; Lines = @($valid[0]) + @(' PL_FFT_MONITOR: FRAME seq=101/100 frame=101 bank=1 samples=2048 peak_bin=88 peak_power=123456 dropped=0 crc=00000065') + $valid[1..$($valid.Count - 1)] },
         @{ Name = 'fail-line'; Lines = @($valid[0]) + @('PL_FFT_MONITOR: FAIL seq=050 reason=hardware') + $valid[1..$($valid.Count - 1)] },
         @{ Name = 'extra-malformed-start'; Lines = @('PL_FFT_MONITOR: START frames=99 interval_ms=1000 bins=2048') + $valid },
         @{ Name = 'missing-final-pass'; Lines = $valid[0..($valid.Count - 2)] },

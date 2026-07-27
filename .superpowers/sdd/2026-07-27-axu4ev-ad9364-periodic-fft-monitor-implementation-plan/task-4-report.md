@@ -70,6 +70,36 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 No board, serial-port, build, packaging, or deployment action was run.
 
+## Review round 3 fix — trimmed protocol-token classification
+
+### RED evidence
+
+Added fixtures with a missing colon (`PL_FFT_MONITOR FRAME`), semicolon
+delimiter, and leading whitespace before a FRAME record.  The missing-colon
+fixture was accepted by the prior delimiter-based namespace detector.
+
+### Fix and GREEN evidence
+
+- Protocol-like detection now checks whether `TrimStart()` begins with the
+  `PL_FFT_MONITOR` token (case-insensitively).  It validates the original,
+  untrimmed line against exact case-sensitive START, FRAME, and PASS forms;
+  any FAIL line rejects immediately.  Thus a leading space, missing/replaced
+  delimiter, or appended namespace form cannot become harmless noise.
+- Added a positive fixture with `UART noise: PL_FFT_MONITOR: ...`; because the
+  namespace token occurs after other text, it remains unrelated UART noise and
+  is accepted.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File PROJECT\tests\Test-Axu4evPeriodicMonitorLogParser.ps1
+# PASS: periodic FFT monitor log parser accepts only the complete contract.
+
+# Targeted missing-delimiter and leading-whitespace records
+# PASS: targeted missing-delimiter and leading-whitespace records were rejected.
+```
+
+No board, serial-port, build, packaging, or deployment action was run.
+
 ## Review round 2 fix — namespace-level protocol validation
 
 ### RED evidence

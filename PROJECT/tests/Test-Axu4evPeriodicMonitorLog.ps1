@@ -39,14 +39,14 @@ try {
     $protocolIndexes = @($lines | ForEach-Object -Begin { $index = 0 } -Process {
         $currentIndex = $index
         $index++
-        if ([regex]::IsMatch($_, '^PL_FFT_MONITOR\s*:', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) { $currentIndex }
+        if ($_.TrimStart().StartsWith('PL_FFT_MONITOR', [System.StringComparison]::OrdinalIgnoreCase)) { $currentIndex }
     })
     foreach ($protocolIndex in $protocolIndexes) {
         $protocolLine = $lines[$protocolIndex]
+        Assert-LogCondition (-not [regex]::IsMatch($protocolLine, $failPattern)) 'Log must not contain a FAIL line.'
         $isKnownRecord = ($protocolLine -ceq $startLine) -or
             ($protocolLine -ceq $passLine) -or
-            [regex]::IsMatch($protocolLine, $framePattern) -or
-            [regex]::IsMatch($protocolLine, $failPattern)
+            [regex]::IsMatch($protocolLine, $framePattern)
         Assert-LogCondition $isKnownRecord 'PL_FFT_MONITOR protocol line does not match a known record grammar.'
     }
     $frameIndexes = @($lines | ForEach-Object -Begin { $index = 0 } -Process {
