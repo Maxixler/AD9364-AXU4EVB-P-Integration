@@ -714,10 +714,30 @@ capture + controlled-CW evidence validator).
 - [x] Python UI, NPZ, CSV ve evidence gain bağlantısı.
 - [x] Frame serisinde gain değişimi negatif testi.
 - [x] C golden-vector, servis, A53 kaynak ve Python regresyonları.
-- [ ] `monopulse-live-lab-v2` gerçek Vitis Release build.
-- [ ] Immutable Candidate manifest/hash doğrulaması.
+- [x] `monopulse-live-lab-v2` gerçek Vitis 2020.1 A53 Release ELF build.
+- [x] Immutable Candidate manifest/hash doğrulaması.
 - [ ] Kartta protocol v2 READY ve kontrollü-CW kabul testi.
 
 Lab kabul frekansı DC dışında ve 15 kHz bin aralığına hizalı seçilecektir.
 Önerilen ilk offset LO + 300 kHz (bin 20) veya LO + 1.5 MHz (bin 100)'dur.
 PetaLinux/IIO ertelenmiştir.
+
+Vitis 2020.1 `platform generate` işlemi iki temiz kısa workspace denemesinde
+kendi BSP dosyalarını kilitleyerek başarısız olduğu için üçüncü aynı deneme
+yapılmadı. Uygulama ELF'i, mevcut doğrulanmış AXU4EV standalone BSP'si ve Vitis
+2020.1 AArch64 compiler/linker ile ayrı build klasöründe üretildi. PL FFT
+adresleri Candidate XSA sözleşmesinden gerçek değerleriyle bağlandı:
+`0x9C440000`, `0x9D000000`, `0x9D010000`.
+
+Oluşan v2 Candidate:
+
+```text
+release_id: monopulse-live-lab-v2
+source_commit: 3f88ccc7e85eaab34f197dd9dda4a3e136285c32
+application_length: 865952
+application_sha256:
+  E05CA5EB83CC3E94BC05F55E52C1A076979FD2A66D8E19EBBE822DAF4FE7C01F
+bitstream_sha256:
+  ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC
+board_verified: false
+```

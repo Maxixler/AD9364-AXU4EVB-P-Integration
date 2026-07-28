@@ -644,3 +644,29 @@ Yeni Candidate gerçek Vitis build ve paket doğrulamasından sonra laboratuvard
 JTAG/UART ve DC-dışı, bin-hizalı kontrollü CW ile kabul edilecektir. Ayrıntılı
 tasarım notu:
 `PROJECT/reports/2026-07-28-axu4ev-ad9364-baremetal-gain-lock-v2.md`.
+
+### v2 build ve paket durumu
+
+`monopulse-live-lab-v2` paketi oluşturuldu. Vitis 2020.1 platform üretiminin
+temiz kısa workspace içinde tekrar eden Windows BSP self-lock hatası ayrıştırıldı;
+aynı başarısız işlem üçüncü kez tekrarlanmadı. A53 uygulaması, Vitis 2020.1
+compiler/linker ve daha önce üretilmiş doğrulanmış AXU4EV standalone BSP ile
+ayrı klasörde derlendi. Gerçek Candidate XSA adresleri derlemeye açıkça bağlandı.
+
+| Alan | Değer |
+|---|---|
+| Release | `monopulse-live-lab-v2` |
+| Kaynak commit | `3f88ccc7e85eaab34f197dd9dda4a3e136285c32` |
+| Uygulama | `865952` bayt |
+| Uygulama SHA-256 | `E05CA5EB83CC3E94BC05F55E52C1A076979FD2A66D8E19EBBE822DAF4FE7C01F` |
+| Bitstream SHA-256 | `ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC` |
+| PMUFW SHA-256 | `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB` |
+| `psu_init.tcl` SHA-256 | `CDC1A5C457B0A77B8A2BB43AEF4D046889A1B4F3E60992819379F31D28C1539B` |
+| XSA SHA-256 | `672A431A3698DFB841AD0F09A8605CD1D125314FCB6333E49A60727E8B42E574` |
+| Fiziksel doğrulama | `board_verified=false` |
+
+Uygulama ELF kapısı; `PL_FFT_LAB_UART`, gerçek PL adresleri, protocol-v2 READY
+formatı, `monopulse-live-lab-v2` kimliği ve laboratuvar servis sembollerini
+doğruladı. Donanım artefaktlarının dördü board-verified
+`fft-single-shot-v1` ile byte-identical kaldı. Açık tek bağlayıcı kapı kartta
+READY satırı ve 100-frame kontrollü-CW kabulüdür.

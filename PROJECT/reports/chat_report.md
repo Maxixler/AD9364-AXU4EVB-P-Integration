@@ -698,3 +698,19 @@ korundu.
 
 Sonraki fiziksel adım `monopulse-live-lab-v2` Candidate'ını JTAG ile başlatıp
 UART READY satırını ve bin-hizalı kontrollü CW peak kararlılığını doğrulamaktır.
+
+V2 kaynak commit'i `3f88ccc7e85eaab34f197dd9dda4a3e136285c32` olarak
+kilitlendi. Vitis 2020.1 `platform generate`, iki temiz kısa workspace denemesinde
+kendi BSP kaynaklarını silmeye çalışırken Windows file-lock hatası verdi. Aynı
+işlemi tekrar etmek yerine, mevcut doğrulanmış AXU4EV standalone BSP ile Vitis
+2020.1 AArch64 compiler/linker kullanılarak uygulama ayrı klasörde derlendi.
+Derlemede Candidate XSA'nın gerçek FFT adresleri (`0x9C440000`,
+`0x9D000000`, `0x9D010000`) kullanıldı.
+
+ELF `865952` bayt ve SHA-256 değeri
+`E05CA5EB83CC3E94BC05F55E52C1A076979FD2A66D8E19EBBE822DAF4FE7C01F`
+olarak üretildi. Protocol-v2/gain formatı, release kimliği ve gerekli laboratuvar
+servis sembolleri binary içinde doğrulandı. ELF; board-verified single-shot
+bitstream, PMUFW, `psu_init.tcl` ve XSA ile `monopulse-live-lab-v2` immutable
+Candidate paketine bağlandı. Manifest/hash doğrulaması PASS; fiziksel test
+yapılmadığı için `board_verified=false` korundu.

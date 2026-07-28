@@ -70,3 +70,35 @@ there is no clipping before increasing source level or receiver gain.
 - Candidate build isolation dry-run.
 - Immutable Candidate artifact/hash verification after real Vitis build.
 - Physical JTAG/UART and controlled-CW acceptance in the laboratory.
+
+## Built Candidate
+
+The application was compiled with the Vitis 2020.1 AArch64 compiler/linker
+against the existing verified AXU4EV standalone BSP. Two clean short-workspace
+`platform generate` attempts hit the same Vitis 2020.1 Windows BSP self-lock;
+the failing operation was not repeated a third time.
+
+The application-only build used the real address contract from the Candidate
+XSA, not the dummy addresses used by host syntax tests:
+
+- control: `0x9C440000`;
+- spectrum bank 0: `0x9D000000`;
+- spectrum bank 1: `0x9D010000`.
+
+Binary gates confirmed the protocol-v2 READY format, release identifier and
+lab-service symbols. The package is:
+
+```text
+release_id: monopulse-live-lab-v2
+source_commit: 3f88ccc7e85eaab34f197dd9dda4a3e136285c32
+application_length: 865952
+application_sha256:
+  E05CA5EB83CC3E94BC05F55E52C1A076979FD2A66D8E19EBBE822DAF4FE7C01F
+bitstream_sha256:
+  ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC
+board_verified: false
+```
+
+The bitstream, PMUFW, `psu_init.tcl` and XSA remain byte-identical to the
+board-verified `fft-single-shot-v1` hardware package. Physical JTAG/UART and
+controlled-CW acceptance remain intentionally open.
