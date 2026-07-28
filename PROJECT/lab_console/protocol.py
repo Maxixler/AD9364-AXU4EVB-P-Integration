@@ -11,7 +11,7 @@ import numpy as np
 
 REQUEST_MAGIC = b"MPLQ"
 RESPONSE_MAGIC = b"MPLR"
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 
 GET_INFO = 0x01
 INFO = 0x02
@@ -22,8 +22,8 @@ ERROR = 0x7E
 HEADER = struct.Struct("<4sBBHII")
 CRC = struct.Struct("<I")
 CAPTURE = struct.Struct("<HHHBB")
-INFO_PREFIX = struct.Struct("<HHIIHBBIIQ32s")
-SPECTRUM_PREFIX = struct.Struct("<IHHIIQIIQHhhHBBHH")
+INFO_PREFIX = struct.Struct("<HHIIHBBIIQhBB32s")
+SPECTRUM_PREFIX = struct.Struct("<IHHIIQIIQHhhHBBHhBB")
 ERROR_PAYLOAD = struct.Struct("<iHH")
 
 MAX_PAYLOAD = 16448
@@ -31,7 +31,7 @@ FFT_SIZE = 2048
 SPECTRUM_WORD_BYTES = 8
 _MAX_WIRE_SIZE = HEADER.size + MAX_PAYLOAD + CRC.size
 _RESPONSE_TYPES = frozenset((INFO, SPECTRUM, ERROR))
-_FEATURE_MASK = 0x00000007
+_FEATURE_MASK = 0x0000000F
 _HARDWARE_FLAG_NAMES = (
     "frame_error",
     "fft_error",
@@ -44,7 +44,7 @@ _HARDWARE_FLAG_MASK = (1 << len(_HARDWARE_FLAG_NAMES)) - 1
 
 
 class ProtocolError(ValueError):
-    """A decoded message violates the version-1 wire contract."""
+    """A decoded message violates the version-2 wire contract."""
 
 
 @dataclass(frozen=True)
@@ -70,6 +70,8 @@ class InfoResponse:
     sample_rate_hz: int
     rx_bandwidth_hz: int
     lo_hz: int
+    gain_db: int
+    gain_mode: int
     release_id: str
 
 
@@ -92,6 +94,8 @@ class SpectrumResponse:
     rf_state: int
     active_bank: int
     hardware_flags: int
+    gain_db: int
+    gain_mode: int
     spectrum: np.ndarray
 
     @property
@@ -134,7 +138,7 @@ def _encode(
 
 
 def encode_get_info(sequence: int) -> bytes:
-    """Encode a version-1 GET_INFO request."""
+    """Encode a version-2 GET_INFO request."""
 
     return _encode(REQUEST_MAGIC, GET_INFO, 0, sequence, b"")
 
@@ -146,7 +150,7 @@ def encode_capture_once(
     dc_guard: int,
     rf_state: int,
 ) -> bytes:
-    """Encode a version-1 CAPTURE_ONCE request."""
+    """Encode a version-2 CAPTURE_ONCE request."""
 
     payload = CAPTURE.pack(
         search_start,
@@ -171,6 +175,9 @@ def decode_info(envelope: Envelope) -> InfoResponse:
         sample_rate_hz,
         rx_bandwidth_hz,
         lo_hz,
+        gain_db,
+        gain_mode,
+        reserved,
         release_raw,
     ) = INFO_PREFIX.unpack(envelope.payload)
     if feature_bits & ~_FEATURE_MASK:
@@ -183,6 +190,10 @@ def decode_info(envelope: Envelope) -> InfoResponse:
         )
     if rf_state_count not in (1, 4):
         raise ProtocolError("INFO rf_state_count must be 1 or 4")
+    if gain_mode != 0:
+        raise ProtocolError("INFO gain_mode must be manual")
+    if reserved != 0:
+        raise ProtocolError("INFO reserved byte must be zero")
     release_id = _decode_padded_ascii(release_raw, "release_id")
     return InfoResponse(
         sequence=envelope.sequence,
@@ -196,6 +207,8 @@ def decode_info(envelope: Envelope) -> InfoResponse:
         sample_rate_hz=sample_rate_hz,
         rx_bandwidth_hz=rx_bandwidth_hz,
         lo_hz=lo_hz,
+        gain_db=gain_db,
+        gain_mode=gain_mode,
         release_id=release_id,
     )
 
@@ -220,6 +233,8 @@ def decode_spectrum(envelope: Envelope) -> SpectrumResponse:
         rf_state,
         active_bank,
         hardware_flags,
+        gain_db,
+        gain_mode,
         reserved,
     ) = SPECTRUM_PREFIX.unpack_from(envelope.payload)
     if sample_count != FFT_SIZE:
@@ -229,11 +244,13 @@ def decode_spectrum(envelope: Envelope) -> SpectrumResponse:
     if peak_bin >= FFT_SIZE:
         raise ProtocolError("SPECTRUM peak_bin is outside the FFT")
     if rf_state > 7:
-        raise ProtocolError("SPECTRUM rf_state is outside version-1 range")
+        raise ProtocolError("SPECTRUM rf_state is outside version-2 range")
     if active_bank > 1:
         raise ProtocolError("SPECTRUM active_bank must be 0 or 1")
     if hardware_flags & ~_HARDWARE_FLAG_MASK:
         raise ProtocolError("SPECTRUM hardware_flags contain reserved bits")
+    if gain_mode != 0:
+        raise ProtocolError("SPECTRUM gain_mode must be manual")
     if reserved != 0:
         raise ProtocolError("SPECTRUM reserved word must be zero")
 
@@ -261,6 +278,8 @@ def decode_spectrum(envelope: Envelope) -> SpectrumResponse:
         rf_state=rf_state,
         active_bank=active_bank,
         hardware_flags=hardware_flags,
+        gain_db=gain_db,
+        gain_mode=gain_mode,
         spectrum=spectrum,
     )
 
@@ -269,9 +288,9 @@ def decode_error(envelope: Envelope) -> ErrorResponse:
     _require_envelope(envelope, ERROR, ERROR_PAYLOAD.size)
     error_code, stage, detail = ERROR_PAYLOAD.unpack(envelope.payload)
     if detail != 0:
-        raise ProtocolError("ERROR detail must be zero in protocol v1")
+        raise ProtocolError("ERROR detail must be zero in protocol v2")
     if stage not in range(1, 6):
-        raise ProtocolError("ERROR stage is outside protocol v1")
+        raise ProtocolError("ERROR stage is outside protocol v2")
     return ErrorResponse(
         sequence=envelope.sequence,
         error_code=error_code,
@@ -288,7 +307,7 @@ def _require_envelope(
             f"unexpected message type 0x{envelope.message_type:02x}"
         )
     if envelope.flags != 0:
-        raise ProtocolError("protocol v1 response flags must be zero")
+        raise ProtocolError("protocol v2 response flags must be zero")
     if len(envelope.payload) != payload_length:
         raise ProtocolError(
             f"payload length {len(envelope.payload)} != {payload_length}"

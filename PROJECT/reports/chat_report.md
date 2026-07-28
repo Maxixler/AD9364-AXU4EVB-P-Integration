@@ -683,3 +683,18 @@ denetler. Sentetik pozitif/negatif testler PASS, gerçek kanıt eksikliği ise
 tasarlandığı gibi RED'dir.
 
 Kapanış commitleri `3f0bcec` ve `c920edc`'dir.
+
+## 28 Temmuz 2026 — bare-metal gain-lock v2
+
+AD9361 tabanlı harici Python örneği projeye alınmadı ve PetaLinux/IIO kapsamı
+ertelendi. Kendi AXU4EVB-P + AD9364 bare-metal test zinciri incelendi.
+
+Kontrollü ölçümlerde slow-attack AGC'nin SUM/ERROR genlik oranlarını
+değiştirebileceği tespit edildi. RX0 manual moda alınıp 50 dB'e kilitlendi;
+mod/gain readback başlangıçta ve her frame öncesinde zorunlu yapıldı. Protokol
+v2'ye gain telemetrisi eklendi. Python history, NPZ, CSV ve evidence validator
+gain değişimini reddedecek şekilde güncellendi. 2048-bin FFT ve tek RX kanalı
+korundu.
+
+Sonraki fiziksel adım `monopulse-live-lab-v2` Candidate'ını JTAG ile başlatıp
+UART READY satırını ve bin-hizalı kontrollü CW peak kararlılığını doğrulamaktır.

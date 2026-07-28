@@ -11,21 +11,23 @@ from PROJECT.lab_console.evidence import validate_cw_evidence
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CANDIDATE = (
+CANDIDATE_V1 = (
     ROOT
     / "PROJECT"
     / "candidates"
     / "axu4ev-ad9364"
     / "monopulse-live-lab-v1"
 )
-MANIFEST = CANDIDATE / "manifest.json"
+MANIFEST_V1 = CANDIDATE_V1 / "manifest.json"
 
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest().upper()
 
 
-def _write_valid_fixture(root: Path) -> tuple[Path, Path, Path]:
+def _write_valid_fixture(
+    root: Path,
+) -> tuple[Path, Path, Path, Path]:
     frame_count = 10
     peak_bin = 123
     lo_hz = 2_400_000_000
@@ -60,8 +62,10 @@ def _write_valid_fixture(root: Path) -> tuple[Path, Path, Path]:
         rx_bandwidth_hz=np.full(
             frame_count, bandwidth_hz, dtype=np.uint32
         ),
+        gain_mode=np.zeros(frame_count, dtype=np.uint8),
+        gain_db=np.full(frame_count, 50, dtype=np.int16),
         release_id=np.full(
-            frame_count, "monopulse-live-lab-v1", dtype="<U32"
+            frame_count, "monopulse-live-lab-v2", dtype="<U32"
         ),
     )
     fieldnames = (
@@ -74,6 +78,8 @@ def _write_valid_fixture(root: Path) -> tuple[Path, Path, Path]:
         "lo_hz",
         "sample_rate_hz",
         "rx_bandwidth_hz",
+        "gain_mode",
+        "gain_db",
         "release_id",
     )
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
@@ -91,11 +97,23 @@ def _write_valid_fixture(root: Path) -> tuple[Path, Path, Path]:
                     "lo_hz": lo_hz,
                     "sample_rate_hz": sample_rate_hz,
                     "rx_bandwidth_hz": bandwidth_hz,
-                    "release_id": "monopulse-live-lab-v1",
+                    "gain_mode": 0,
+                    "gain_db": 50,
+                    "release_id": "monopulse-live-lab-v2",
                 }
             )
 
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8-sig"))
+    manifest = json.loads(MANIFEST_V1.read_text(encoding="utf-8-sig"))
+    for artifact in manifest["artifacts"]:
+        artifact["path"] = str(
+            (MANIFEST_V1.parent / artifact["path"]).resolve()
+        )
+    manifest["release_id"] = "monopulse-live-lab-v2"
+    manifest_path = root / "manifest-v2-fixture.json"
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2),
+        encoding="utf-8",
+    )
     artifacts = {
         item["name"]: item["sha256"] for item in manifest["artifacts"]
     }
@@ -104,7 +122,7 @@ def _write_valid_fixture(root: Path) -> tuple[Path, Path, Path]:
             (
                 "# AXU4EVB-P + AD9364 controlled-CW acceptance",
                 "",
-                "Candidate release: monopulse-live-lab-v1",
+                "Candidate release: monopulse-live-lab-v2",
                 f"Application SHA-256: {artifacts['application']}",
                 f"Bitstream SHA-256: {artifacts['bitstream']}",
                 f"SMW200A frequency Hz: {source_hz}",
@@ -114,6 +132,8 @@ def _write_valid_fixture(root: Path) -> tuple[Path, Path, Path]:
                 f"AD9364 LO Hz: {lo_hz}",
                 f"AD9364 sample rate Hz: {sample_rate_hz}",
                 f"AD9364 bandwidth Hz: {bandwidth_hz}",
+                "AD9364 gain mode: manual",
+                "AD9364 gain dB: 50",
                 f"Expected peak bin: {peak_bin}",
                 "Peak tolerance bins: 1",
                 f"NPZ SHA-256: {_sha256(npz_path)}",
@@ -123,17 +143,17 @@ def _write_valid_fixture(root: Path) -> tuple[Path, Path, Path]:
         ),
         encoding="utf-8",
     )
-    return evidence_path, npz_path, csv_path
+    return manifest_path, evidence_path, npz_path, csv_path
 
 
 class ControlledCwEvidenceTests(unittest.TestCase):
     def test_valid_ten_frame_fixture_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            evidence, npz_path, csv_path = _write_valid_fixture(
+            manifest, evidence, npz_path, csv_path = _write_valid_fixture(
                 Path(temporary)
             )
             result = validate_cw_evidence(
-                MANIFEST, evidence, npz_path, csv_path
+                manifest, evidence, npz_path, csv_path
             )
         self.assertEqual(result.frame_count, 10)
         self.assertEqual(result.expected_peak_bin, 123)
@@ -145,7 +165,7 @@ class ControlledCwEvidenceTests(unittest.TestCase):
             root = Path(temporary)
             with self.assertRaises(FileNotFoundError):
                 validate_cw_evidence(
-                    MANIFEST,
+                    MANIFEST_V1,
                     root / "missing.md",
                     root / "missing.npz",
                     root / "missing.csv",
@@ -153,7 +173,7 @@ class ControlledCwEvidenceTests(unittest.TestCase):
 
     def test_peak_outside_plus_or_minus_one_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            evidence, npz_path, csv_path = _write_valid_fixture(
+            manifest, evidence, npz_path, csv_path = _write_valid_fixture(
                 Path(temporary)
             )
             with np.load(npz_path) as saved:
@@ -173,7 +193,33 @@ class ControlledCwEvidenceTests(unittest.TestCase):
             evidence.write_text(text, encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "peak bin"):
                 validate_cw_evidence(
-                    MANIFEST, evidence, npz_path, csv_path
+                    manifest, evidence, npz_path, csv_path
+                )
+
+    def test_gain_change_between_frames_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest, evidence, npz_path, csv_path = _write_valid_fixture(
+                Path(temporary)
+            )
+            with np.load(npz_path) as saved:
+                values = {name: saved[name] for name in saved.files}
+            values["gain_db"] = values["gain_db"].copy()
+            values["gain_db"][5] = 49
+            np.savez(npz_path, **values)
+            text = evidence.read_text(encoding="utf-8")
+            text = text.replace(
+                next(
+                    line
+                    for line in text.splitlines()
+                    if line.startswith("NPZ SHA-256:")
+                ),
+                f"NPZ SHA-256: {_sha256(npz_path)}",
+            )
+            evidence.write_text(text, encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "gain_db"):
+                validate_cw_evidence(
+                    manifest, evidence, npz_path, csv_path
                 )
 
 

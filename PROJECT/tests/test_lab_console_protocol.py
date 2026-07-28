@@ -47,9 +47,14 @@ def make_response(
 
 
 class LabConsoleProtocolEncodingTests(unittest.TestCase):
-    def test_get_info_has_exact_v1_wire_image(self) -> None:
+    def test_protocol_v2_binds_manual_gain_telemetry(self) -> None:
+        self.assertEqual(PROTOCOL_VERSION, 2)
+        self.assertEqual(INFO_PREFIX.size, 68)
+        self.assertEqual(SPECTRUM_PREFIX.size, 56)
+
+    def test_get_info_has_exact_v2_wire_image(self) -> None:
         expected_without_crc = bytes.fromhex(
-            "4d504c51010100000000000001000000"
+            "4d504c51020100000000000001000000"
         )
         expected = expected_without_crc + struct.pack(
             "<I", zlib.crc32(expected_without_crc) & 0xFFFFFFFF
@@ -57,7 +62,7 @@ class LabConsoleProtocolEncodingTests(unittest.TestCase):
 
         self.assertEqual(encode_get_info(1), expected)
 
-    def test_capture_once_has_exact_v1_payload(self) -> None:
+    def test_capture_once_has_exact_v2_payload(self) -> None:
         payload = struct.pack("<HHHBB", 12, 1999, 4, 3, 0)
         prefix = HEADER.pack(
             b"MPLQ",
@@ -124,7 +129,7 @@ class LabConsoleEnvelopeDecoderTests(unittest.TestCase):
         decoder = MessageDecoder()
 
         decoded = decoder.feed(
-            make_response(0x02, 3, version=2)
+            make_response(0x02, 3, version=1)
             + make_response(0x02, 4)
         )
 
@@ -178,7 +183,10 @@ class LabConsolePayloadDecoderTests(unittest.TestCase):
             30_720_000,
             10_000_000,
             2_400_000_000,
-            b"monopulse-live-lab-v1".ljust(32, b"\0"),
+            50,
+            0,
+            0,
+            b"monopulse-live-lab-v2".ljust(32, b"\0"),
         )
         envelope = Envelope(INFO, 0, 19, payload)
 
@@ -195,7 +203,9 @@ class LabConsolePayloadDecoderTests(unittest.TestCase):
         self.assertEqual(info.sample_rate_hz, 30_720_000)
         self.assertEqual(info.rx_bandwidth_hz, 10_000_000)
         self.assertEqual(info.lo_hz, 2_400_000_000)
-        self.assertEqual(info.release_id, "monopulse-live-lab-v1")
+        self.assertEqual(info.gain_db, 50)
+        self.assertEqual(info.gain_mode, 0)
+        self.assertEqual(info.release_id, "monopulse-live-lab-v2")
 
     def test_info_rejects_reserved_feature_bits(self) -> None:
         payload = INFO_PREFIX.pack(
@@ -209,6 +219,9 @@ class LabConsolePayloadDecoderTests(unittest.TestCase):
             30_720_000,
             10_000_000,
             2_400_000_000,
+            50,
+            0,
+            0,
             b"candidate".ljust(32, b"\0"),
         )
 
@@ -236,6 +249,8 @@ class LabConsolePayloadDecoderTests(unittest.TestCase):
             3,
             1,
             0b001001,
+            50,
+            0,
             0,
         )
         envelope = Envelope(SPECTRUM, 0, 23, prefix + bins.tobytes())
@@ -259,6 +274,8 @@ class LabConsolePayloadDecoderTests(unittest.TestCase):
         self.assertEqual(response.rf_state, 3)
         self.assertEqual(response.active_bank, 1)
         self.assertEqual(response.hardware_flags, 0b001001)
+        self.assertEqual(response.gain_db, 50)
+        self.assertEqual(response.gain_mode, 0)
         self.assertEqual(
             response.hardware_faults,
             ("frame_error", "cdc_fault"),
@@ -288,6 +305,8 @@ class LabConsolePayloadDecoderTests(unittest.TestCase):
             0,
             0,
             0,
+            50,
+            0,
             0,
         )
         with self.assertRaisesRegex(ProtocolError, "length"):
@@ -296,7 +315,7 @@ class LabConsolePayloadDecoderTests(unittest.TestCase):
             )
 
         reserved_prefix = bytearray(valid_prefix)
-        reserved_prefix[-2:] = b"\x01\x00"
+        reserved_prefix[-1] = 1
         with self.assertRaisesRegex(ProtocolError, "reserved"):
             decode_spectrum(
                 Envelope(SPECTRUM, 0, 1, bytes(reserved_prefix) + bins)
@@ -320,6 +339,8 @@ class LabConsolePayloadDecoderTests(unittest.TestCase):
             0,
             0,
             0,
+            0,
+            50,
             0,
             0,
         )

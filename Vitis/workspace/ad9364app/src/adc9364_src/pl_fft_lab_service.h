@@ -20,6 +20,8 @@ struct pl_fft_lab_rf_snapshot {
 	uint32_t sample_rate_hz;
 	uint32_t rx_bandwidth_hz;
 	uint64_t lo_hz;
+	int16_t gain_db;
+	uint8_t gain_mode;
 };
 
 struct pl_fft_lab_service {

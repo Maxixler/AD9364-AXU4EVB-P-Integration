@@ -16,7 +16,7 @@ import numpy as np
 
 FFT_SIZE = 2048
 MINIMUM_FRAMES = 10
-RELEASE_ID = "monopulse-live-lab-v1"
+RELEASE_ID = "monopulse-live-lab-v2"
 _REQUIRED_METADATA = (
     "Candidate release",
     "Application SHA-256",
@@ -28,6 +28,8 @@ _REQUIRED_METADATA = (
     "AD9364 LO Hz",
     "AD9364 sample rate Hz",
     "AD9364 bandwidth Hz",
+    "AD9364 gain mode",
+    "AD9364 gain dB",
     "Expected peak bin",
     "Peak tolerance bins",
     "NPZ SHA-256",
@@ -43,6 +45,8 @@ _IDENTITY_FIELDS = (
     "lo_hz",
     "sample_rate_hz",
     "rx_bandwidth_hz",
+    "gain_mode",
+    "gain_db",
     "release_id",
 )
 
@@ -237,6 +241,10 @@ def validate_cw_evidence(
     bandwidth_hz = _parse_int(
         metadata["AD9364 bandwidth Hz"], "AD9364 bandwidth Hz"
     )
+    gain_mode = metadata["AD9364 gain mode"].strip().lower()
+    gain_db = _parse_int(metadata["AD9364 gain dB"], "AD9364 gain dB")
+    if gain_mode != "manual":
+        raise ValueError("AD9364 gain mode must be manual")
     expected_peak = _parse_int(
         metadata["Expected peak bin"], "Expected peak bin"
     )
@@ -298,6 +306,8 @@ def validate_cw_evidence(
         ("lo_hz", lo_hz),
         ("sample_rate_hz", sample_rate_hz),
         ("rx_bandwidth_hz", bandwidth_hz),
+        ("gain_mode", 0),
+        ("gain_db", gain_db),
     )
     for field, expected in runtime_checks:
         if np.any(arrays[field] != expected):

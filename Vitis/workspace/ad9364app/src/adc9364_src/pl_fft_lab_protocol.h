@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define PL_FFT_LAB_PROTOCOL_VERSION 1u
+#define PL_FFT_LAB_PROTOCOL_VERSION 2u
 #define PL_FFT_LAB_HEADER_SIZE 16u
 #define PL_FFT_LAB_CRC_SIZE 4u
 #define PL_FFT_LAB_COMMAND_PAYLOAD_MAX 8u
@@ -35,6 +35,10 @@ enum pl_fft_lab_parser_event {
 	PL_FFT_LAB_COMMAND_REJECTED = -1,
 	PL_FFT_LAB_COMMAND_NONE = 0,
 	PL_FFT_LAB_COMMAND_READY = 1
+};
+
+enum pl_fft_lab_gain_mode {
+	PL_FFT_LAB_GAIN_MODE_MANUAL = 0u
 };
 
 struct pl_fft_lab_capture {
@@ -79,6 +83,8 @@ struct pl_fft_lab_info {
 	uint32_t sample_rate_hz;
 	uint32_t rx_bandwidth_hz;
 	uint64_t lo_hz;
+	int16_t gain_db;
+	uint8_t gain_mode;
 	uint8_t release_id[PL_FFT_LAB_RELEASE_ID_SIZE];
 };
 
@@ -99,6 +105,8 @@ struct pl_fft_lab_spectrum {
 	uint8_t rf_state;
 	uint8_t active_bank;
 	uint16_t hardware_flags;
+	int16_t gain_db;
+	uint8_t gain_mode;
 };
 
 void pl_fft_lab_parser_init(struct pl_fft_lab_parser *parser);

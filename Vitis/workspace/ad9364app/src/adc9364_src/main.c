@@ -230,6 +230,8 @@ static int pl_fft_periodic_monitor_run(void)
 #endif
 
 #ifdef PL_FFT_LAB_UART
+#define PL_FFT_LAB_RX_GAIN_DB 50
+
 static int32_t pl_fft_lab_board_write(void *context,
 				      const uint8_t *data,
 				      uint32_t length,
@@ -250,7 +252,9 @@ static int32_t pl_fft_lab_board_read_rf(
 	void *context, struct pl_fft_lab_rf_snapshot *snapshot)
 {
 	struct ad9361_rf_phy *phy = context;
+	int32_t gain_db;
 	int32_t status;
+	uint8_t gain_mode;
 
 	if (phy == NULL || snapshot == NULL)
 		return PL_FFT_ERR_ARGUMENT;
@@ -262,7 +266,54 @@ static int32_t pl_fft_lab_board_read_rf(
 		phy, &snapshot->rx_bandwidth_hz);
 	if (status < 0)
 		return status;
-	return ad9361_get_rx_lo_freq(phy, &snapshot->lo_hz);
+	status = ad9361_get_rx_lo_freq(phy, &snapshot->lo_hz);
+	if (status < 0)
+		return status;
+	status = ad9361_get_rx_gain_control_mode(
+		phy, 0u, &gain_mode);
+	if (status < 0)
+		return status;
+	status = ad9361_get_rx_rf_gain(phy, 0u, &gain_db);
+	if (status < 0)
+		return status;
+	if (gain_mode != RF_GAIN_MGC ||
+	    gain_db != PL_FFT_LAB_RX_GAIN_DB)
+		return PL_FFT_ERR_HARDWARE;
+	snapshot->gain_db = (int16_t)gain_db;
+	snapshot->gain_mode = PL_FFT_LAB_GAIN_MODE_MANUAL;
+	return PL_FFT_OK;
+}
+
+static int32_t pl_fft_lab_lock_manual_gain(
+	struct ad9361_rf_phy *phy, int16_t *gain_db)
+{
+	uint8_t gain_mode;
+	int32_t readback_gain;
+	int32_t status;
+
+	if (phy == NULL || gain_db == NULL)
+		return PL_FFT_ERR_ARGUMENT;
+	status = ad9361_set_rx_gain_control_mode(
+		phy, 0u, RF_GAIN_MGC);
+	if (status < 0)
+		return status;
+	status = ad9361_set_rx_rf_gain(
+		phy, 0u, PL_FFT_LAB_RX_GAIN_DB);
+	if (status < 0)
+		return status;
+	status = ad9361_get_rx_gain_control_mode(
+		phy, 0u, &gain_mode);
+	if (status < 0)
+		return status;
+	status = ad9361_get_rx_rf_gain(
+		phy, 0u, &readback_gain);
+	if (status < 0)
+		return status;
+	if (gain_mode != RF_GAIN_MGC ||
+	    readback_gain != PL_FFT_LAB_RX_GAIN_DB)
+		return PL_FFT_ERR_CONFIG;
+	*gain_db = (int16_t)readback_gain;
+	return PL_FFT_OK;
 }
 
 static void pl_fft_lab_report_failure(const char *stage, int32_t error)
@@ -296,14 +347,21 @@ static int32_t pl_fft_lab_uart_run(struct ad9361_rf_phy *phy)
 		.spectrum = pl_fft_spectrum
 	};
 	int32_t status;
+	int16_t gain_db;
 
+	status = pl_fft_lab_lock_manual_gain(phy, &gain_db);
+	if (status != PL_FFT_OK) {
+		pl_fft_lab_report_failure("GAIN_LOCK", status);
+		return status;
+	}
 	status = pl_fft_init(&dev);
 	if (status != PL_FFT_OK) {
 		pl_fft_lab_report_failure("INIT", status);
 		return status;
 	}
 	pl_fft_lab_parser_init(&parser);
-	printf("PL_FFT_LAB: READY protocol=1 bins=2048 baud=115200\n");
+	printf("PL_FFT_LAB: READY protocol=2 bins=2048 baud=115200 "
+	       "gain_mode=manual gain_db=%d\n", (int)gain_db);
 	for (;;) {
 		int32_t event = pl_fft_lab_parser_push(
 			&parser, (uint8_t)inbyte(), &command);

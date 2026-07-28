@@ -17,6 +17,7 @@ def make_response(
     frame_id: int = 1,
     peak_bin: int | None = None,
     hardware_flags: int = 0,
+    gain_db: int = 50,
 ) -> SpectrumResponse:
     values = np.asarray(spectrum, dtype=np.uint64)
     if peak_bin is None:
@@ -39,6 +40,8 @@ def make_response(
         rf_state=0,
         active_bank=1,
         hardware_flags=hardware_flags,
+        gain_db=gain_db,
+        gain_mode=0,
         spectrum=values,
     )
 
@@ -129,6 +132,24 @@ class SpectrumHistoryTests(unittest.TestCase):
         self.assertEqual(history.frames[0].response.frame_id, 2)
         self.assertEqual(history.frames[-1].response.frame_id, 33)
         self.assertEqual(history.waterfall_db.shape, (32, 2048))
+
+    def test_gain_change_is_rejected_before_entering_history(self) -> None:
+        natural = np.zeros(2048, dtype=np.uint64)
+        natural[4] = 1
+        history = SpectrumHistory(history=32)
+        history.append(make_response(natural, frame_id=1, peak_bin=4))
+
+        with self.assertRaisesRegex(ValueError, "gain"):
+            history.append(
+                make_response(
+                    natural,
+                    frame_id=2,
+                    peak_bin=4,
+                    gain_db=49,
+                )
+            )
+
+        self.assertEqual(len(history), 1)
 
 
 if __name__ == "__main__":

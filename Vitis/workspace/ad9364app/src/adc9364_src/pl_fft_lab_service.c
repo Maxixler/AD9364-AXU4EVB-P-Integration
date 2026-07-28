@@ -5,8 +5,8 @@
 
 #define PL_FFT_LAB_BOARD_AXU4EVB_P 1u
 #define PL_FFT_LAB_RF_AD9364 1u
-#define PL_FFT_LAB_FEATURES 0x00000007u
-#define PL_FFT_LAB_RELEASE_ID "monopulse-live-lab-v1"
+#define PL_FFT_LAB_FEATURES 0x0000000fu
+#define PL_FFT_LAB_RELEASE_ID "monopulse-live-lab-v2"
 
 static int32_t service_get_info(
 	struct pl_fft_lab_service *service,
@@ -33,6 +33,8 @@ static int32_t service_get_info(
 	info.sample_rate_hz = rf.sample_rate_hz;
 	info.rx_bandwidth_hz = rf.rx_bandwidth_hz;
 	info.lo_hz = rf.lo_hz;
+	info.gain_db = rf.gain_db;
+	info.gain_mode = rf.gain_mode;
 	memcpy(info.release_id, PL_FFT_LAB_RELEASE_ID,
 	       sizeof(PL_FFT_LAB_RELEASE_ID) - 1u);
 	return pl_fft_lab_write_info(
@@ -115,6 +117,8 @@ static int32_t service_capture_once(
 	response.rf_state = result.rf_state;
 	response.active_bank = result.active_bank;
 	response.hardware_flags = result.hardware_flags;
+	response.gain_db = rf.gain_db;
+	response.gain_mode = rf.gain_mode;
 	return pl_fft_lab_write_spectrum(
 		&service->writer, command->sequence,
 		&response, service->spectrum);

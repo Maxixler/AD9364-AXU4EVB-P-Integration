@@ -706,3 +706,18 @@ gerçek laboratuvar çalışması sonrasında kapatılacaktır.
 
 İlgili commitler: `3f0bcec` (Candidate/rapor handoff) ve `c920edc` (bounded
 capture + controlled-CW evidence validator).
+
+## 26. Gain-lock v2 uygulama adımları — 28 Temmuz 2026
+
+- [x] RX0 manual gain kilidi ve 50 dB readback kontrolü.
+- [x] INFO/SPECTRUM gain telemetrisi ve protocol v2.
+- [x] Python UI, NPZ, CSV ve evidence gain bağlantısı.
+- [x] Frame serisinde gain değişimi negatif testi.
+- [x] C golden-vector, servis, A53 kaynak ve Python regresyonları.
+- [ ] `monopulse-live-lab-v2` gerçek Vitis Release build.
+- [ ] Immutable Candidate manifest/hash doğrulaması.
+- [ ] Kartta protocol v2 READY ve kontrollü-CW kabul testi.
+
+Lab kabul frekansı DC dışında ve 15 kHz bin aralığına hizalı seçilecektir.
+Önerilen ilk offset LO + 300 kHz (bin 20) veya LO + 1.5 MHz (bin 100)'dur.
+PetaLinux/IIO ertelenmiştir.

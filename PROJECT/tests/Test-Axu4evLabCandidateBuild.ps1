@@ -109,7 +109,7 @@ try {
     }
     $launcherText = Get-Content -LiteralPath $launcher -Raw
     foreach ($fragment in @(
-            'monopulse-live-lab-v1',
+            'monopulse-live-lab-v2',
             'Invoke-Axu4evAd9364Launch.ps1',
             '-Mode Candidate',
             '%*',

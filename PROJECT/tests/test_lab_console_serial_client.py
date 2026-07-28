@@ -49,7 +49,10 @@ def info_wire(sequence: int) -> bytes:
         30_720_000,
         10_000_000,
         2_400_000_000,
-        b"monopulse-live-lab-v1".ljust(32, b"\0"),
+        50,
+        0,
+        0,
+        b"monopulse-live-lab-v2".ljust(32, b"\0"),
     )
     return response_wire(INFO, sequence, payload)
 
@@ -73,6 +76,8 @@ def spectrum_wire(sequence: int) -> bytes:
         2,
         0,
         1,
+        0,
+        50,
         0,
         0,
     )
@@ -150,6 +155,10 @@ class LabSerialClientTests(unittest.TestCase):
             spectrum = client.capture_once(CaptureConfig())
 
         self.assertEqual(info.sequence, 1)
+        self.assertEqual(info.gain_db, 50)
+        self.assertEqual(info.gain_mode, 0)
+        self.assertEqual(spectrum.gain_db, 50)
+        self.assertEqual(spectrum.gain_mode, 0)
         self.assertEqual(spectrum.sequence, 2)
         self.assertEqual(
             [struct.unpack_from("<I", item, 12)[0] for item in fake.writes],

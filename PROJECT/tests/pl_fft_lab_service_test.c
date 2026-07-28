@@ -107,17 +107,18 @@ static struct pl_fft_lab_service make_service(
 static void test_get_info_matches_exact_python_vector(void)
 {
 	static const uint8_t expected[] = {
-		0x4d, 0x50, 0x4c, 0x52, 0x01, 0x02, 0x00, 0x00,
-		0x40, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00,
+		0x4d, 0x50, 0x4c, 0x52, 0x02, 0x02, 0x00, 0x00,
+		0x44, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00,
 		0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
-		0x07, 0x00, 0x00, 0x00, 0x00, 0x08, 0x08, 0x01,
+		0x0f, 0x00, 0x00, 0x00, 0x00, 0x08, 0x08, 0x01,
 		0x00, 0xc0, 0xd4, 0x01, 0x80, 0x96, 0x98, 0x00,
 		0x00, 0x18, 0x0d, 0x8f, 0x00, 0x00, 0x00, 0x00,
+		0x32, 0x00, 0x00, 0x00,
 		0x6d, 0x6f, 0x6e, 0x6f, 0x70, 0x75, 0x6c, 0x73,
 		0x65, 0x2d, 0x6c, 0x69, 0x76, 0x65, 0x2d, 0x6c,
-		0x61, 0x62, 0x2d, 0x76, 0x31, 0x00, 0x00, 0x00,
+		0x61, 0x62, 0x2d, 0x76, 0x32, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x16, 0x3a, 0xe6, 0xe1
+		0xd1, 0xca, 0xe2, 0x4f
 	};
 	struct test_context test;
 	struct pl_fft_lab_service service;
@@ -128,6 +129,8 @@ static void test_get_info_matches_exact_python_vector(void)
 	test.rf.sample_rate_hz = 30720000u;
 	test.rf.rx_bandwidth_hz = 10000000u;
 	test.rf.lo_hz = 2400000000ull;
+	test.rf.gain_db = 50;
+	test.rf.gain_mode = PL_FFT_LAB_GAIN_MODE_MANUAL;
 	test.rf_status = PL_FFT_OK;
 	service = make_service(&test, spectrum);
 	memset(&command, 0, sizeof(command));
@@ -166,6 +169,8 @@ static void initialize_capture_context(struct test_context *test)
 	test->rf.sample_rate_hz = 30720000u;
 	test->rf.rx_bandwidth_hz = 10000000u;
 	test->rf.lo_hz = 2400000000ull;
+	test->rf.gain_db = 50;
+	test->rf.gain_mode = PL_FFT_LAB_GAIN_MODE_MANUAL;
 	test->rf_status = PL_FFT_OK;
 	test->capture_status = PL_FFT_OK;
 	test->capture_result.frame_id = 41u;
@@ -213,7 +218,7 @@ static void test_capture_forwards_config_and_streams_exact_metadata(void)
 	struct pl_fft_lab_command command;
 	uint64_t spectrum[PL_FFT_SPECTRUM_WORDS];
 	uint32_t payload = PL_FFT_LAB_HEADER_SIZE;
-	uint32_t last = payload + 54u +
+	uint32_t last = payload + 56u +
 			(PL_FFT_SPECTRUM_WORDS - 1u) * 8u;
 
 	initialize_capture_context(&test);
@@ -242,6 +247,9 @@ static void test_capture_forwards_config_and_streams_exact_metadata(void)
 	CHECK(get_u32_le(&test.wire[payload + 8u]) == 30720000u);
 	CHECK(get_u32_le(&test.wire[payload + 12u]) == 10000000u);
 	CHECK(get_u64_le(&test.wire[payload + 16u]) == 2400000000ull);
+	CHECK((int16_t)get_u16_le(&test.wire[payload + 52u]) == 50);
+	CHECK(test.wire[payload + 54u] ==
+	      PL_FFT_LAB_GAIN_MODE_MANUAL);
 	CHECK(get_u32_le(&test.wire[payload + 24u]) == 0xaabbccddu);
 	CHECK(get_u32_le(&test.wire[payload + 28u]) == 1234u);
 	CHECK(get_u64_le(&test.wire[payload + 32u]) == 987654321ull);

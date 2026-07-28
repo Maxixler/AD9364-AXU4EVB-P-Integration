@@ -17,6 +17,21 @@ foreach ($path in @($mainSource, $configSource, $serviceSource,
         throw "Missing lab application dependency: $path"
     }
 }
+$mainText = Get-Content -LiteralPath $mainSource -Raw
+foreach ($fragment in @(
+        '#define PL_FFT_LAB_RX_GAIN_DB 50',
+        'gain_mode != RF_GAIN_MGC',
+        'gain_db != PL_FFT_LAB_RX_GAIN_DB')) {
+    if (-not $mainText.Contains($fragment)) {
+        throw "Lab gain-lock contract is missing: $fragment"
+    }
+}
+$gainLockAt = $mainText.IndexOf(
+    'status = pl_fft_lab_lock_manual_gain(phy, &gain_db);')
+$fftInitAt = $mainText.IndexOf('status = pl_fft_init(&dev);', $gainLockAt)
+if ($gainLockAt -lt 0 -or $fftInitAt -le $gainLockAt) {
+    throw 'Manual gain must be locked and read back before FFT service initialization.'
+}
 
 $gcc = $env:AXU4EV_AARCH64_GCC
 if (-not $gcc) {
@@ -133,11 +148,16 @@ int main(void) { return 0; }
     }
     $expanded = $preprocess.Output -join "`n"
     foreach ($fragment in @(
-            'PL_FFT_LAB: READY protocol=1 bins=2048 baud=115200',
+            'PL_FFT_LAB: READY protocol=2 bins=2048 baud=115200 ',
+            'gain_mode=manual gain_db=%d',
             'PL_FFT_LAB: FAIL stage=%s error=%',
             'ad9361_get_rx_sampling_freq',
             'ad9361_get_rx_rf_bandwidth',
             'ad9361_get_rx_lo_freq',
+            'ad9361_set_rx_gain_control_mode',
+            'ad9361_set_rx_rf_gain',
+            'ad9361_get_rx_gain_control_mode',
+            'ad9361_get_rx_rf_gain',
             'static uint64_t pl_fft_spectrum',
             '__attribute__((aligned(64)))',
             'pl_fft_lab_parser_push',
@@ -149,7 +169,7 @@ int main(void) { return 0; }
     }
     $readyCount = [regex]::Matches(
         $expanded,
-        [regex]::Escape('PL_FFT_LAB: READY protocol=1 bins=2048 baud=115200')
+        [regex]::Escape('PL_FFT_LAB: READY protocol=2 bins=2048 baud=115200 ')
     ).Count
     if ($readyCount -ne 1) {
         throw "Lab READY marker must exist exactly once, found $readyCount."

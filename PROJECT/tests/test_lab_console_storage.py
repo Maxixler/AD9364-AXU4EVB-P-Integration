@@ -40,6 +40,8 @@ class CaptureStorageTests(unittest.TestCase):
                     saved["frequency_hz"], frame.frequency_hz
                 )
                 self.assertEqual(int(saved["frame_id"]), 41)
+                self.assertEqual(int(saved["gain_db"]), 50)
+                self.assertEqual(int(saved["gain_mode"]), 0)
                 self.assertEqual(
                     str(saved["release_id"]),
                     "monopulse-live-lab-v1",
@@ -54,6 +56,8 @@ class CaptureStorageTests(unittest.TestCase):
                 rows[0]["release_id"], "monopulse-live-lab-v1"
             )
             self.assertEqual(rows[0]["peak_bin"], "77")
+            self.assertEqual(rows[0]["gain_db"], "50")
+            self.assertEqual(rows[0]["gain_mode"], "0")
             self.assertEqual(list(Path(temporary).glob("*.tmp")), [])
 
     def test_collision_uses_a_suffix_without_overwriting(self) -> None:
@@ -127,6 +131,12 @@ class CaptureStorageTests(unittest.TestCase):
                 np.testing.assert_array_equal(
                     saved["protocol_crc_valid"], np.ones(10)
                 )
+                np.testing.assert_array_equal(
+                    saved["gain_db"], np.full(10, 50)
+                )
+                np.testing.assert_array_equal(
+                    saved["gain_mode"], np.zeros(10)
+                )
                 self.assertEqual(
                     paths.npz.name,
                     "axu4ev-ad9364-live-lab-cw-capture.npz",
@@ -136,6 +146,8 @@ class CaptureStorageTests(unittest.TestCase):
             self.assertEqual(len(rows), 10)
             self.assertEqual(rows[0]["frame_id"], "100")
             self.assertEqual(rows[-1]["frame_id"], "109")
+            self.assertTrue(all(row["gain_db"] == "50" for row in rows))
+            self.assertTrue(all(row["gain_mode"] == "0" for row in rows))
             self.assertEqual(
                 paths.csv.name,
                 "axu4ev-ad9364-live-lab-cw-summary.csv",

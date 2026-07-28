@@ -102,6 +102,8 @@ def save_capture(
                 rf_state=np.uint8(response.rf_state),
                 active_bank=np.uint8(response.active_bank),
                 hardware_flags=np.uint16(response.hardware_flags),
+                gain_db=np.int16(response.gain_db),
+                gain_mode=np.uint8(response.gain_mode),
                 peak_frequency_hz=np.float64(frame.peak_frequency_hz),
                 peak_relative_db=np.float64(frame.peak_relative_db),
                 release_id=np.str_(release_id),
@@ -123,6 +125,8 @@ def save_capture(
             "reset_epoch": response.reset_epoch,
             "frame_crc32": f"{response.frame_crc32:08x}",
             "hardware_flags": f"{response.hardware_flags:04x}",
+            "gain_db": response.gain_db,
+            "gain_mode": response.gain_mode,
             "skipped_sample_count": response.skipped_sample_count,
             "peak_bin": response.peak_bin,
             "peak_frequency_hz": f"{frame.peak_frequency_hz:.6f}",
@@ -214,6 +218,12 @@ def save_capture_series(
         "rx_bandwidth_hz": np.array(
             [item.rx_bandwidth_hz for item in responses], dtype=np.uint32
         ),
+        "gain_db": np.array(
+            [item.gain_db for item in responses], dtype=np.int16
+        ),
+        "gain_mode": np.array(
+            [item.gain_mode for item in responses], dtype=np.uint8
+        ),
         "release_id": np.full(len(frames), release_id, dtype="<U32"),
         "sequence": np.array(
             [item.sequence for item in responses], dtype=np.uint32
@@ -239,6 +249,8 @@ def save_capture_series(
         "lo_hz",
         "sample_rate_hz",
         "rx_bandwidth_hz",
+        "gain_db",
+        "gain_mode",
         "release_id",
         "sequence",
         "peak_power",
@@ -269,6 +281,8 @@ def save_capture_series(
                         "lo_hz": response.lo_hz,
                         "sample_rate_hz": response.sample_rate_hz,
                         "rx_bandwidth_hz": response.rx_bandwidth_hz,
+                        "gain_db": response.gain_db,
+                        "gain_mode": response.gain_mode,
                         "release_id": release_id,
                         "sequence": response.sequence,
                         "peak_power": response.peak_power,

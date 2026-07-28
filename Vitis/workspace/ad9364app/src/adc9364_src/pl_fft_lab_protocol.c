@@ -3,10 +3,10 @@
 #include <stddef.h>
 #include <string.h>
 
-#define PL_FFT_LAB_INFO_PAYLOAD_SIZE 64u
-#define PL_FFT_LAB_SPECTRUM_PREFIX_SIZE 54u
+#define PL_FFT_LAB_INFO_PAYLOAD_SIZE 68u
+#define PL_FFT_LAB_SPECTRUM_PREFIX_SIZE 56u
 #define PL_FFT_LAB_ERROR_PAYLOAD_SIZE 8u
-#define PL_FFT_LAB_FEATURE_MASK 0x00000007u
+#define PL_FFT_LAB_FEATURE_MASK 0x0000000fu
 #define PL_FFT_LAB_HARDWARE_FLAG_MASK 0x003fu
 
 static const uint8_t request_magic[4] = {'M', 'P', 'L', 'Q'};
@@ -209,6 +209,7 @@ int32_t pl_fft_lab_write_info(const struct pl_fft_lab_writer *writer,
 	if ((info->feature_bits & ~PL_FFT_LAB_FEATURE_MASK) != 0u ||
 	    info->fft_size != PL_FFT_LAB_SPECTRUM_WORDS ||
 	    info->spectrum_word_bytes != 8u ||
+	    info->gain_mode != PL_FFT_LAB_GAIN_MODE_MANUAL ||
 	    (info->rf_state_count != 1u &&
 	     info->rf_state_count != 4u))
 		return PL_FFT_LAB_ERR_ARGUMENT;
@@ -223,7 +224,10 @@ int32_t pl_fft_lab_write_info(const struct pl_fft_lab_writer *writer,
 	put_u32_le(&payload[16], info->sample_rate_hz);
 	put_u32_le(&payload[20], info->rx_bandwidth_hz);
 	put_u64_le(&payload[24], info->lo_hz);
-	memcpy(&payload[32], info->release_id,
+	put_u16_le(&payload[32], (uint16_t)info->gain_db);
+	payload[34] = info->gain_mode;
+	payload[35] = 0u;
+	memcpy(&payload[36], info->release_id,
 	       PL_FFT_LAB_RELEASE_ID_SIZE);
 	encode_header(header, PL_FFT_LAB_INFO, sizeof(payload), sequence);
 	crc = pl_fft_lab_crc32_update(
@@ -289,7 +293,9 @@ static void encode_spectrum_prefix(
 	payload[48] = spectrum->rf_state;
 	payload[49] = spectrum->active_bank;
 	put_u16_le(&payload[50], spectrum->hardware_flags);
-	put_u16_le(&payload[52], 0u);
+	put_u16_le(&payload[52], (uint16_t)spectrum->gain_db);
+	payload[54] = spectrum->gain_mode;
+	payload[55] = 0u;
 }
 
 int32_t pl_fft_lab_write_spectrum(
@@ -314,6 +320,7 @@ int32_t pl_fft_lab_write_spectrum(
 	    spectrum->fft_size != PL_FFT_LAB_SPECTRUM_WORDS ||
 	    spectrum->peak_bin >= PL_FFT_LAB_SPECTRUM_WORDS ||
 	    spectrum->rf_state > 7u || spectrum->active_bank > 1u ||
+	    spectrum->gain_mode != PL_FFT_LAB_GAIN_MODE_MANUAL ||
 	    (spectrum->hardware_flags &
 	     ~PL_FFT_LAB_HARDWARE_FLAG_MASK) != 0u)
 		return PL_FFT_LAB_ERR_ARGUMENT;

@@ -40,6 +40,7 @@ class LabConsoleViewTests(unittest.TestCase):
         self.assertEqual(session.history.waterfall_db.shape, (1, 2048))
         self.assertIn("CRC OK", session.health_text.get_text())
         self.assertIn("RF state 0", session.health_text.get_text())
+        self.assertIn("gain manual 50 dB", session.health_text.get_text())
         self.assertIn("frame 9", session.health_text.get_text())
 
     def test_fatal_frame_does_not_enter_waterfall(self) -> None:

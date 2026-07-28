@@ -4,7 +4,7 @@ $workspaceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).P
 $releaseModule = Join-Path $workspaceRoot 'PROJECT\tools\Axu4evRelease.psm1'
 $candidateBase = Join-Path $workspaceRoot 'PROJECT\candidates\axu4ev-ad9364'
 $referenceRoot = Join-Path $candidateBase 'fft-single-shot-v1'
-$labRoot = Join-Path $candidateBase 'monopulse-live-lab-v1'
+$labRoot = Join-Path $candidateBase 'monopulse-live-lab-v2'
 
 foreach ($path in @($releaseModule, $referenceRoot, $labRoot)) {
     if (-not (Test-Path -LiteralPath $path)) {
@@ -20,7 +20,7 @@ $referenceArtifacts = @(Test-Axu4evReleaseArtifacts `
 $labArtifacts = @(Test-Axu4evReleaseArtifacts `
         -ReleaseRoot $labRoot -Manifest $labManifest)
 
-if ($labManifest.release_id -cne 'monopulse-live-lab-v1') {
+if ($labManifest.release_id -cne 'monopulse-live-lab-v2') {
     throw "Unexpected Lab Candidate release id: $($labManifest.release_id)"
 }
 if ([bool]$labManifest.board_verified) {
@@ -69,7 +69,7 @@ if ($labByName['application'].Sha256 -ceq $referenceByName['application'].Sha256
     throw 'Lab UART application ELF must differ from the single-shot application ELF.'
 }
 
-$psuRelativePath = 'PROJECT/candidates/axu4ev-ad9364/monopulse-live-lab-v1/hardware/psu_init.tcl'
+$psuRelativePath = 'PROJECT/candidates/axu4ev-ad9364/monopulse-live-lab-v2/hardware/psu_init.tcl'
 $attributeOutput = @(& git -C $workspaceRoot check-attr text eol -- $psuRelativePath)
 if ($attributeOutput -notcontains "${psuRelativePath}: text: set" -or
     $attributeOutput -notcontains "${psuRelativePath}: eol: crlf") {

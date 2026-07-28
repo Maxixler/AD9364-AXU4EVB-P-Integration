@@ -339,7 +339,7 @@ try {
         $periodicLauncherContent -notmatch '%\*') {
         throw 'The periodic CMD does not select only its periodic bundle and forward arguments.'
     }
-    if ($labLauncherContent -notmatch 'monopulse-live-lab-v1' -or
+    if ($labLauncherContent -notmatch 'monopulse-live-lab-v2' -or
         $labLauncherContent -match 'fft-(single-shot|periodic-monitor)-v1' -or
         $labLauncherContent -notmatch '%\*') {
         throw 'The Lab CMD does not select only its Lab bundle and forward arguments.'

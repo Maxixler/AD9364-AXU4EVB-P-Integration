@@ -125,6 +125,13 @@ class SpectrumHistory:
             raise ValueError("response is not an exact 2048-bin frame")
         if response.has_fatal_hardware_fault:
             raise ValueError("response contains fatal hardware flags")
+        if self._frames:
+            baseline = self._frames[0].response
+            if (
+                response.gain_mode != baseline.gain_mode
+                or response.gain_db != baseline.gain_db
+            ):
+                raise ValueError("response gain changed within the capture")
 
         natural = np.array(response.spectrum, dtype=np.uint64, copy=True)
         if natural.shape != (FFT_SIZE,):

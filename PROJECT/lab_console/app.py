@@ -115,6 +115,7 @@ class LabConsoleSession:
             f"LO {response.lo_hz / 1e6:.6f} MHz | "
             f"Fs {response.sample_rate_hz / 1e6:.3f} MSPS | "
             f"BW {response.rx_bandwidth_hz / 1e6:.3f} MHz | "
+            f"gain manual {response.gain_db} dB | "
             f"flags 0x{response.hardware_flags:04x}"
         )
         self.current_frame = frame

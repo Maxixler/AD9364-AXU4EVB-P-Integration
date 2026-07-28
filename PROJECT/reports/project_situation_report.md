@@ -626,3 +626,21 @@ yapılmadığını görünür biçimde korur.
 
 Bu teslimin dokümantasyon handoff commit'i `3f0bcec`, bounded capture ve CW
 kanıt doğrulama commit'i `c920edc`'dir.
+
+## 22. Bare-metal gain-lock v2 düzeltmesi — 28 Temmuz 2026
+
+`monopulse-live-lab-v1` değiştirilmeden tarihsel Candidate olarak korundu.
+Kontrollü CW ve ilerideki S0-S3 ölçümlerinin AGC değişiminden etkilenmemesi için
+yeni kaynak sözleşmesi `monopulse-live-lab-v2` olarak ayrıldı.
+
+- RX0, `RF_GAIN_MGC` modunda 50 dB'e kilitlenir.
+- Mod ve gain başlangıçta ve her frame öncesinde donanımdan geri okunur.
+- Protokol v2 INFO/SPECTRUM mesajları gain mode ve gain dB taşır.
+- Python history, NPZ, CSV ve evidence validator frame'ler arası gain değişimini
+  reddeder.
+- PetaLinux/IIO bu teslimin dışında kalır.
+
+Yeni Candidate gerçek Vitis build ve paket doğrulamasından sonra laboratuvarda
+JTAG/UART ve DC-dışı, bin-hizalı kontrollü CW ile kabul edilecektir. Ayrıntılı
+tasarım notu:
+`PROJECT/reports/2026-07-28-axu4ev-ad9364-baremetal-gain-lock-v2.md`.
