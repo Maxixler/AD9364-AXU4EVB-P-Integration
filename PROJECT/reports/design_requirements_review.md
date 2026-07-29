@@ -521,3 +521,27 @@ Bu ister belgesi, **proje tarihindeki en somut ve donanım-bağlantılı tasarı
 - ✅ Matematiksel tutarlılık: $\Sigma/\Delta$ formülleri doğru
 - ✅ DMA shadow path korunması
 - ✅ İnkremental doğrulama sırası (1→15)
+
+## 28 Temmuz 2026 Uygulama Sonrası Uzlaştırma Notu
+
+Bu bölüm ilk incelemenin tarihsel bulgularını silmez; daha sonra uygulanan
+kararların güncel durumunu kaydeder.
+
+| İnceleme konusu | Güncel karar / durum |
+|---|---|
+| Tek girişli PL FFT | 2048 nokta, natural order, tam spectrum ve peak olarak uygulandı |
+| Bit-doğru model | NumPy oracle ve gerçek Vivado FFT v9.1 ile altı vektörde sıfır LSB fark |
+| DMA etkisi | AD9364 shadow tap geri basınçsız tutuldu; Golden DMA yolu korundu |
+| Kart entegrasyonu | Tek-frame ve 100-frame transport/control kabulü tamamlandı |
+| Laboratuvar LO'su | Güncel v2 kontrollü-CW ara kabulü için `2.400000 GHz` |
+| Güncel RF girişi | `RXA / A_BALANCED`; eski Wi-Fi testi RXB'ye özgüdür |
+| Gain | `manual / 50 dB`, her frame öncesi readback |
+| Kompleks peak I/Q | Mevcut v2 teslimde yok; magnitude-square spectrum/peak kullanılır |
+| HMC936A yolu | Güncel 2.4 GHz FFT kabul yoluna dahil değildir; BDC sonrası 1.2-1.4 GHz IF sözleşmesi kapanmalıdır |
+| Fiziksel CW | Henüz açık; manifest `board_verified=false` |
+| S0-S3 ve açı | M5-M8 gelecek aşaması; tamamlanmış sayılmaz |
+
+Bu nedenle ilk incelemedeki “LO'yu doğrudan 1.3 GHz yap” önerisi güncel ara
+teslime uygulanmamıştır. HMC936A'nın kullanılacağı nihai RF yolu ancak BDC IF
+frekansı ve kablo eşlemesi fiziksel olarak doğrulandıktan sonra ayrı bir
+Candidate'da kilitlenecektir.

@@ -13,8 +13,17 @@ doğru biçimde `board_verified=false` durumundadır.
 
 - AXU4EVB-P JTAG ve `PS_UART` bağlantılarını bilgisayara bağlayın.
 - Kartı açın ve JTAG zincirinin görünür olmasını bekleyin.
+- Bu Candidate `RX channel 0 / A_BALANCED` kullandığı için fiziksel RF girişi
+  **RXA**'dır. Önceki Wi-Fi Candidate'ındaki RXB bağlantısını bu testte
+  kullanmayın.
+- İlk kablolu kabul yolu:
+  `SMW200A RF OUT A -> onaylı 20-30 dB attenuator -> 50 ohm SMA -> RXA`.
+- RXB, TXA ve TXB kullanılmaz; uygun 50 ohm terminasyonlar varsa kullanılmayan
+  RF portlarına takılabilir. `REF_CLK` RF girişi değildir ve değiştirilmez.
 - RF kaynağını yalnız laboratuvar sorumlusunun onayladığı güvenli seviye,
   kablolama ve harici zayıflatma ile hazırlayın.
+- Bütün RF kablolamasını SMW200A RF çıkışı kapalıyken yapın. İlk kaynak
+  seviyesini düşük tutun ve clipping görülmediğini doğrulamadan artırmayın.
 - Python uygulamasından önce PuTTY'yi tamamen kapatın. COM portunu aynı anda
   yalnız bir uygulama açabilir.
 
@@ -59,6 +68,10 @@ Frame'ler arasında kazanç değişirse seri kabul edilmez.
 ## Kontrollü CW kabulü
 
 - SMW200A sinyalini DC bin'ine değil, bilinen bir frekans ofsetine yerleştirin.
+- Varsayılan LO `2.400000 GHz`, sample rate `30.72 MSPS` ve FFT boyutu 2048
+  olduğundan bin aralığı `15 kHz`'dir.
+- Önerilen ilk kaynak `2.400300 GHz` ve beklenen natural-order peak
+  `bin 20`'dir. Alternatif `2.401500 GHz` kaynağı `bin 100` üretir.
 - AD9364 girişine yüksek güç uygulamayın; başlangıç seviyesi ve toplam harici
   zayıflatma laboratuvar sorumlusu tarafından onaylanmalıdır.
 - 100 frame boyunca CRC hatası, fatal donanım bayrağı, eksik FFT verisi ve

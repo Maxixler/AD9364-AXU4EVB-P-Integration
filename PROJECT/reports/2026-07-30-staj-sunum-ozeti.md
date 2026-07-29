@@ -286,8 +286,13 @@ Uygulama planı:
 1. [x] Python ve C byte-exact UART codec.
 2. [x] Bare-metal GET_INFO/CAPTURE_ONCE servisi.
 3. [x] PySerial/NumPy/Matplotlib ekranı.
-4. [x] `monopulse-live-lab-v1` Candidate paketi.
-5. [ ] SMW200A kontrollü CW ile en az 10 stabil frame kabulü.
+4. [x] Tarihsel `monopulse-live-lab-v1` ve gain-lock düzeltmeli
+   `monopulse-live-lab-v2` Candidate paketleri.
+5. [x] Protocol v2 içinde `manual / 50 dB` gain telemetrisi ve frame-serisi
+   gain değişimi reddi.
+6. [x] Güncel kontrollü-CW fiziksel girişinin RXA olduğu kaynak koddan
+   doğrulandı.
+7. [ ] SMW200A kontrollü CW ile 100 stabil frame kabulü.
 
 ### ZX80/HMC936
 
@@ -330,7 +335,7 @@ FPGA FFT, tam spectrum belleği, 100-frame fiziksel monitor kabulü ve harici
 ZX80/HMC936 monopulse entegrasyonuna hazır modüler bir ölçüm platformuna
 dönüştürülmüştür.
 
-## 14. 27 Temmuz laboratuvar yazılımı teslimi
+## 14. 27-28 Temmuz laboratuvar yazılımı ve gain-lock v2 teslimi
 
 Bare-metal ve Python katmanları birlikte tamamlandı. A53 uygulaması
 `GET_INFO`/`CAPTURE_ONCE` isteklerini işler; 2048 adet 64-bit güç binini,
@@ -339,15 +344,22 @@ PS_UART'a verir. Python tarafı paket uzunluğu, sıra numarası, CRC, metadata,
 FFT boyutu ve fatal bayrakları kabul kapısı olarak doğrular; canlı spectrum ve
 waterfall üretir; NPZ/CSV kanıtı kaydeder.
 
-Teslim tekrar üretilebilir bir Candidate olarak donduruldu:
+İlk teslim tekrar üretilebilir bir v1 Candidate olarak donduruldu. Kontrollü
+ölçümlerde AGC'nin SUM/ERROR oranlarını bozmasını önlemek için v1
+değiştirilmeden v2 Candidate üretildi:
 
-- Release kimliği: `monopulse-live-lab-v1`
-- Uygulama: `865360` bayt,
-  `9DFC2355F5A4262AFFD1455EA3D0972A80F279E8804BD371DBCFDF38452FDC14`
+- Güncel release kimliği: `monopulse-live-lab-v2`
+- Kaynak commit:
+  `3f88ccc7e85eaab34f197dd9dda4a3e136285c32`
+- Uygulama: `865952` bayt,
+  `E05CA5EB83CC3E94BC05F55E52C1A076979FD2A66D8E19EBBE822DAF4FE7C01F`
 - Bitstream:
   `ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC`
 - PMUFW:
   `9AABFD07EA03CBEE81A27E1B22BF9ADF86AACB919A865F8D6AA5A09AF360D3AB`
+- Gain: `manual / 50 dB`, başlangıçta ve her frame öncesinde readback
+- Protokol: v2; INFO/SPECTRUM içinde gain mode ve gain dB
+- Güncel fiziksel RF girişi: `RXA`
 
 Protokol, servis, Python model/GUI/storage, Candidate üretimi, paket
 bütünlüğü, periyodik monitor ve Golden release regresyonları PASS durumundadır.
@@ -357,7 +369,8 @@ sınırlı retry ile kapatılmıştır.
 
 Kalan iki fiziksel aşama nettir:
 
-1. SMW200A ile DC dışındaki kontrollü CW'de en az 10 frame peak/power kabulü.
+1. SMW200A ile DC dışındaki bin-hizalı kontrollü CW'de 100 frame peak/power,
+   CRC, health ve gain kararlılığı kabulü.
 2. ZX80/HMC936 elektriksel sözleşmesi kapandıktan sonra S0-S3 monopulse
    çevrimi ve yankısız oda kalibrasyonu.
 
@@ -371,5 +384,75 @@ kararlılığını ve NPZ/CSV aynı-frame bağını tek kapıda denetler. Sentet
 pozitif ve negatif fixture'lar PASS'tir; gerçek laboratuvar verisi gelmeden
 fiziksel kabul vermez.
 
-Sunum için izlenebilir kapanış: `3f0bcec` (Candidate ve rapor handoff),
-`c920edc` (10-frame CW capture ve otomatik evidence validator).
+Sunum için izlenebilir zincir: `3f0bcec` (v1 Candidate ve rapor handoff),
+`c920edc` (bounded CW capture ve otomatik evidence validator), `3f88ccc`
+(gain-lock v2 kaynak sözleşmesi), `f5e60c4` (v2 Candidate paketleme).
+
+## 15. Sunum ve genel rapor kaynağı
+
+Sunum kronolojik mühendislik yaşam döngüsüyle hazırlanacaktır:
+
+```text
+Araştırma ve teyit
+-> gereksinim/planlama
+-> Vivado
+-> Vitis/JTAG bring-up
+-> RF aktivite kabulü
+-> PL FFT
+-> bare-metal + Python
+-> gain-lock v2 ve açık CW kapısı
+-> ZX80/HMC936 S0-S3 ve kalibrasyon yol haritası
+```
+
+Tam 40 slaytlık yapı:
+`PROJECT/reports/2026-07-30-staj-sunum-yapisi.md`.
+
+Sunumdan sonra oluşturulacak genel Word proje raporu da aynı kaynakları ve
+“tamamlandı / açık fiziksel kabul / gelecek aşama” ayrımını kullanacaktır.
+
+## 16. Python software-only preflight sonucu
+
+Lab erişimi olmadan protokol, model, storage, serial client, CLI ve evidence
+zinciri izole Python ortamında çalıştırıldı:
+
+```text
+Python 3.12.3
+NumPy 2.5.1
+Matplotlib 3.11.1
+PySerial 3.5
+Ran 61 tests
+OK
+```
+
+Bu test; protocol v2, CRC, exact 2048-bin spectrum, gain-lock telemetrisi,
+NPZ/CSV, retry/timeout, 32-frame waterfall modeli ve sentetik kontrollü-CW
+kapılarını kapsar. Gerçek fiziksel evidence validator, CW dosyası bulunmadığı
+için bilinçli olarak RED kalmıştır. Sunumda bu sonuç “host yazılım preflight
+PASS / fiziksel CW kabulü bekliyor” şeklinde gösterilecektir.
+
+## 17. Gerçek kartta sinyalsiz Python preflight
+
+Kart JTAG ve PS_UART ile bağlıyken v2 Candidate gerçek donanımda başlatıldı.
+On ardışık frame için:
+
+- frame ID `19..28`;
+- exact `2048 x uint64` spectrum;
+- geçerli protocol CRC;
+- `hardware_flags=0`;
+- manual `50 dB` gain;
+- `30.72 MSPS`, `10 MHz`, `2.4 GHz LO`
+
+doğrulandı ve NPZ/CSV kaydı üretildi.
+
+Harici sinyal olmadığı ve FFT scaling'i düşük seviyeyi sıfıra indirdiği için
+bütün spectrum kelimeleri sıfırdır. Bu koşul, donanım ile Python arasında DC
+bin eşitlik davranışı farkını da görünür yaptı: donanım bin 1'i, Python bin
+0'ı seçiyordu. Preflight `--search-start 1` ile tamamlandı; kalıcı düzeltme
+kontrollü CW öncesi açık yazılım maddesidir.
+
+Sunumda bu sonuç:
+
+> Gerçek kart JTAG/UART/2048-bin/CRC/gain-lock preflight PASS; RF peak kabulü
+> kontrollü CW bekliyor.
+
+şeklinde gösterilecektir.

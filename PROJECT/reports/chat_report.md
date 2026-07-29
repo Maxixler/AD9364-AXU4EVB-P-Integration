@@ -714,3 +714,89 @@ servis sembolleri binary içinde doğrulandı. ELF; board-verified single-shot
 bitstream, PMUFW, `psu_init.tcl` ve XSA ile `monopulse-live-lab-v2` immutable
 Candidate paketine bağlandı. Manifest/hash doğrulaması PASS; fiziksel test
 yapılmadığı için `board_verified=false` korundu.
+
+## 29. 28 Temmuz 2026 — laboratuvar bağlantısı ve sunum hazırlığı
+
+Perşembe günü yapılacak ayrıntılı staj sunumu için mevcut proje durumu yeniden
+denetlendi. Güncel `monopulse-live-lab-v2` kaynağında
+`rx_rf_port_input_select=0` olduğu ve bunun `A_BALANCED / RXA` girişine karşılık
+geldiği doğrulandı. Eski Wi-Fi aktivite Candidate'ındaki `B_BALANCED / RXB`
+seçimi yalnız tarihsel o teste aittir.
+
+Kontrollü-CW ilk kabul bağlantısı:
+
+```text
+SMW200A RF OUT A
+-> 20-30 dB onaylı sabit attenuator
+-> 50 ohm SMA kablo
+-> AD9364 RXA
+```
+
+Başlangıç kaynağı `2.400300 GHz` seçildiğinde 30.72 MSPS ve 2048 FFT için
+beklenen natural-order peak `bin 20`'dir. Alternatif `2.401500 GHz` kaynağı
+`bin 100` üretir. RF bağlantıları RF OFF durumunda yapılacak; TXA/TXB ve
+REF_CLK giriş olarak kullanılmayacaktır.
+
+Sunum; araştırma ve gereksinim teyidi, planlama, Vivado, Vitis/JTAG bring-up,
+RF aktivite testi, PL FFT, bare-metal/Python ekranı, gain-lock v2, açık CW
+kapısı ve gelecekteki ZX80/HMC936 monopulse kalibrasyonu sırasıyla 40 slaytlık
+kronolojik bir mühendislik hikâyesi olarak tasarlandı. Sonraki teslim olarak
+aynı doğrulanmış Markdown kaynaklarından genel Word proje raporu
+oluşturulacaktır.
+
+## 30. 28 Temmuz 2026 — lab olmadan Python zinciri çalıştırması
+
+Laboratuvarın kullanımda olması nedeniyle gerçek kart/COM/RF testi yerine
+host tarafındaki yazılım preflight çalıştırıldı. Sistem Python'ında eksik olan
+PySerial, repository içindeki izole `.venv-monopulse-lab` ortamına kuruldu;
+sistem Python kurulumu değiştirilmedi.
+
+Kurulan çalışma noktası:
+
+```text
+Python 3.12.3
+NumPy 2.5.1
+Matplotlib 3.11.1
+PySerial 3.5
+```
+
+Protocol, model, storage, serial client, CLI/app ve controlled-CW evidence
+modüllerindeki toplam 39 test 0 failure ile geçti. CLI `--help` girişi de
+başarıyla doğrulandı.
+
+Gerçek evidence validator ayrıca doğrudan çalıştırıldı ve fiziksel CW evidence
+dosyası olmadığı için beklenen RED sonucunu verdi. Sentetik geçerli fixture'ın
+PASS, peak toleransı/gain değişimi/fiziksel kanıt eksikliği fixture'larının
+reject olması 39 test içinde doğrulandı. Dolayısıyla Python yazılım zinciri
+lab testine hazırdır; fiziksel CW kapısı hâlâ açık ve
+`board_verified=false` doğrudur.
+
+## 31. 28 Temmuz 2026 — gerçek kartta sinyalsiz Python preflight
+
+Kart JTAG ve PS_UART ile bağlıyken `monopulse-live-lab-v2` Candidate doğrudan
+başlatıldı. PMUFW, FPGA, PS/DDR/PS-PL, DDR ve uygulama yükleme kapıları PASS
+verdi. PuTTY COM5'i bıraktıktan sonra Python istemcisi gerçek karttan protocol
+v2 INFO aldı:
+
+```text
+release=monopulse-live-lab-v2
+fft=2048
+Fs=30720000
+BW=10000000
+LO=2400000000
+gain=manual/50 dB
+```
+
+İlk capture bir kez `error=-6 stage=4` verdi. Sonraki ham isteklerde on
+ardışık frame, exact 2048 sample, sıfır hardware flag, geçerli CRC ve sabit
+50 dB gain ile döndü.
+
+Sinyal uygulanmadığı için bütün magnitude-square spectrum kelimeleri sıfır
+oldu. Donanım DC bin 0'ı dışlayıp ilk uygun bin 1'i peak seçerken Python
+varsayılan argmax bin 0'ı seçti. Bu nedenle bounded uygulama temiz frame'i
+peak-mismatch olarak reddetti. Kod değiştirilmeden `--search-start 1` ile
+frame 19-28 arasındaki on frame NPZ/CSV olarak kaydedildi.
+
+Bu çalışma gerçek karttaki JTAG, UART, protokol, CRC, gain-lock ve health
+yolunu doğrular; RF/CW kabulü değildir. Python/donanım DC-guard tie semantiği
+ayrı düzeltme ve regresyon maddesi olarak açıldı.

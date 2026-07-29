@@ -670,3 +670,92 @@ formatı, `monopulse-live-lab-v2` kimliği ve laboratuvar servis sembollerini
 doğruladı. Donanım artefaktlarının dördü board-verified
 `fft-single-shot-v1` ile byte-identical kaldı. Açık tek bağlayıcı kapı kartta
 READY satırı ve 100-frame kontrollü-CW kabulüdür.
+
+## 23. Staj sunumu öncesi güncel durum — 28 Temmuz 2026
+
+Sunumda kullanılacak bağlayıcı durum aşağıdaki gibidir:
+
+| Başlık | Durum | Kanıt / sınır |
+|---|---|---|
+| AXU4EVB-P + AD9364 temel bring-up | Tamamlandı | PMUFW, FPGA, DDR, SPI Rev 2 ve DMA kart çıktıları |
+| Tekrarlanabilir JTAG başlatma | Tamamlandı | Golden/Candidate launcher ve DDR kapısı |
+| 2.4 GHz RF aktivite algılama | Tamamlandı | İki fiziksel `WIFI_RF_TEST: PASS`; paket çözme değildir |
+| 2048 noktalı PL FFT RTL/simülasyon | Tamamlandı | Altı vektörde gerçek Vivado FFT ile sıfır LSB fark |
+| Tek-frame kart FFT | Tamamlandı | `PL_FFT: PASS` |
+| 100-frame periodic monitor | Tamamlandı | Transport/control ve tam-frame kart kabulü |
+| Bare-metal + Python laboratuvar yolu | Yazılım hazır | CRC'li 2048-bin UART, spectrum/waterfall, NPZ/CSV |
+| Gain-lock v2 | Build/paket hazır | Protocol v2, RX0 manual 50 dB, immutable Candidate |
+| Kontrollü SMW200A CW kabulü | Açık | RXA, bin-hizalı CW ve 100-frame fiziksel kanıt bekleniyor |
+| ZX80/HMC936 S0-S3 kontrolü | Gelecek aşama | Elektriksel/pin/level-shifter/settle sözleşmesi açık |
+| Açı kalibrasyonu | Gelecek aşama | Yankısız oda `-theta/0/+theta` ölçümleri gerekli |
+
+Güncel kontrollü-CW test sözleşmesi:
+
+- Candidate: `monopulse-live-lab-v2`
+- AD9364 fiziksel giriş: `RXA` (`RX channel 0`, `A_BALANCED`)
+- LO: `2.400000 GHz`
+- Sample rate: `30.72 MSPS`
+- RX bandwidth: `10 MHz`
+- Gain: `manual / 50 dB`
+- FFT: `2048`, natural order, `15 kHz/bin`
+- İlk önerilen kaynak: `2.400300 GHz`, beklenen peak `bin 20`
+- Alternatif kaynak: `2.401500 GHz`, beklenen peak `bin 100`
+- Kabul: 100 ardışık frame, geçerli CRC, exact 2048 bin, sıfır fatal flag,
+  değişmeyen gain ve beklenen peak'te `±1 bin`
+
+Önceki Wi-Fi RF Candidate'ında kullanılan `RXB` bilgisi tarihsel ve o moda
+özgüdür. Güncel `monopulse-live-lab-v2` kontrollü-CW sunum/lab bağlantısı
+`RXA` üzerinden yapılacaktır. Fiziksel CW kanıtı alınmadan
+`board_verified=false` korunacak ve ekrandaki güç yalnız kalibre edilmemiş
+bağıl FFT gücü olarak sunulacaktır.
+
+## 24. Lab erişimi olmadan Python software-only preflight — 28 Temmuz 2026
+
+Laboratuvarın dolu olması nedeniyle gerçek COM portu, kart ve SMW200A
+kullanılmadan host yazılım zinciri çalıştırıldı. Repository içinde izole
+`.venv-monopulse-lab` ortamı oluşturuldu:
+
+```text
+Python 3.12.3
+NumPy 2.5.1
+Matplotlib 3.11.1
+PySerial 3.5
+```
+
+Altı test modülündeki 39 test `OK` sonucu verdi. Kapsanan kapılar:
+
+- protocol v2 byte düzeni, fragmentation/resync ve CRC reddi;
+- INFO/SPECTRUM/ERROR decode ve exact 2048-bin sözleşmesi;
+- natural/centered spectrum dönüşümü ve peak frekansı;
+- 32-frame history, fatal flag ve gain değişimi reddi;
+- NPZ/CSV aynı-frame kaydı ve overwrite koruması;
+- seri istemcide timeout/retry/sequence davranışı;
+- `--single` ile `--frames` dışlayıcılığı;
+- sentetik kontrollü-CW fixture, `±1 bin` ve fiziksel kanıt yokluğu kapısı.
+
+`python -m PROJECT.lab_console.app --help` giriş noktası da başarıyla açıldı.
+Gerçek `Test-Axu4evLabCaptureEvidence.ps1` çalıştırması, fiziksel
+`axu4ev-ad9364-live-lab-cw-pass.md` bulunmadığı için beklenen şekilde RED
+verdi. Bu sonuç yazılım hatası değildir; lab verisi olmadan fiziksel kabul ve
+`board_verified=true` üretilmesini engeller.
+
+## 25. JTAG + PS_UART sinyalsiz kart preflight — 28 Temmuz 2026
+
+`monopulse-live-lab-v2` gerçek kartta JTAG ile başlatıldı. PMUFW, bitstream,
+PS/DDR/PS-PL init, DDR `A5A5A5A5` kapısı ve uygulama yüklemesi PASS verdi.
+Protocol-v2 INFO yanıtı; release kimliği, 2048 FFT, 30.72 MSPS, 10 MHz,
+2.4 GHz LO ve manual 50 dB gain sözleşmesini doğruladı.
+
+İlk capture `PL_FFT_ERR_HARDWARE / stage=CAPTURE` verdi; hata kalıcı olmadı.
+Ardından ham istemcide on ardışık frame exact 2048 sample, sıfır hardware
+flag, manual 50 dB ve geçerli CRC ile tamamlandı.
+
+Harici RF yokken mevcut scaling altında tüm spectrum kelimeleri sıfırdır.
+Donanımın DC-guard semantiği eşitlikte bin 1'i, Python'ın varsayılan tam-range
+argmax'ı bin 0'ı seçtiği için uygulama ilk bounded seriyi peak-mismatch ile
+reddetti. `--search-start 1` ile on frame NPZ/CSV olarak başarıyla kaydedildi.
+Bu host/donanım tie semantiği kontrollü CW öncesi açık yazılım düzeltmesidir.
+
+Ayrıntılı kanıt:
+`PROJECT/reports/2026-07-28-axu4ev-ad9364-no-rf-board-preflight.md`.
+Bu çalışma RF/CW kabulü değildir ve `board_verified=false` korunur.

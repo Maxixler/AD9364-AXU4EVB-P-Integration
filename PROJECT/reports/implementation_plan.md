@@ -741,3 +741,57 @@ bitstream_sha256:
   ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC
 board_verified: false
 ```
+
+## 27. Sunum öncesi kapanış planı — 28-30 Temmuz 2026
+
+### A. Dokümantasyon
+
+- [x] Tamamlanan, açık ve gelecek aşamaları aynı durum tablosunda ayır.
+- [x] Tarihsel Wi-Fi `RXB` kullanımı ile güncel v2 kontrollü-CW `RXA`
+  kullanımını açıkça ayır.
+- [x] `monopulse-live-lab-v2`, protocol v2 ve `manual / 50 dB` gain-lock
+  sözleşmesini sunum özetine bağla.
+- [x] 40 slaytlık kronolojik sunum yapısını araştırma, planlama, Vivado,
+  Vitis, kart/RF, PL FFT, Python ve monopulse sırasıyla hazırla.
+- [ ] Sunum sonrası aynı kaynaklardan genel Word proje raporu üret.
+
+### B. Laboratuvar kabulü
+
+- [ ] RF kapalıyken SMW200A → onaylı attenuator → 50 ohm kablo → AD9364
+  `RXA` bağlantısını kur.
+- [ ] Candidate'ı JTAG ile başlat ve
+  `PL_FFT_LAB: READY protocol=2 bins=2048 baud=115200 gain_mode=manual gain_db=50`
+  satırını doğrula.
+- [ ] PuTTY'yi kapatıp PS_UART COM portunu yalnız Python uygulamasına ver.
+- [ ] LO + 300 kHz (`2.400300 GHz`, bin 20) veya LO + 1.5 MHz
+  (`2.401500 GHz`, bin 100) bin-hizalı CW uygula.
+- [ ] 100 ardışık frame kaydet ve evidence validator ile CRC, bin sayısı,
+  fatal flag, gain kararlılığı, peak toleransı ve NPZ/CSV kimliğini doğrula.
+- [ ] Yalnız gerçek fiziksel kanıt PASS verdikten sonra yeni release
+  manifestinde `board_verified=true` değerlendir.
+
+### C. Sunumda doğruluk sınırları
+
+- 100-frame periodic monitor, FFT transport/control kabulüdür; kontrollü CW
+  RF performans kabulü değildir.
+- Bağıl FFT gücü kalibre edilmeden dBm olarak raporlanmaz.
+- `MONOPULSE_FOUNDATION: PASS`, scalar matematik ve RF profil kabulüdür;
+  fiziksel ZX80/HMC936 açı takibi değildir.
+- ZX80/HMC936 kontrolü, S0-S3 çevrimi ve yankısız oda kalibrasyonu
+  tamamlanmış gibi gösterilmez.
+- PetaLinux/IIO ve Ethernet geleceğe açık olup mevcut teslimin bağımlılığı
+  değildir.
+
+### D. Sinyalsiz kart preflight sonrası açık yazılım maddesi
+
+- [x] v2 Candidate JTAG/DDR/application başlatma.
+- [x] Gerçek PS_UART protocol-v2 INFO.
+- [x] On ardışık exact 2048-bin, CRC-valid, zero-health-flag frame.
+- [x] Manual 50 dB gain'in gerçek kart serisinde sabit kalması.
+- [ ] Python peak doğrulamasını donanımın DC-guard/tie semantiğiyle
+  bit-doğru hizala ve tüm-sıfır spectrum regresyonu ekle.
+- [ ] İlk cold-start capture sırasında bir kez görülen
+  `PL_FFT_ERR_HARDWARE / stage=CAPTURE` durumunu kontrollü yeniden başlatma
+  testinde izle; fatal status biti ölçülmeden neden iddiasında bulunma.
+- [ ] Düzeltme sonrasında varsayılan CLI ile sinyalsiz bounded seri regresyonu.
+- [ ] Son olarak bin-hizalı SMW200A CW fiziksel kabulü.

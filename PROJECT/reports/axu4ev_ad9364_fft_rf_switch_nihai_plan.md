@@ -1210,3 +1210,54 @@ kalmaya devam eder.
 
 Yazılım handoff'u `3f0bcec`, CW kanıt preflight aracı `c920edc` commit'inde
 kayıtlıdır.
+
+## 26. Gain-lock v2 ve sunum öncesi bağlayıcı durum — 28 Temmuz 2026
+
+M4 laboratuvar tesliminin güncel Candidate'ı `monopulse-live-lab-v2`'dir.
+Tarihsel v1 değiştirilmemiştir.
+
+### 26.1 Güncel RF/FFT sözleşmesi
+
+| Alan | Değer |
+|---|---|
+| RF cihazı | AD9364 |
+| Aktif fiziksel giriş | RXA / RX channel 0 / `A_BALANCED` |
+| LO | `2.400000 GHz` |
+| Sample rate | `30.72 MSPS` |
+| RX bandwidth | `10 MHz` |
+| Gain control | manual |
+| RX gain | `50 dB` |
+| FFT | 2048 nokta, natural order |
+| Bin aralığı | `15 kHz` |
+| Protokol | v2, CRC-32/ISO-HDLC |
+| Candidate durumu | `board_verified=false` |
+
+Firmware başlangıçta ve her frame öncesinde gain modunu/değerini geri okur.
+Python, NPZ/CSV ve evidence validator aynı frame serisinde gain değişimini
+reddeder.
+
+### 26.2 M4'ün açık fiziksel kapısı
+
+- [x] Protocol v2 ve gain telemetrisi.
+- [x] Vitis 2020.1 A53 Release ELF.
+- [x] Immutable Candidate ve SHA-256 paket kapısı.
+- [x] RXA laboratuvar bağlantı sözleşmesi.
+- [ ] Kartta protocol-v2 READY satırı.
+- [ ] SMW200A ile bin-hizalı kontrollü CW.
+- [ ] 100 ardışık frame evidence kabulü.
+- [ ] Yalnız yeni fiziksel kanıtlı release için `board_verified=true`.
+
+İlk test noktası `2.400300 GHz` (`LO + 300 kHz`, bin 20), alternatif test
+noktası `2.401500 GHz` (`LO + 1.5 MHz`, bin 100)'dür. Fiziksel yol onaylı
+attenuator ve 50 ohm kablo üzerinden RXA'ya bağlanır. Ölçülen güç kalibre
+edilene kadar bağıl FFT gücüdür.
+
+### 26.3 M5-M8 sınırı
+
+ZX80-DR230-S+ ve EV1HMC936ALP6 nihai mimaride kalır; ancak güncel v2
+Candidate tarafından sürülmez. BDC IF, besleme/kontrol seviyeleri, 5 V
+level-shifter/OE, sekiz FPGA pini/XDC, RF1/RF2 kablo eşlemesi ve ölçülmüş
+settle/discard değerleri kapanmadan S0-S3 fiziksel kontrolü başlatılmaz.
+
+Sunumda M1-M4'ün tamamlanan dijital/bring-up bölümü ile M4'ün açık CW kapısı ve
+M5-M8'in gelecek işleri ayrı renk/durum etiketiyle gösterilecektir.
