@@ -2,9 +2,9 @@
 
 **Sunum tarihi:** 30 Temmuz 2026  
 **Toplam oturum:** Yaklaşık 30 dakika  
-**Ana anlatım:** 22–24 dakika  
+**Ana anlatım:** 19–22 dakika
 **Soru-cevap:** 6–8 dakika  
-**Yapı:** 24 ana slayt + gerektiğinde açılacak 5 yedek teknik slayt  
+**Yapı:** 21 ana slayt + gerektiğinde açılacak 5 yedek teknik slayt
 **Hedef kitle:** FPGA konusunda deneyimli mühendis ve gömülü sistem ekip lideri
 
 ## Sunumun ana amacı
@@ -835,7 +835,7 @@ elektriksel kontrolü, S0–S3 fiziksel yakalama, settling ve açı kalibrasyonu
 
 # Genel rapora dönüşüm
 
-Sunumdaki 24 ana slayt daha sonra hazırlanacak genel Word raporunda şu
+Sunumdaki 21 ana slayt daha sonra hazırlanacak genel Word raporunda şu
 bölümlere dönüşebilir:
 
 1. Özet ve proje amacı
