@@ -753,9 +753,9 @@ hakkında soru gelirse.
 | Problem, hedef ve sistem sınırı | 1–7 | 6–7 dakika |
 | Vivado ve donanım tasarımı | 8–10 | 3 dakika |
 | Vitis, JTAG ve bring-up | 11–16 | 6 dakika |
-| RF, FFT ve Python | 17–23 | 7–8 dakika |
-| Sonuç ve yol haritası | 24 | 1–1,5 dakika |
-| Toplam ana anlatım | 24 slayt | 22–24 dakika |
+| RF, FFT ve Python | 17–20 | 4–5 dakika |
+| Sonuç ve yol haritası | 21 | 1–1,5 dakika |
+| Toplam ana anlatım | 21 slayt | 19–22 dakika |
 | Soru-cevap | Yedek 1–5 | 6–8 dakika |
 
 ## Süre aşılırsa atlanabilecek ayrıntılar
@@ -763,8 +763,8 @@ hakkında soru gelirse.
 - Slayt 7’de Git worktree ayrıntısı yalnız tek cümleyle geçilir.
 - Slayt 12’de tüm hata satırları okunmaz; üç temsilî belirti anlatılır.
 - Slayt 17’de yalnız kanal 6 baseline/active farkı gösterilir.
-- Slayt 20’de scaling schedule açıklanmaz; yedek slayta bırakılır.
-- Slayt 23’te test isimleri okunmaz; yalnız 61/61 ve kart metadata’sı açıklanır.
+- Slayt 19’da yalnız iki PASS satırı anlatılır.
+- Slayt 20’de test isimleri tek tek okunmaz.
 
 # Sunum öncesi hazırlanacak görsel ve kanıt listesi
 
