@@ -2,10 +2,8 @@
 param(
     [string]$WorkspaceRoot,
 
-    [Parameter(Mandatory)]
     [string]$SourceXsa,
 
-    [Parameter(Mandatory)]
     [string]$CandidateRoot,
 
     [string]$VitisWorkspace,
@@ -15,10 +13,206 @@ param(
     [ValidateSet('SingleShot', 'PeriodicMonitor', 'LabUart', 'Ethernet')]
     [string]$ApplicationMode = 'SingleShot',
 
+    [switch]$BuildOnly,
+
     [switch]$DryRun
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ($BuildOnly) {
+    if ($ApplicationMode -cne 'Ethernet') {
+        throw 'BuildOnly is reserved for the isolated Ethernet development workspace.'
+    }
+
+    $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
+    $defaultWorkspace = [IO.Path]::GetFullPath(
+        (Join-Path $projectRoot 'vitis_ethernet\workspace'))
+    $selectedWorkspace = if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
+        $defaultWorkspace
+    }
+    else {
+        [IO.Path]::GetFullPath($WorkspaceRoot)
+    }
+    if (-not $selectedWorkspace.Equals(
+            $defaultWorkspace,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Ethernet BuildOnly workspace must be '$defaultWorkspace': $selectedWorkspace"
+    }
+
+    $allowedRoot = Split-Path $defaultWorkspace -Parent
+    $existingAncestor = $allowedRoot
+    while (-not (Test-Path -LiteralPath $existingAncestor)) {
+        $existingAncestor = Split-Path $existingAncestor -Parent
+    }
+    $current = Get-Item -LiteralPath $existingAncestor
+    while ($current) {
+        if (($current.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Ethernet BuildOnly workspace contains a reparse point: $($current.FullName)"
+        }
+        if ($current.FullName.TrimEnd('\').Equals(
+                [IO.Path]::GetPathRoot($current.FullName).TrimEnd('\'),
+                [StringComparison]::OrdinalIgnoreCase)) {
+            break
+        }
+        $current = $current.Parent
+    }
+
+    $referenceRoot = Join-Path $projectRoot `
+        'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1'
+    $manifestPath = Join-Path $referenceRoot 'manifest.json'
+    $releaseModule = Join-Path $projectRoot 'PROJECT\tools\Axu4evRelease.psm1'
+    $buildTcl = Join-Path $projectRoot 'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
+    $xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'
+    foreach ($required in @($manifestPath, $releaseModule, $buildTcl, $xsct)) {
+        if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+            throw "Missing Ethernet BuildOnly dependency: $required"
+        }
+    }
+
+    $referenceRelative = 'PROJECT/candidates/axu4ev-ad9364/fft-single-shot-v1'
+    $referenceStatus = @(
+        & git -C $projectRoot status --porcelain=v1 --untracked-files=all -- $referenceRelative
+    )
+    if ($LASTEXITCODE -ne 0 -or $referenceStatus.Count -ne 0) {
+        throw "Ethernet BuildOnly requires a clean board-verified reference.`r`n$($referenceStatus -join "`r`n")"
+    }
+
+    Import-Module $releaseModule -Force
+    $referenceManifest = Read-Axu4evReleaseManifest -ReleaseRoot $referenceRoot
+    if (-not $referenceManifest.board_verified) {
+        throw 'Ethernet BuildOnly requires the board-verified fft-single-shot-v1 reference.'
+    }
+    $referenceArtifacts = @(
+        Test-Axu4evReleaseArtifacts `
+            -ReleaseRoot $referenceRoot `
+            -Manifest $referenceManifest
+    )
+    $referenceByName = @{}
+    foreach ($artifact in $referenceArtifacts) {
+        $referenceByName[$artifact.Name] = $artifact
+    }
+    foreach ($requiredArtifact in @('bitstream', 'pmufw', 'psu_init', 'xsa')) {
+        if (-not $referenceByName.ContainsKey($requiredArtifact)) {
+            throw "Ethernet BuildOnly reference is missing '$requiredArtifact'."
+        }
+    }
+    $trustedXsa = $referenceByName['xsa'].Path
+    if (-not [string]::IsNullOrWhiteSpace($SourceXsa) -and
+        -not [IO.Path]::GetFullPath($SourceXsa).Equals(
+            [IO.Path]::GetFullPath($trustedXsa),
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Ethernet BuildOnly cannot override the board-verified reference XSA.'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($CandidateRoot)) {
+        throw 'Ethernet BuildOnly does not create or modify a Candidate bundle.'
+    }
+
+    $untrackedInputs = @(
+        & git -C $projectRoot ls-files --others --exclude-standard -- `
+            'Vitis/workspace/ad9364app/src'
+    )
+    if ($LASTEXITCODE -ne 0 -or $untrackedInputs.Count -ne 0) {
+        throw "Ethernet BuildOnly rejects untracked application sources.`r`n$($untrackedInputs -join "`r`n")"
+    }
+
+    $description = [ordered]@{
+        source_xsa = $trustedXsa
+        source_xsa_sha256 = $referenceByName['xsa'].Sha256
+        candidate_root = $null
+        vitis_workspace = $selectedWorkspace
+        application_mode = $ApplicationMode
+        compiler_symbol = 'PL_FFT_ETHERNET'
+        pl_fft_single_shot = $false
+        pl_fft_periodic_monitor = $false
+        pl_fft_lab_uart = $false
+        pl_fft_ethernet = $true
+        build_only = [bool]$BuildOnly
+        trusted_reference = $referenceRoot
+    }
+    if ($DryRun) {
+        $description | ConvertTo-Json -Depth 4
+        return
+    }
+
+    $free = (Get-PSDrive -Name C).Free
+    if ($free -lt 5GB) {
+        throw 'At least 5 GiB free space is required for the Ethernet Vitis workspace.'
+    }
+    New-Item -ItemType Directory -Path $allowedRoot -Force | Out-Null
+    $referenceHashes = @{}
+    foreach ($artifact in $referenceArtifacts) {
+        $referenceHashes[$artifact.Name] = (Get-FileHash `
+                -LiteralPath $artifact.Path `
+                -Algorithm SHA256).Hash
+    }
+
+    $usedDriveLetters = @(
+        [IO.DriveInfo]::GetDrives() |
+            ForEach-Object { $_.Name.Substring(0, 1).ToUpperInvariant() }
+    )
+    $substLetter = @('V', 'W', 'X', 'Y', 'Z') |
+        Where-Object { $_ -notin $usedDriveLetters } |
+        Select-Object -First 1
+    if (-not $substLetter) {
+        throw 'Ethernet BuildOnly requires one free drive letter from V: through Z: for Vitis 2020.1 path shortening.'
+    }
+    $substDrive = "$substLetter`:"
+    & subst.exe $substDrive $projectRoot
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cannot map $substDrive to the project root for Vitis 2020.1."
+    }
+    try {
+        $mappedProjectRoot = "$substDrive\"
+        $mappedBuildTcl = Join-Path $mappedProjectRoot `
+            'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
+        $mappedTrustedXsa = Join-Path $mappedProjectRoot `
+            'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1\hardware\system_top.xsa'
+        $mappedAllowedRoot = Join-Path $mappedProjectRoot 'vitis_ethernet'
+        $mappedWorkspace = Join-Path $mappedAllowedRoot 'workspace'
+        & $xsct $mappedBuildTcl $mappedProjectRoot $mappedTrustedXsa `
+            $mappedWorkspace $mappedAllowedRoot PL_FFT_ETHERNET
+        $buildExitCode = $LASTEXITCODE
+    }
+    finally {
+        & subst.exe $substDrive /D
+    }
+    if ($buildExitCode -ne 0) {
+        throw "Ethernet BuildOnly Vitis build failed with exit code $buildExitCode."
+    }
+
+    $elf = Join-Path $selectedWorkspace 'ad9364app\Release\ad9364app.elf'
+    if (-not (Test-Path -LiteralPath $elf -PathType Leaf) -or
+        (Get-Item -LiteralPath $elf).Length -le 0) {
+        throw "Ethernet BuildOnly did not produce a non-empty ELF: $elf"
+    }
+    $lwipManifests = @(
+        Get-ChildItem -LiteralPath $selectedWorkspace -Recurse -Filter *.mss -File |
+            Where-Object { Select-String -LiteralPath $_.FullName -Pattern 'lwip211' -Quiet }
+    )
+    if ($lwipManifests.Count -eq 0) {
+        throw 'Ethernet BuildOnly BSP manifest does not contain lwip211.'
+    }
+    foreach ($artifact in $referenceArtifacts) {
+        $actualHash = (Get-FileHash -LiteralPath $artifact.Path -Algorithm SHA256).Hash
+        if ($actualHash -cne $referenceHashes[$artifact.Name]) {
+            throw "Ethernet BuildOnly modified trusted Candidate artifact '$($artifact.Name)'."
+        }
+    }
+
+    Write-Output "PASS: Ethernet development ELF built at $elf"
+    $description | ConvertTo-Json -Depth 4
+    return
+}
+
+foreach ($requiredValue in @{
+        SourceXsa = $SourceXsa
+        CandidateRoot = $CandidateRoot
+    }.GetEnumerator()) {
+    if ([string]::IsNullOrWhiteSpace([string]$requiredValue.Value)) {
+        throw "$($requiredValue.Key) is required unless BuildOnly is selected."
+    }
+}
 
 if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
     $WorkspaceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path

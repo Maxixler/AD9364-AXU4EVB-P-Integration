@@ -39,11 +39,14 @@ if {![file isdirectory $source_root]} {
 }
 set allowed_prefix "${allowed_workspace_root}/"
 set workspace_prefix "${workspace_path}/"
+set default_ethernet_workspace [file normalize [file join $project_root vitis_ethernet workspace]]
+set is_default_ethernet_workspace [string equal -nocase $workspace_path $default_ethernet_workspace]
 if {$workspace_path eq $allowed_workspace_root ||
     ![string match -nocase "${allowed_prefix}*" $workspace_prefix] ||
     $workspace_path eq $project_root ||
-    [string match -nocase "${workspace_prefix}*" "${project_root}/"] ||
-    [string match -nocase "${project_root}/*" $workspace_prefix]} {
+    (!$is_default_ethernet_workspace &&
+        ([string match -nocase "${workspace_prefix}*" "${project_root}/"] ||
+            [string match -nocase "${project_root}/*" $workspace_prefix]))} {
     error "Unsafe Candidate Vitis workspace path: $workspace_path"
 }
 

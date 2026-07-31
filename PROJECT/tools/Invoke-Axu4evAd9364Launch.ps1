@@ -146,8 +146,28 @@ if ($Mode -eq 'Golden') {
     }
 }
 elseif ($Mode -eq 'Candidate') {
+    $developmentApplication = $null
     if (-not [string]::IsNullOrWhiteSpace($CandidateApplication)) {
-        throw 'CandidateApplication-only launch is unsafe. Provide a complete CandidateRoot bundle.'
+        if (-not [string]::IsNullOrWhiteSpace($CandidateRoot)) {
+            throw 'CandidateApplication cannot be combined with an explicit CandidateRoot.'
+        }
+        $CandidateRoot = Join-Path $candidateBase 'fft-single-shot-v1'
+        $developmentApplication = (Resolve-Path -LiteralPath $CandidateApplication).Path
+        $expectedDevelopmentApplication = [IO.Path]::GetFullPath(
+            (Join-Path $WorkspaceRoot `
+                'vitis_ethernet\workspace\ad9364app\Release\ad9364app.elf'))
+        if (-not $developmentApplication.Equals(
+                $expectedDevelopmentApplication,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            throw "CandidateApplication must be the isolated Ethernet development ELF: $expectedDevelopmentApplication"
+        }
+        $developmentWorkspace = Join-Path $WorkspaceRoot 'vitis_ethernet\workspace'
+        Assert-NoReparsePoint `
+            -Path $developmentApplication `
+            -Boundary $developmentWorkspace
+        if ((Get-Item -LiteralPath $developmentApplication).Length -le 0) {
+            throw "CandidateApplication is empty: $developmentApplication"
+        }
     }
     if ([string]::IsNullOrWhiteSpace($CandidateRoot)) {
         throw 'Candidate mode requires CandidateRoot.'
@@ -176,6 +196,11 @@ elseif ($Mode -eq 'Candidate') {
     Assert-NoReparsePoint -Path $candidate.FullName -Boundary $candidateBasePath
 
     $manifest = Read-Axu4evReleaseManifest $candidate.FullName
+    if ($developmentApplication -and
+        ($candidate.Name -cne 'fft-single-shot-v1' -or
+            -not $manifest.board_verified)) {
+        throw 'Ethernet development launch requires the board-verified fft-single-shot-v1 hardware bundle.'
+    }
     $verified = @(Test-Axu4evReleaseArtifacts $candidate.FullName $manifest)
     foreach ($item in $verified) {
         $artifactPath = [IO.Path]::GetFullPath($item.Path)
@@ -202,6 +227,9 @@ elseif ($Mode -eq 'Candidate') {
     Assert-Axu4evPsHardwareContract `
         -Xsa $paths.xsa `
         -ReferenceXsa $referenceXsa[0]
+    if ($developmentApplication) {
+        $paths.application = $developmentApplication
+    }
 }
 else {
     $handoffTest = Join-Path $WorkspaceRoot 'PROJECT\tests\Test-Axu4evHandoffArtifacts.ps1'
