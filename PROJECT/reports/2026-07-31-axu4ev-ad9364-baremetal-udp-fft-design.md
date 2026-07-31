@@ -214,8 +214,11 @@ Sorumluluklar:
 5. On iki parça tamamlandığında 2048-bin spektrumu yeniden oluşturmak.
 6. Frame CRC'yi doğrulamak.
 7. Peak bin, frekans ofseti ve kalibre edilmemiş göreli gücü göstermek.
-8. İstenirse 100 frame sonunda NPZ, CSV ve JSON metadata üretmek.
-9. Kayıp paket, eksik frame, CRC hatası ve sıra atlamalarını saymak.
+8. Varsayılan olarak kullanıcı durdurana kadar kesintisiz çalışmak.
+9. `Ctrl+C` ile durdurulduğunda tamamlanmış frame'leri güvenli biçimde
+   sonlandırmak ve seçilmişse NPZ, CSV ve JSON metadata üretmek.
+10. Otomatik kabul testi için isteğe bağlı `--frames 100` sınırını desteklemek.
+11. Kayıp paket, eksik frame, CRC hatası ve sıra atlamalarını saymak.
 
 Eksik bir frame, ilk paketi alındıktan bir saniye sonra tamamlanmadıysa
 atılır. Aynı frame/chunk tekrar gelirse ilk geçerli paket korunur ve tekrar
@@ -321,6 +324,8 @@ Zorunlu sınırlar:
 
 ### 11.7 100-frame güvenilirlik kabulü
 
+- Bu test çalışma zamanını 100 frame ile sınırlamaz; kesintisiz yayın içinden
+  alınan sonlu ve tekrarlanabilir bir kabul penceresidir.
 - 100 eksiksiz frame kaydedilir.
 - CRC/protokol hatası sıfırdır.
 - Doğrudan bağlantıda eksik frame hedefi sıfırdır.
