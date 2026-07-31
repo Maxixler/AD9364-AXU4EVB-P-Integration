@@ -85,3 +85,27 @@ def test_main_treats_keyboard_interrupt_as_a_clean_stop(monkeypatch) -> None:
     monkeypatch.setattr(app.plt, "show", lambda **_kwargs: None)
 
     assert app.main(["--bind", "127.0.0.1", "--frames", "1"]) == 0
+
+
+def test_main_services_window_close_during_network_idle(monkeypatch) -> None:
+    class IdleReceiver:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc_info) -> None:
+            pass
+
+        def frames(self, *, limit, stop, on_idle):
+            del limit, stop
+            assert on_idle() is True
+            return
+            yield
+
+    monkeypatch.setattr(app, "UdpFftReceiver", IdleReceiver)
+    monkeypatch.setattr(app.plt, "show", lambda **_kwargs: None)
+    monkeypatch.setattr(app.plt, "pause", lambda _seconds: plt.close("all"))
+
+    assert app.main(["--bind", "127.0.0.1"]) == 0

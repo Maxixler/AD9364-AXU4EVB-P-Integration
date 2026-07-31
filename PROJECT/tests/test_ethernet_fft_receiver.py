@@ -63,3 +63,30 @@ def test_keyboard_interrupt_stops_iteration_cleanly() -> None:
     receiver = UdpFftReceiver.from_datagrams(interrupted_datagrams())
 
     assert [response.frame_id for response in receiver.frames()] == [1]
+
+
+def test_timeout_advances_expiry_and_allows_idle_stop() -> None:
+    class TimeoutAfterDatagram:
+        def __init__(self) -> None:
+            self._datagram = make_frame(12)[0]
+
+        def recvfrom(self, _size: int):
+            if self._datagram is not None:
+                datagram, self._datagram = self._datagram, None
+                return datagram, None
+            raise socket.timeout
+
+        def close(self) -> None:
+            pass
+
+    timestamps = iter([0.0, 1.1])
+    receiver = UdpFftReceiver(
+        _source=TimeoutAfterDatagram(),
+        _clock=lambda: next(timestamps),
+    )
+
+    observed = list(receiver.frames(on_idle=lambda: True))
+
+    assert observed == []
+    assert receiver.stats.packets_received == 1
+    assert receiver.stats.lost_frames == 1

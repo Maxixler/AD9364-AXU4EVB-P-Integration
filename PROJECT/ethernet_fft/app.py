@@ -87,9 +87,14 @@ def main(argv: list[str] | None = None) -> int:
     displayed = 0
     try:
         with UdpFftReceiver(bind=args.bind, port=args.port) as receiver:
+            def on_idle() -> bool:
+                plt.pause(0.001)
+                return not plt.fignum_exists(view.figure.number)
+
             for response in receiver.frames(
                 limit=args.frames,
                 stop=lambda _response: not plt.fignum_exists(view.figure.number),
+                on_idle=on_idle,
             ):
                 displayed += 1
                 elapsed = max(time.monotonic() - started_at, 1e-9)
