@@ -1,5 +1,38 @@
 # AXU4EVB-P + AD9364 SDR Uygulama Planı
 
+## 28. 31 Temmuz 2026 — sürekli bare-metal UDP FFT aktarımı
+
+PetaLinux, disk ve teslim kapsamı nedeniyle zorunlu yol olmaktan çıkarıldı. Kartta
+çalışan 2048-bin PL FFT sonucu, ayrı bir Vitis çalışma alanındaki bare-metal
+`PL_FFT_ETHERNET` uygulamasıyla GEM3/lwIP RAW UDP üzerinden Windows bilgisayara
+aktarılacak şekilde geliştirildi. Çalışan Golden, `vitis2` ve önceki Candidate
+paketleri değiştirilmedi.
+
+Sabit ağ sözleşmesi kart `192.168.1.10/24`, bilgisayar `192.168.1.100/24` ve UDP
+port `5005`'tir. Her FFT karesi 64 bayt sürümlü başlık ve 12 MTU-güvenli
+datagramla 2048 adet unsigned 64-bit bin taşır. Başlık network byte order,
+spektrum payload'u little-endian'dır. Varsayılan yayın süresiz ve 4 frame/s'dir;
+`--frames N` yalnız sınırlı kayıt/kabul testi içindir.
+
+Tamamlananlar:
+
+- [x] Transport bağımsız sürekli FFT servisi ve 64 bayt UDP protokolü.
+- [x] GEM3 + lwIP211 RAW/statik IPv4 entegrasyonu.
+- [x] Ayrı `vitis_ethernet/workspace` üretimi ve gerçek Release ELF build'i.
+- [x] Python datagram decoder, frame reassembly ve canlı FFT viewer.
+- [x] Sıra/CRC/frame bütünlüğü denetimli headless kabul ve soak araçları.
+- [x] 38 testlik host regresyonunun tamamının geçmesi.
+- [ ] USB-Ethernet adaptörüyle kart-PC fiziksel bağlantısı ve `ping` kapısı.
+- [ ] En az 150 frame headless kabul ve 600 saniye sürekli soak.
+- [ ] Sınırlı seviyeli kablosuz SMW200A CW ile peak/bin kabulü.
+- [ ] Yalnız bu kapılar geçerse `monopulse-live-ethernet-v1` Candidate paketi.
+
+Adaptör geldikten sonraki sıra: kart/JTAG/PS_UART/Ethernet bağlantılarını kur,
+adaptörü `192.168.1.100/24` yap, `Start-Axu4evAd9364EthernetDev.cmd` ile kartı
+başlat, UART'ta `PL_FFT_ETH: READY` gör, `ping 192.168.1.10` çalıştır, 150-frame
+kabulü ve 600 saniye soak testini tamamla. Bu kayıt fiziksel Ethernet veya RF
+PASS iddiası içermez.
+
 ## 27. 27 Temmuz 2026 — bare-metal Python lab console planı
 
 Yeni bağlayıcı hedef, kartta doğrulanmış 2048-bin FFT sonucunu ek işletim

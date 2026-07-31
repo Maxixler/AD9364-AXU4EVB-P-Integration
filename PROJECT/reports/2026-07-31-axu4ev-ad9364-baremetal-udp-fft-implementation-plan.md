@@ -8,6 +8,12 @@
 
 **Tech Stack:** Vivado/Vitis 2020.1, Zynq UltraScale+ MPSoC Cortex-A53 standalone BSP, `lwip211` RAW API, ADI no-OS AD9364 sürücüsü, C11 host testleri, Python 3, `socket`, `struct`, NumPy, Matplotlib, pytest.
 
+**31 Temmuz kapanış durumu:** Görev 1-8'in yazılım/build kısmı tamamlandı; 38
+host testi ve temiz gerçek Vitis Ethernet Release build'i PASS. Fiziksel Ethernet
+arabirimi bulunmadığı için kart ping/UDP capture, 150-frame kabul, 600-saniye
+soak, kablosuz CW ve nihai Candidate paketleme açık bırakıldı. Bu ayrım fiziksel
+kanıt üretilmiş gibi raporlanmamalıdır.
+
 ## Global Constraints
 
 - Mevcut `vitis2/`, Golden ve `PROJECT/candidates/axu4ev-ad9364-monopulse/` altındaki doğrulanmış Candidate içerikleri değiştirilmez.

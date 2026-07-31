@@ -1,5 +1,30 @@
 # Çalışma Günlüğü — AXU4EVB-P + AD9364 Doğrulama ve Teslim Zinciri
 
+## 34. Sürekli Ethernet FFT geliştirmesi — 31 Temmuz 2026
+
+Kullanıcıyla yapılan kapsam değerlendirmesinde PetaLinux yerine mevcut bare-metal
+zincirin korunmasına ve FFT verisinin doğrudan Ethernet/UDP ile aktarılmasına
+karar verildi. Kartın Ethernet hedefi `192.168.1.10`, PC hedefi
+`192.168.1.100`, UDP portu `5005` olarak sabitlendi.
+
+Bu oturumda sürümlü 64-bayt başlık, 2048 adet uint64 spektrum binini 12 UDP
+datagramına bölen protokol, kesintisiz 4 frame/s servis, GEM3/lwIP211 taşıyıcısı,
+ayrı Vitis Ethernet build'i, Python decoder/reassembler ve canlı Matplotlib
+viewer tamamlandı. Sınırlı kayıt için `--frames N`, gerçek sürekli gözlem için
+varsayılan sınırsız mod korundu. Headless kabul aracı sıralı frame kimliği,
+parça/bütünlük, CRC ve zaman sınırlarını denetleyecek şekilde sertleştirildi.
+
+Temiz `vitis_ethernet` çalışma alanında Vitis 2020.1 Release ELF üretimi başarılı
+oldu; host regresyonunda 38 test geçti. Mevcut Golden, `vitis2` ve önceki
+Candidate dosyalarına dokunulmadı.
+
+Fiziksel kart testi bu oturumda tamamlanmadı: bilgisayarda dahili Ethernet portu
+yok ve USB-Ethernet adaptörü henüz mevcut değil. Bu yüzden ping, gerçek UDP
+capture, 150-frame acceptance, 600-saniye soak ve kablosuz CW PASS olarak
+yazılmadı. Adaptör geldikten sonra `Start-Axu4evAd9364EthernetDev.cmd`, UART
+`PL_FFT_ETH: READY`, ping, acceptance, soak ve son olarak güvenli SMW200A CW
+sırasıyla uygulanacak; ardından yeni Candidate değerlendirmesi yapılacak.
+
 **Tarih:** 14 Temmuz 2026
 
 **Kapsam:** `fmcomms2/axu4ev` Vivado projesinin şemalara göre doğrulanması, bitstream/XSA üretimi, Vitis platformu, FSBL ve AD9364 bare-metal uygulamasının tamamlanması.

@@ -1,8 +1,36 @@
 # Proje Durum Raporu — AXU4EVB-P + AD9364
 
-**Son güncelleme:** 27 Temmuz 2026
+**Son güncelleme:** 31 Temmuz 2026
 
 **Ana hedef:** ALINX AXU4EVB-P üzerinde AD9364/FMCOMMS ailesi ile doğrulanmış FPGA donanım platformu ve bare-metal yazılım zinciri oluşturmak.
+
+## 23. Güncel durum — bare-metal Ethernet FFT hazır, fiziksel kabul bekliyor
+
+2048-bin PL FFT'nin Ethernet üzerinden sürekli aktarımı ayrı ve geri alınabilir
+bir geliştirme hattında tamamlandı. Kart yazılımı GEM3/lwIP211 RAW UDP ile
+`192.168.1.10:5005` adresinden saniyede dört tam frame gönderir; bilgisayar
+`192.168.1.100/24` olarak yapılandırılır. Her frame 12 datagramdan yeniden
+birleştirilir ve Python tarafında başlık, sıra, parça kapsamı, CRC ve frame
+bütünlüğü kontrol edilmeden kabul edilmez.
+
+Yazılım kanıtı: 38 host testi PASS; temiz ayrı `vitis_ethernet` workspace'inde
+gerçek Vitis 2020.1 Release build'i PASS ve
+`vitis_ethernet/workspace/ad9364app/Release/ad9364app.elf` üretildi. Sürekli
+viewer, sınırlı headless acceptance ve uzun soak araçları hazırdır. Varsayılan
+çalışma süresizdir; eski 100-frame durdurma yalnız `--frames 100` açıkça
+verilirse uygulanır.
+
+Fiziksel durum: bilgisayarda Ethernet portu olmadığı ve USB-Ethernet adaptörü
+henüz bulunmadığı için kartın `ping`, gerçek UDP capture, 150-frame kabul,
+600-saniye soak ve kablosuz CW ölçümleri yapılmadı. Bu nedenle
+`monopulse-live-ethernet-v1` Candidate henüz oluşturulmadı ve
+`board_verified=false` korunur. Golden, `vitis2` ve mevcut Candidate paketleri
+değişmemiştir.
+
+Bir sonraki oturumda adaptör `192.168.1.100/24` (gateway/DNS boş) yapılacak;
+`PROJECT/tools/Start-Axu4evAd9364EthernetDev.cmd` çalıştırılacak, UART READY ve
+ping kapısından sonra sırasıyla 150-frame acceptance, 600-saniye soak ve güvenli
+kablosuz SMW200A CW testi yürütülecektir. PetaLinux bu teslim için ertelenmiştir.
 
 **Mevcut aşama:** Vivado/Vitis kapanışı, PMUFW içeren JTAG başlatma ve temel bare-metal kart bring-up'ı tamamlandı. Tek AD9364 RX, dört analog Σ/Δ durumu ve tek 2048-point FFT kullanan monopulse Candidate tasarımı onaylandı. 21 Temmuz inceleme uzlaştırmasıyla tam 2048-bin spektrum, peak diagnostikleri, tek-kare ve ping-pong sürekli frame modları bağlayıcı hale getirildi; sıradaki ana aşama kaynak/Golden regresyonu ile RX/IQ format kapısıdır.
 

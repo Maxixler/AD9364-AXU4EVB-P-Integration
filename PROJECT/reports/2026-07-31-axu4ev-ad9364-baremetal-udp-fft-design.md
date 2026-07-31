@@ -4,6 +4,12 @@ Tarih: 31 Temmuz 2026
 
 Durum: Onaylanmış tasarım
 
+Uygulama durumu (31 Temmuz 2026): Protokol, sürekli servis, lwIP/GEM3 taşıyıcısı,
+ayrı Vitis Ethernet build'i ve Python viewer uygulanmıştır. 38 host testi ve
+gerçek Release ELF build'i geçmiştir. USB-Ethernet adaptörü bulunmadığından
+fiziksel ping, gerçek UDP capture, soak ve kablosuz CW kabulü beklemektedir.
+Fiziksel PASS veya nihai Candidate iddiası yoktur.
+
 Hedef platform: AXU4EVB-P + AD-FMCOMMS3-EBZ üzerindeki AD9364
 
 Araç zinciri: Vivado/Vitis 2020.1, bare-metal A53

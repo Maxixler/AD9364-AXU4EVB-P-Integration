@@ -1,6 +1,17 @@
 # Nihai Geliştirme Planı
 ## AXU4EVB-P + AD9364 + RF Switch + FPGA FFT ve Aritmetik IP
 
+> **2026-07-31 Ethernet teslim güncellemesi:** Mevcut 2048-bin PL FFT sonucu,
+> PetaLinux eklenmeden ayrı `PL_FFT_ETHERNET` bare-metal uygulamasından GEM3/lwIP
+> RAW UDP ile sürekli yayımlanacak şekilde uygulandı. Kart/PC/port sözleşmesi
+> `192.168.1.10`, `192.168.1.100/24`, UDP `5005`; hız 4 frame/s ve varsayılan
+> süre sınırsızdır. Her frame 12 datagram, 64-bayt başlık ve 2048 uint64 bin
+> içerir. Python decoder, reassembly, canlı viewer ve headless/soak doğrulamaları
+> hazır; 38 host testi ve temiz gerçek Vitis Ethernet build'i PASS'tir.
+> USB-Ethernet adaptörü bulunmadığından fiziksel ping/UDP/soak/CW kapıları henüz
+> geçilmedi. `monopulse-live-ethernet-v1` bu kapılardan önce oluşturulmayacaktır;
+> Golden, `vitis2` ve mevcut Candidate paketleri değişmeden kalır.
+
 > **Uygulayıcı notu:** Bu plan paket paket yürütülmelidir; her paket için test-first çalışma, bağımsız doğrulama ve commit zorunludur.
 
 > **Uygulama sözleşmesi:** Bu belge karar kapıları tamamlandıkça uygulanacaktır. Golden sürüm değiştirilmeyecek; her faz ayrı Candidate çıktısı, otomatik doğrulama ve kart kabul kaydı üretmeden sonraki faza geçmeyecektir.
