@@ -16,6 +16,7 @@ try {
         PROJECT/tests/test_ethernet_fft_reassembly.py `
         PROJECT/tests/test_ethernet_fft_receiver.py `
         PROJECT/tests/test_ethernet_fft_app.py `
+        PROJECT/tests/test_ethernet_fft_acceptance.py `
         -q
     if ($LASTEXITCODE -ne 0) {
         throw "Ethernet FFT host tests failed with exit code $LASTEXITCODE."
