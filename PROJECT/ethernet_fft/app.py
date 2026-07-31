@@ -70,6 +70,9 @@ def capture_headless(
         stop_reason = "source_exhausted"
     first_frame_id = frame_ids[0] if frame_ids else None
     last_frame_id = frame_ids[-1] if frame_ids else None
+    frame_ids_strictly_increasing = all(
+        current > previous for previous, current in zip(frame_ids, frame_ids[1:])
+    )
     return {
         "requested_frames": frame_limit,
         "duration_seconds": duration_seconds,
@@ -83,6 +86,7 @@ def capture_headless(
             if first_frame_id is not None and last_frame_id is not None
             else None
         ),
+        "frame_ids_strictly_increasing": frame_ids_strictly_increasing,
         "packets_received": stats.packets_received,
         "lost_frames": stats.lost_frames,
         "invalid_datagrams": stats.invalid_datagrams,
@@ -210,6 +214,7 @@ def main(argv: list[str] | None = None) -> int:
             and capture["last_frame_id"] >= args.frames
             and capture["last_frame_id"] > capture["first_frame_id"]
             and capture["frame_id_span"] >= args.frames - 1
+            and capture["frame_ids_strictly_increasing"]
         )
         if args.frames > 0:
             status = "PASS" if complete else "FAIL"

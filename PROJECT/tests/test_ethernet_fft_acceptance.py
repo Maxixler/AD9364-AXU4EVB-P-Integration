@@ -60,6 +60,7 @@ def test_headless_capture_reports_frame_and_transport_counters() -> None:
         "first_frame_id": 41,
         "last_frame_id": 43,
         "frame_id_span": 2,
+        "frame_ids_strictly_increasing": True,
         "packets_received": 36,
         "lost_frames": 1,
         "invalid_datagrams": 2,
@@ -97,6 +98,7 @@ def test_capture_evidence_is_json_with_a_versioned_schema(tmp_path) -> None:
         "first_frame_id": 1,
         "last_frame_id": 150,
         "frame_id_span": 149,
+        "frame_ids_strictly_increasing": True,
         "packets_received": 1800,
         "lost_frames": 0,
         "invalid_datagrams": 0,
@@ -176,3 +178,69 @@ def test_main_headless_rejects_repeated_frame_ids(monkeypatch, tmp_path, capsys)
     ) == 1
 
     assert "ETH_FFT: FAIL frames=2 last_frame=150 lost_frames=0 invalid_datagrams=0" in capsys.readouterr().out
+
+
+def test_main_headless_rejects_a_regressed_id_inside_a_150_frame_capture(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    class RegressedFrameReceiver(_FixtureReceiver):
+        def __init__(self, **_kwargs) -> None:
+            super().__init__(
+                [*range(1, 149), 1, 150],
+                ReceiverStats(1800, 150, 0, 0, 0, 0),
+            )
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc_info) -> None:
+            return None
+
+    monkeypatch.setattr(app, "UdpFftReceiver", RegressedFrameReceiver)
+
+    assert app.main(
+        [
+            "--headless",
+            "--frames",
+            "150",
+            "--bind",
+            "127.0.0.1",
+            "--evidence-dir",
+            str(tmp_path),
+        ]
+    ) == 1
+
+    assert "ETH_FFT: FAIL frames=150 last_frame=150 lost_frames=0 invalid_datagrams=0" in capsys.readouterr().out
+
+
+def test_main_headless_accepts_a_strictly_increasing_150_frame_capture(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    class IncreasingFrameReceiver(_FixtureReceiver):
+        def __init__(self, **_kwargs) -> None:
+            super().__init__(
+                list(range(1, 151)),
+                ReceiverStats(1800, 150, 0, 0, 0, 0),
+            )
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc_info) -> None:
+            return None
+
+    monkeypatch.setattr(app, "UdpFftReceiver", IncreasingFrameReceiver)
+
+    assert app.main(
+        [
+            "--headless",
+            "--frames",
+            "150",
+            "--bind",
+            "127.0.0.1",
+            "--evidence-dir",
+            str(tmp_path),
+        ]
+    ) == 0
+
+    assert "ETH_FFT: PASS frames=150 last_frame=150 lost_frames=0 invalid_datagrams=0" in capsys.readouterr().out

@@ -77,3 +77,31 @@ exit 0
 ```
 
 No physical evidence was generated during this fix round.
+
+## Fix Round 2: full finite-capture frame-ID ordering
+
+Endpoint-only validation could accept an internal frame-ID regression: the
+150-response sequence `1..148, 1, 150` has a valid first ID, last ID, and
+overall span. The headless capture summary now records
+`frame_ids_strictly_increasing`, derived from every adjacent pair. Finite
+acceptance requires that value in addition to the existing count, loss,
+invalid-datagram, endpoint, and span checks. Continuous mode does not use this
+finite-capture PASS gate.
+
+Commands and output:
+
+```text
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evEthernetHost.ps1
+38 passed in 9.98s
+PASS: Ethernet FFT host receiver and viewer tests.
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evEthernetLabAcceptanceTool.ps1
+PASS: Ethernet lab acceptance offline thresholds and JSON evidence behavior.
+
+git diff --check
+exit 0
+```
+
+The exact regressed sequence returns nonzero with `ETH_FFT: FAIL`; a strictly
+increasing `1..150` sequence returns zero with `ETH_FFT: PASS`. No physical
+evidence was generated during this fix round.
