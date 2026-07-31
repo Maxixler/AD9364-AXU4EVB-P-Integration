@@ -38,6 +38,44 @@ function Assert-NotMatch {
     }
 }
 
+function Remove-TestOwnedDevelopmentArtifact {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ArtifactPath,
+
+        [Parameter(Mandatory)]
+        [bool]$ArtifactCreated,
+
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [string[]]$CreatedDirectories,
+
+        [Parameter(Mandatory)]
+        [string]$Boundary
+    )
+
+    $boundaryPath = [IO.Path]::GetFullPath($Boundary).TrimEnd('\')
+    $boundaryPrefix = $boundaryPath + '\'
+    if ($ArtifactCreated -and (Test-Path -LiteralPath $ArtifactPath -PathType Leaf)) {
+        Remove-Item -LiteralPath $ArtifactPath -Force
+    }
+    foreach ($directory in @($CreatedDirectories | Sort-Object Length -Descending)) {
+        $directoryPath = [IO.Path]::GetFullPath($directory).TrimEnd('\')
+        if (-not $directoryPath.StartsWith(
+                $boundaryPrefix,
+                [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to clean a test-created directory outside '$boundaryPath': $directoryPath"
+        }
+        if ((Test-Path -LiteralPath $directoryPath -PathType Container) -and
+            @(Get-ChildItem -LiteralPath $directoryPath -Force).Count -eq 0) {
+            Remove-Item -LiteralPath $directoryPath -Force
+        }
+    }
+    if ($ArtifactCreated -and (Test-Path -LiteralPath $ArtifactPath)) {
+        throw "Test-created development ELF remains after cleanup: $ArtifactPath"
+    }
+}
+
 foreach ($path in @(
         $buildTcl,
         $buildPs1,
@@ -107,11 +145,157 @@ if (-not [bool]$buildOnly.build_only -or
     throw 'Ethernet BuildOnly dry-run did not select the isolated workspace contract.'
 }
 
-$developmentElf = Join-Path $root `
-    'vitis_ethernet\workspace\ad9364app\Release\ad9364app.elf'
+. $buildPs1 `
+    -ApplicationMode Ethernet `
+    -WorkspaceRoot (Join-Path $root 'vitis_ethernet\workspace') `
+    -BuildOnly `
+    -DryRun | Out-Null
+if (-not (Get-Command Invoke-WithVerifiedSubstMapping -ErrorAction SilentlyContinue)) {
+    throw 'Ethernet BuildOnly does not expose its verified SUBST lifecycle helper.'
+}
+
+$substFixture = Join-Path ([IO.Path]::GetTempPath()) `
+    "axu4ev-ethernet-subst-$([guid]::NewGuid())"
+$fakeSubst = Join-Path $substFixture 'subst-fixture.cmd'
+$substState = Join-Path $substFixture 'mapped.txt'
+$savedDeleteExit = $env:AXU4EV_TEST_SUBST_DELETE_EXIT
+$savedKeepMapping = $env:AXU4EV_TEST_SUBST_KEEP_MAPPING
+try {
+    New-Item -ItemType Directory -Path $substFixture | Out-Null
+    @"
+@echo off
+setlocal
+set "STATE=$substState"
+if "%~1"=="" (
+  if exist "%STATE%" echo V:\: =^> C:\fixture
+  exit /b 0
+)
+if /I "%~2"=="/D" (
+  if not "%AXU4EV_TEST_SUBST_KEEP_MAPPING%"=="1" del /q "%STATE%" >nul 2>&1
+  if "%AXU4EV_TEST_SUBST_DELETE_EXIT%"=="" exit /b 0
+  exit /b %AXU4EV_TEST_SUBST_DELETE_EXIT%
+)
+type nul > "%STATE%"
+exit /b 0
+"@ | Set-Content -LiteralPath $fakeSubst -Encoding Ascii
+
+    $env:AXU4EV_TEST_SUBST_DELETE_EXIT = '0'
+    $env:AXU4EV_TEST_SUBST_KEEP_MAPPING = '0'
+    Invoke-WithVerifiedSubstMapping `
+        -SubstDrive 'V:' `
+        -TargetRoot $substFixture `
+        -SubstExecutable $fakeSubst `
+        -Operation {
+            param($mappedRoot)
+            if ($mappedRoot -cne 'V:\') {
+                throw "SUBST operation received the wrong mapped root: $mappedRoot"
+            }
+        }
+    if (Test-Path -LiteralPath $substState) {
+        throw 'Successful SUBST cleanup left the mapping fixture present.'
+    }
+
+    $env:AXU4EV_TEST_SUBST_DELETE_EXIT = '23'
+    $env:AXU4EV_TEST_SUBST_KEEP_MAPPING = '0'
+    $combinedFailure = $null
+    try {
+        Invoke-WithVerifiedSubstMapping `
+            -SubstDrive 'V:' `
+            -TargetRoot $substFixture `
+            -SubstExecutable $fakeSubst `
+            -Operation { throw 'forced original build failure' }
+    }
+    catch {
+        $combinedFailure = $_.Exception.Message
+    }
+    if ($combinedFailure -notmatch 'forced original build failure' -or
+        $combinedFailure -notmatch 'exit code 23') {
+        throw "SUBST cleanup did not preserve both failures: $combinedFailure"
+    }
+
+    $env:AXU4EV_TEST_SUBST_DELETE_EXIT = '0'
+    $env:AXU4EV_TEST_SUBST_KEEP_MAPPING = '1'
+    $remainingMappingFailure = $null
+    try {
+        Invoke-WithVerifiedSubstMapping `
+            -SubstDrive 'V:' `
+            -TargetRoot $substFixture `
+            -SubstExecutable $fakeSubst `
+            -Operation { }
+    }
+    catch {
+        $remainingMappingFailure = $_.Exception.Message
+    }
+    if ($remainingMappingFailure -notmatch 'remains mapped') {
+        throw "SUBST cleanup did not reject a remaining mapping: $remainingMappingFailure"
+    }
+}
+finally {
+    $env:AXU4EV_TEST_SUBST_DELETE_EXIT = $savedDeleteExit
+    $env:AXU4EV_TEST_SUBST_KEEP_MAPPING = $savedKeepMapping
+    $resolvedSubstFixture = [IO.Path]::GetFullPath($substFixture)
+    $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    if ($resolvedSubstFixture.StartsWith(
+            $tempPrefix,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $resolvedSubstFixture -Recurse -Force `
+            -ErrorAction SilentlyContinue
+    }
+}
+
+$cleanupFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) `
+    "axu4ev-ethernet-workspace-$([guid]::NewGuid())"
+try {
+    $cleanupFixtureWorkspace = Join-Path $cleanupFixtureRoot 'workspace'
+    $cleanupFixtureRelease = Join-Path $cleanupFixtureWorkspace 'ad9364app\Release'
+    $cleanupFixtureElf = Join-Path $cleanupFixtureRelease 'ad9364app.elf'
+    $cleanupFixtureSentinel = Join-Path $cleanupFixtureWorkspace 'preexisting-sentinel.txt'
+    New-Item -ItemType Directory -Path $cleanupFixtureWorkspace | Out-Null
+    Set-Content -LiteralPath $cleanupFixtureSentinel -Value 'preserve-me' -Encoding Ascii
+    New-Item -ItemType Directory -Path $cleanupFixtureRelease -Force | Out-Null
+    [IO.File]::WriteAllBytes(
+        $cleanupFixtureElf,
+        [byte[]](0x7F, 0x45, 0x4C, 0x46))
+    Remove-TestOwnedDevelopmentArtifact `
+        -ArtifactPath $cleanupFixtureElf `
+        -ArtifactCreated $true `
+        -CreatedDirectories @(
+            $cleanupFixtureRelease,
+            (Split-Path $cleanupFixtureRelease -Parent)
+        ) `
+        -Boundary $cleanupFixtureRoot
+    if ((Get-Content -LiteralPath $cleanupFixtureSentinel -Raw).Trim() -cne
+        'preserve-me') {
+        throw 'Development ELF cleanup erased or changed preexisting workspace content.'
+    }
+}
+finally {
+    $resolvedCleanupFixture = [IO.Path]::GetFullPath($cleanupFixtureRoot)
+    $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    if ($resolvedCleanupFixture.StartsWith(
+            $tempPrefix,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $resolvedCleanupFixture -Recurse -Force `
+            -ErrorAction SilentlyContinue
+    }
+}
+
+$developmentWorkspace = Join-Path $root 'vitis_ethernet\workspace'
+$developmentElf = Join-Path $developmentWorkspace 'ad9364app\Release\ad9364app.elf'
 $createdDevelopmentElf = $false
+$createdDevelopmentDirectories = New-Object System.Collections.Generic.List[string]
 try {
     if (-not (Test-Path -LiteralPath $developmentElf -PathType Leaf)) {
+        $currentDirectory = Split-Path $developmentElf -Parent
+        while (-not (Test-Path -LiteralPath $currentDirectory)) {
+            $createdDevelopmentDirectories.Add($currentDirectory)
+            $parentDirectory = Split-Path $currentDirectory -Parent
+            if ([string]::IsNullOrWhiteSpace($parentDirectory) -or
+                $parentDirectory -eq $currentDirectory) {
+                throw "Cannot find an existing ancestor for test development ELF: $developmentElf"
+            }
+            $currentDirectory = $parentDirectory
+        }
         New-Item -ItemType Directory -Path (Split-Path $developmentElf -Parent) -Force |
             Out-Null
         [IO.File]::WriteAllBytes(
@@ -149,10 +333,11 @@ try {
     }
 }
 finally {
-    if ($createdDevelopmentElf) {
-        Remove-Item -LiteralPath (Join-Path $root 'vitis_ethernet\workspace') `
-            -Recurse -Force -ErrorAction SilentlyContinue
-    }
+    Remove-TestOwnedDevelopmentArtifact `
+        -ArtifactPath $developmentElf `
+        -ArtifactCreated $createdDevelopmentElf `
+        -CreatedDirectories @($createdDevelopmentDirectories) `
+        -Boundary $root
 }
 
 foreach ($path in @($transportPath, $platformPath)) {

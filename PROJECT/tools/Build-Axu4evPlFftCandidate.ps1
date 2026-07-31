@@ -20,6 +20,104 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Test-SubstMappingPresent {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SubstDrive,
+
+        [Parameter(Mandatory)]
+        [string]$SubstExecutable
+    )
+
+    $mappingLines = @(& $SubstExecutable 2>&1)
+    $inspectionExitCode = $LASTEXITCODE
+    if ($inspectionExitCode -ne 0) {
+        throw "Cannot inspect SUBST mappings; exit code $inspectionExitCode."
+    }
+    $mappingPrefix = "$($SubstDrive.TrimEnd('\'))\:"
+    return [bool]@($mappingLines | Where-Object {
+            $_.ToString().TrimStart().StartsWith(
+                $mappingPrefix,
+                [StringComparison]::OrdinalIgnoreCase)
+        }).Count
+}
+
+function Invoke-WithVerifiedSubstMapping {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SubstDrive,
+
+        [Parameter(Mandatory)]
+        [string]$TargetRoot,
+
+        [Parameter(Mandatory)]
+        [scriptblock]$Operation,
+
+        [string]$SubstExecutable = 'subst.exe'
+    )
+
+    $createOutput = @(& $SubstExecutable $SubstDrive $TargetRoot 2>&1)
+    $createExitCode = $LASTEXITCODE
+    if ($createExitCode -ne 0) {
+        throw "Cannot map $SubstDrive to '$TargetRoot'; exit code $createExitCode.`r`n$($createOutput -join "`r`n")"
+    }
+
+    $operationError = $null
+    $cleanupError = $null
+    try {
+        & $Operation "$SubstDrive\"
+    }
+    catch {
+        $operationError = $_
+    }
+    finally {
+        try {
+            $deleteOutput = @(& $SubstExecutable $SubstDrive /D 2>&1)
+            $deleteExitCode = $LASTEXITCODE
+            $cleanupFailures = New-Object System.Collections.Generic.List[string]
+            if ($deleteExitCode -ne 0) {
+                $cleanupFailures.Add(
+                    "SUBST deletion for $SubstDrive failed with exit code $deleteExitCode" +
+                    $(if ($deleteOutput.Count -ne 0) {
+                            ": $($deleteOutput -join [Environment]::NewLine)"
+                        }
+                        else {
+                            '.'
+                        }))
+            }
+
+            try {
+                $mappingRemains = Test-SubstMappingPresent `
+                    -SubstDrive $SubstDrive `
+                    -SubstExecutable $SubstExecutable
+                if ($mappingRemains) {
+                    $cleanupFailures.Add("SUBST drive $SubstDrive remains mapped.")
+                }
+            }
+            catch {
+                $cleanupFailures.Add($_.Exception.Message)
+            }
+            if ($cleanupFailures.Count -ne 0) {
+                throw ($cleanupFailures -join [Environment]::NewLine)
+            }
+        }
+        catch {
+            $cleanupError = $_
+        }
+    }
+
+    $failures = New-Object System.Collections.Generic.List[string]
+    if ($operationError) {
+        $failures.Add("Operation: $($operationError.Exception.Message)")
+    }
+    if ($cleanupError) {
+        $failures.Add("Cleanup: $($cleanupError.Exception.Message)")
+    }
+    if ($failures.Count -ne 0) {
+        throw ($failures -join [Environment]::NewLine)
+    }
+}
+
 if ($BuildOnly) {
     if ($ApplicationMode -cne 'Ethernet') {
         throw 'BuildOnly is reserved for the isolated Ethernet development workspace.'
@@ -158,28 +256,25 @@ if ($BuildOnly) {
         throw 'Ethernet BuildOnly requires one free drive letter from V: through Z: for Vitis 2020.1 path shortening.'
     }
     $substDrive = "$substLetter`:"
-    & subst.exe $substDrive $projectRoot
-    if ($LASTEXITCODE -ne 0) {
-        throw "Cannot map $substDrive to the project root for Vitis 2020.1."
-    }
-    try {
-        $mappedProjectRoot = "$substDrive\"
-        $mappedBuildTcl = Join-Path $mappedProjectRoot `
-            'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
-        $mappedTrustedXsa = Join-Path $mappedProjectRoot `
-            'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1\hardware\system_top.xsa'
-        $mappedAllowedRoot = Join-Path $mappedProjectRoot 'vitis_ethernet'
-        $mappedWorkspace = Join-Path $mappedAllowedRoot 'workspace'
-        & $xsct $mappedBuildTcl $mappedProjectRoot $mappedTrustedXsa `
-            $mappedWorkspace $mappedAllowedRoot PL_FFT_ETHERNET
-        $buildExitCode = $LASTEXITCODE
-    }
-    finally {
-        & subst.exe $substDrive /D
-    }
-    if ($buildExitCode -ne 0) {
-        throw "Ethernet BuildOnly Vitis build failed with exit code $buildExitCode."
-    }
+    Invoke-WithVerifiedSubstMapping `
+        -SubstDrive $substDrive `
+        -TargetRoot $projectRoot `
+        -Operation {
+            param($mappedProjectRoot)
+
+            $mappedBuildTcl = Join-Path $mappedProjectRoot `
+                'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
+            $mappedTrustedXsa = Join-Path $mappedProjectRoot `
+                'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1\hardware\system_top.xsa'
+            $mappedAllowedRoot = Join-Path $mappedProjectRoot 'vitis_ethernet'
+            $mappedWorkspace = Join-Path $mappedAllowedRoot 'workspace'
+            & $xsct $mappedBuildTcl $mappedProjectRoot $mappedTrustedXsa `
+                $mappedWorkspace $mappedAllowedRoot PL_FFT_ETHERNET
+            $buildExitCode = $LASTEXITCODE
+            if ($buildExitCode -ne 0) {
+                throw "Ethernet BuildOnly Vitis build failed with exit code $buildExitCode."
+            }
+        }
 
     $elf = Join-Path $selectedWorkspace 'ad9364app\Release\ad9364app.elf'
     if (-not (Test-Path -LiteralPath $elf -PathType Leaf) -or
