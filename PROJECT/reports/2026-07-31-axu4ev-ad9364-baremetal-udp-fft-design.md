@@ -157,30 +157,30 @@ Ethernet uygulama modu
 - Ethernet MTU: 1500 bayt.
 - IPv4 başlığı: 20 bayt.
 - UDP başlığı: 8 bayt.
-- Uygulama başlığı: 56 bayt.
-- Bir pakette en fazla 1416 bayt spektrum verisi bulunur.
-- Bir tam paket 177 adet 64-bit FFT bin'i taşır.
+- Uygulama başlığı: 64 bayt.
+- Bir pakette en fazla 1408 bayt spektrum verisi bulunur.
+- Bir tam paket 176 adet 64-bit FFT bin'i taşır.
 - Bir 2048-bin kare 12 UDP paketine bölünür.
-- Son paket 101 bin taşır.
+- Son paket 112 bin taşır.
 - Uygulama başlığındaki sayısal alanlar network byte order kullanır.
 - Spektrum payload'ı mevcut PL/UART CRC sözleşmesini korumak için unsigned
   64-bit little-endian sözcüklerden oluşur.
 
-### 7.2 56 baytlık paket başlığı
+### 7.2 64 baytlık paket başlığı
 
 | Alan | Tür | Açıklama |
 |---|---:|---|
 | `magic` | `uint32` | `0x41464654`, ASCII `AFFT` |
 | `version` | `uint8` | Protokol sürümü, ilk sürümde 1 |
 | `packet_type` | `uint8` | FFT data için 1 |
-| `header_bytes` | `uint16` | 56 |
+| `header_bytes` | `uint16` | 64 |
 | `frame_id` | `uint32` | PL FFT frame numarası |
 | `chunk_index` | `uint16` | 0..11 |
 | `chunk_count` | `uint16` | 12 |
 | `first_bin` | `uint16` | Payload'ın ilk FFT bin'i |
 | `bin_count` | `uint16` | Bu paketteki bin sayısı |
 | `fft_size` | `uint16` | 2048 |
-| `flags` | `uint16` | Aktif bank ve donanım durum bitleri |
+| `flags` | `uint16` | Donanım durum bitleri |
 | `lo_hz` | `uint64` | AD9364 RX LO |
 | `sample_rate_hz` | `uint32` | 30.720.000 |
 | `bandwidth_hz` | `uint32` | 10.000.000 |
@@ -188,6 +188,11 @@ Ethernet uygulama modu
 | `peak_bin` | `uint16` | Natural-order peak bin |
 | `peak_power` | `uint64` | Kalibre edilmemiş FFT peak gücü |
 | `frame_crc32` | `uint32` | PL FFT karesinin CRC-32 değeri |
+| `peak_re` | `int16` | Peak bin gerçek bileşeni |
+| `peak_im` | `int16` | Peak bin sanal bileşeni |
+| `reset_epoch` | `uint16` | PL FFT reset dönemi |
+| `rf_state` | `uint8` | RF switch durumu, ilk Candidate için 0 |
+| `active_bank` | `uint8` | Okunan çift-buffer bankı, 0 veya 1 |
 
 UDP checksum taşıma hatasını, `frame_crc32` ise yeniden oluşturulan FFT
 karesinin PL tarafından yayımlanan kareyle aynı olduğunu denetler.
