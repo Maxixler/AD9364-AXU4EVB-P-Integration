@@ -103,6 +103,7 @@ class UdpFftReceiver:
         *,
         stop: Callable[[SpectrumResponse], bool] | None = None,
         on_idle: Callable[[], bool] | None = None,
+        stop_when: Callable[[], bool] | None = None,
     ) -> Iterator[SpectrumResponse]:
         """Yield frames until a positive limit or optional stop predicate."""
 
@@ -110,6 +111,8 @@ class UdpFftReceiver:
             raise ValueError("limit must be a non-negative integer")
         completed = 0
         while limit == 0 or completed < limit:
+            if stop_when is not None and stop_when():
+                return
             try:
                 datagram, _peer = self.socket.recvfrom(_RECEIVE_BYTES)
             except socket.timeout:
@@ -124,6 +127,8 @@ class UdpFftReceiver:
             self._packets_received += 1
             response = self.reassembler.push(datagram, now)
             self.reassembler.expire(now)
+            if stop_when is not None and stop_when():
+                return
             if response is None:
                 continue
             completed += 1

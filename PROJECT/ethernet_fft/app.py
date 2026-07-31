@@ -27,8 +27,14 @@ class _FrameReceiver(Protocol):
     @property
     def stats(self) -> ReceiverStats: ...
 
-    def frames(self, *, limit: int, stop: Callable[[SpectrumResponse], bool] | None,
-               on_idle: Callable[[], bool] | None): ...
+    def frames(
+        self,
+        *,
+        limit: int,
+        stop: Callable[[SpectrumResponse], bool] | None,
+        on_idle: Callable[[], bool] | None,
+        stop_when: Callable[[], bool] | None,
+    ): ...
 
 
 def capture_headless(
@@ -50,6 +56,7 @@ def capture_headless(
         limit=frame_limit,
         stop=(lambda _response: duration_reached()) if duration_seconds else None,
         on_idle=duration_reached if duration_seconds else None,
+        stop_when=duration_reached if duration_seconds else None,
     ):
         frame_ids.append(response.frame_id)
 
@@ -198,6 +205,11 @@ def main(argv: list[str] | None = None) -> int:
             and capture["completed_frames"] == args.frames
             and capture["lost_frames"] == 0
             and capture["invalid_datagrams"] == 0
+            and capture["first_frame_id"] is not None
+            and capture["last_frame_id"] is not None
+            and capture["last_frame_id"] >= args.frames
+            and capture["last_frame_id"] > capture["first_frame_id"]
+            and capture["frame_id_span"] >= args.frames - 1
         )
         if args.frames > 0:
             status = "PASS" if complete else "FAIL"

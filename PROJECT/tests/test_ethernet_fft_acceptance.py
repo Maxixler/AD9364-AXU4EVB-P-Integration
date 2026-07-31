@@ -16,10 +16,12 @@ class _FixtureReceiver:
         ]
         self.stats = stats
 
-    def frames(self, *, limit: int, stop, on_idle):
+    def frames(self, *, limit: int, stop, on_idle, stop_when):
         completed = 0
         for response in self._responses:
             if limit and completed >= limit:
+                return
+            if stop_when is not None and stop_when():
                 return
             completed += 1
             yield response
@@ -80,9 +82,9 @@ def test_headless_capture_stops_on_duration_before_an_unbounded_stream() -> None
     )
 
     assert result["stop_reason"] == "duration"
-    assert result["completed_frames"] == 2
+    assert result["completed_frames"] == 1
     assert result["first_frame_id"] == 10
-    assert result["last_frame_id"] == 11
+    assert result["last_frame_id"] == 10
 
 
 def test_capture_evidence_is_json_with_a_versioned_schema(tmp_path) -> None:
@@ -146,3 +148,31 @@ def test_main_headless_writes_evidence_and_prints_acceptance_summary(
     assert len(evidence_paths) == 1
     assert json.loads(evidence_paths[0].read_text(encoding="utf-8"))["last_frame_id"] == 2
     assert "ETH_FFT: PASS frames=2 last_frame=2 lost_frames=0 invalid_datagrams=0" in capsys.readouterr().out
+
+
+def test_main_headless_rejects_repeated_frame_ids(monkeypatch, tmp_path, capsys) -> None:
+    class RepeatedFrameReceiver(_FixtureReceiver):
+        def __init__(self, **_kwargs) -> None:
+            super().__init__([150, 150], ReceiverStats(24, 2, 0, 0, 0, 0))
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc_info) -> None:
+            return None
+
+    monkeypatch.setattr(app, "UdpFftReceiver", RepeatedFrameReceiver)
+
+    assert app.main(
+        [
+            "--headless",
+            "--frames",
+            "2",
+            "--bind",
+            "127.0.0.1",
+            "--evidence-dir",
+            str(tmp_path),
+        ]
+    ) == 1
+
+    assert "ETH_FFT: FAIL frames=2 last_frame=150 lost_frames=0 invalid_datagrams=0" in capsys.readouterr().out

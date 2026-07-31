@@ -47,3 +47,33 @@ The second command will create the timestamped link and soak evidence only
 from that real run and will enforce duration stop, at least 2200 completed
 frames, loss at or below 0.1%, zero invalid datagrams, and a frame-ID span over
 100.
+
+## Fix Round 1: headless deadline and frame-ID progression
+
+The duration predicate previously ran only after a complete frame or a socket
+idle timeout. A stream of malformed or incomplete datagrams can keep the
+receiver inside its datagram loop, so the duration deadline was not guaranteed
+to run. `UdpFftReceiver.frames()` now checks the supplied deadline before and
+after every received datagram. The deterministic regression test feeds an
+unbounded malformed-datagram iterator and confirms that it terminates after one
+datagram when the deadline trips.
+
+Finite headless acceptance now also requires non-null, advancing frame IDs, a
+last ID at least as large as the requested frame count, and a span of at least
+`frames - 1`. A repeated-ID capture is therefore reported as `ETH_FFT: FAIL`.
+
+Commands and output:
+
+```text
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evEthernetHost.ps1
+36 passed in 9.53s
+PASS: Ethernet FFT host receiver and viewer tests.
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File PROJECT\tests\Test-Axu4evEthernetLabAcceptanceTool.ps1
+PASS: Ethernet lab acceptance offline thresholds and JSON evidence behavior.
+
+git diff --check
+exit 0
+```
+
+No physical evidence was generated during this fix round.

@@ -1,4 +1,5 @@
 import socket
+from itertools import repeat
 
 from PROJECT.ethernet_fft.receiver import UdpFftReceiver
 from PROJECT.tests.test_ethernet_fft_reassembly import make_frame
@@ -90,3 +91,14 @@ def test_timeout_advances_expiry_and_allows_idle_stop() -> None:
     assert observed == []
     assert receiver.stats.packets_received == 1
     assert receiver.stats.lost_frames == 1
+
+
+def test_deadline_is_checked_between_continuous_invalid_datagrams() -> None:
+    receiver = UdpFftReceiver.from_datagrams(repeat(b"malformed"))
+    deadline_checks = iter([False, True])
+
+    observed = list(receiver.frames(stop_when=lambda: next(deadline_checks)))
+
+    assert observed == []
+    assert receiver.stats.packets_received == 1
+    assert receiver.stats.invalid_datagrams == 1
