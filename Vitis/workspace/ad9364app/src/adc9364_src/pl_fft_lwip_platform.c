@@ -4,7 +4,6 @@
 
 #include "lwip/init.h"
 #include "lwip/ip_addr.h"
-#include "lwip/timeouts.h"
 #include "netif/xadapter.h"
 #include "xil_exception.h"
 #include "xparameters.h"
@@ -125,10 +124,9 @@ void pl_fft_lwip_platform_poll(struct pl_fft_lwip_platform *platform)
 {
 	if (platform == NULL)
 		return;
-	xemacif_input(&platform->netif);
 	if (pl_fft_lwip_timer_pending != 0u) {
 		pl_fft_lwip_timer_pending = 0u;
-		sys_check_timeouts();
+		xemacif_input(&platform->netif);
 	}
 }
 

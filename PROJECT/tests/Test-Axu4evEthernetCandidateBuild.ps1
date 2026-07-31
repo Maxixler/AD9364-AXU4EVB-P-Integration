@@ -22,6 +22,20 @@ function Assert-Match {
     }
 }
 
+function Assert-NotMatch {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Text,
+
+        [Parameter(Mandatory)]
+        [string]$Pattern
+    )
+
+    if ($Text -match $Pattern) {
+        throw "Forbidden Ethernet Candidate build contract: $Pattern"
+    }
+}
+
 foreach ($path in @($buildTcl, $buildPs1, $mainPath, $gitignorePath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Missing Ethernet Candidate build dependency: $path"
@@ -36,6 +50,7 @@ $gitignore = Get-Content -LiteralPath $gitignorePath -Raw
 Assert-Match $tcl 'PL_FFT_ETHERNET'
 Assert-Match $tcl 'bsp setlib -name lwip211'
 Assert-Match $tcl 'bsp config api_mode RAW_API'
+Assert-Match $tcl 'bsp config no_sys_no_timers true'
 Assert-Match $tcl 'bsp config lwip_dhcp false'
 Assert-Match $tcl 'bsp config mem_size 524288'
 Assert-Match $tcl 'bsp config pbuf_pool_size 256'
@@ -67,5 +82,8 @@ Assert-Match $platform 'netif_set_default\('
 Assert-Match $platform 'netif_set_up\('
 Assert-Match $platform 'XTtcPs'
 Assert-Match $platform 'XScuGic'
+Assert-NotMatch $platform 'lwip/timeouts\.h'
+Assert-NotMatch $platform 'sys_check_timeouts'
+Assert-Match $platform 'pl_fft_lwip_timer_pending = 0u;\s*xemacif_input\(&platform->netif\);'
 
 Write-Output 'PASS: Ethernet Candidate build and lwIP platform contracts are isolated.'

@@ -65,6 +65,7 @@ bsp setlib -name xilffs
 if {$compiler_symbol eq "PL_FFT_ETHERNET"} {
     bsp setlib -name lwip211
     bsp config api_mode RAW_API
+    bsp config no_sys_no_timers true
     bsp config lwip_dhcp false
     bsp config mem_size 524288
     bsp config pbuf_pool_size 256
