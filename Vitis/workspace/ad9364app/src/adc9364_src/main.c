@@ -73,11 +73,16 @@ extern void outbyte(char c);
 #ifdef PL_FFT_PERIODIC_MONITOR
 #include "pl_fft_monitor.h"
 #endif
+#ifdef PL_FFT_ETHERNET
+#include "pl_fft_lwip_transport.h"
+#include "pl_fft_udp_service.h"
+#endif
 #include "wifi_rf_test.h"
 
 #if defined(PL_FFT_SINGLE_SHOT) || \
 	defined(PL_FFT_PERIODIC_MONITOR) || \
-	defined(PL_FFT_LAB_UART)
+	defined(PL_FFT_LAB_UART) || \
+	defined(PL_FFT_ETHERNET)
 #if defined(XPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR)
 #define PL_FFT_CONTROL_BASE XPAR_AXI_AD9364_FFT_CAPTURE_0_S_AXI_BASEADDR
 #elif defined(XPAR_AXI_AD9364_FFT_CAPTURE_BASEADDR)
@@ -374,6 +379,126 @@ static int32_t pl_fft_lab_uart_run(struct ad9361_rf_phy *phy)
 			return status;
 		}
 	}
+}
+#endif
+
+#ifdef PL_FFT_ETHERNET
+struct pl_fft_ethernet_context {
+	struct ad9361_rf_phy *phy;
+	struct pl_fft_device fft;
+	struct pl_fft_lwip_transport transport;
+};
+
+static int32_t pl_fft_ethernet_capture(
+	void *context, struct pl_fft_result *result,
+	uint64_t spectrum[PL_FFT_UDP_FFT_SIZE])
+{
+	struct pl_fft_ethernet_context *ethernet = context;
+
+	if (ethernet == NULL)
+		return PL_FFT_UDP_ERR_ARGUMENT;
+	return pl_fft_capture_once(&ethernet->fft, 0u, 2047u, 0u, 0u,
+				   result, spectrum);
+}
+
+static int32_t pl_fft_ethernet_read_rf(
+	void *context, struct pl_fft_udp_rf_snapshot *snapshot)
+{
+	struct pl_fft_ethernet_context *ethernet = context;
+	int32_t gain_db;
+	int32_t status;
+	uint32_t rf_state;
+
+	if (ethernet == NULL || snapshot == NULL)
+		return PL_FFT_UDP_ERR_ARGUMENT;
+	status = ad9361_get_rx_lo_freq(ethernet->phy, &snapshot->lo_hz);
+	if (status < 0)
+		return status;
+	status = ad9361_get_rx_sampling_freq(
+		ethernet->phy, &snapshot->sample_rate_hz);
+	if (status < 0)
+		return status;
+	status = ad9361_get_rx_rf_bandwidth(
+		ethernet->phy, &snapshot->bandwidth_hz);
+	if (status < 0)
+		return status;
+	status = ad9361_get_rx_rf_gain(ethernet->phy, 0u, &gain_db);
+	if (status < 0)
+		return status;
+	status = ad9361_get_en_state_machine_mode(
+		ethernet->phy, &rf_state);
+	if (status < 0)
+		return status;
+	snapshot->gain_db = (int16_t)gain_db;
+	snapshot->rf_state = (uint8_t)rf_state;
+	return PL_FFT_UDP_OK;
+}
+
+static int32_t pl_fft_ethernet_send(
+	void *context, const uint8_t *header, uint32_t header_bytes,
+	const uint8_t *payload, uint32_t payload_bytes)
+{
+	struct pl_fft_ethernet_context *ethernet = context;
+
+	if (ethernet == NULL)
+		return PL_FFT_UDP_ERR_ARGUMENT;
+	return pl_fft_lwip_transport_send(
+		&ethernet->transport, header, header_bytes,
+		payload, payload_bytes);
+}
+
+static void pl_fft_ethernet_delay(void *context, uint32_t delay_ms)
+{
+	struct pl_fft_ethernet_context *ethernet = context;
+
+	if (ethernet == NULL)
+		return;
+	pl_fft_lwip_platform_poll(&ethernet->transport.platform);
+	no_os_mdelay(delay_ms);
+	pl_fft_lwip_platform_poll(&ethernet->transport.platform);
+}
+
+static int32_t pl_fft_ethernet_run(struct ad9361_rf_phy *phy)
+{
+	struct pl_fft_ethernet_context ethernet = {
+		.phy = phy,
+		.fft = {
+			.context = NULL,
+			.control_base = PL_FFT_CONTROL_BASE,
+			.bank_base = {
+				PL_FFT_BANK0_BASE,
+				PL_FFT_BANK1_BASE
+			},
+			.read32 = pl_fft_board_read32,
+			.read64 = pl_fft_board_read64,
+			.write32 = pl_fft_board_write32,
+			.timeout_polls = 10000000u,
+			.max_snapshot_retries = 3u
+		}
+	};
+	struct pl_fft_udp_service service = {
+		.context = &ethernet,
+		.capture = pl_fft_ethernet_capture,
+		.read_rf = pl_fft_ethernet_read_rf,
+		.send_datagram = pl_fft_ethernet_send,
+		.delay_ms = pl_fft_ethernet_delay,
+		.should_stop = NULL,
+		.spectrum = pl_fft_spectrum,
+		.completed_frames = 0u
+	};
+	int32_t status;
+
+	if (phy == NULL)
+		return PL_FFT_UDP_ERR_ARGUMENT;
+	status = pl_fft_init(&ethernet.fft);
+	if (status != PL_FFT_OK)
+		return status;
+	status = pl_fft_lwip_transport_init(&ethernet.transport);
+	if (status != PL_FFT_UDP_OK)
+		return status;
+	printf("PL_FFT_ETH: READY board=192.168.1.10 "
+	       "target=192.168.1.100:5005 fps=4 bins=2048\n");
+	return pl_fft_udp_service_run(&service);
 }
 #endif
 #endif
@@ -956,6 +1081,13 @@ int main(void)
 #ifdef PL_FFT_LAB_UART
 	status = pl_fft_lab_uart_run(ad9361_phy);
 	goto cleanup;
+#endif
+
+#ifdef PL_FFT_ETHERNET
+	status = pl_fft_ethernet_run(ad9361_phy);
+	if (status != PL_FFT_UDP_OK)
+		printf("PL_FFT_ETH: FAIL error=%d\n", status);
+	return status;
 #endif
 
 #ifdef MONOPULSE_FOUNDATION_TEST

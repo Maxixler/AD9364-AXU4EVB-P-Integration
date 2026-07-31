@@ -14,6 +14,7 @@ set allowed_symbols {
     PL_FFT_SINGLE_SHOT
     PL_FFT_PERIODIC_MONITOR
     PL_FFT_LAB_UART
+    PL_FFT_ETHERNET
 }
 if {[lsearch -exact $allowed_symbols $compiler_symbol] == -1} {
     error "Invalid Candidate compiler symbol: $compiler_symbol"
@@ -61,6 +62,14 @@ platform create \
     -arch 64-bit \
     -no-boot-bsp
 bsp setlib -name xilffs
+if {$compiler_symbol eq "PL_FFT_ETHERNET"} {
+    bsp setlib -name lwip211
+    bsp config api_mode RAW_API
+    bsp config lwip_dhcp false
+    bsp config mem_size 524288
+    bsp config pbuf_pool_size 256
+    bsp regenerate
+}
 generate_platform_with_single_retry
 
 set app_name "ad9364app"

@@ -8,13 +8,11 @@ param(
     [Parameter(Mandatory)]
     [string]$CandidateRoot,
 
-    [Parameter(Mandatory)]
     [string]$VitisWorkspace,
 
-    [Parameter(Mandatory)]
     [string]$AllowedVitisWorkspaceRoot,
 
-    [ValidateSet('SingleShot', 'PeriodicMonitor', 'LabUart')]
+    [ValidateSet('SingleShot', 'PeriodicMonitor', 'LabUart', 'Ethernet')]
     [string]$ApplicationMode = 'SingleShot',
 
     [switch]$DryRun
@@ -28,10 +26,35 @@ if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
 else {
     $WorkspaceRoot = (Resolve-Path -LiteralPath $WorkspaceRoot).Path
 }
+$defaultEthernetWorkspace = Join-Path $WorkspaceRoot 'vitis_ethernet\workspace'
+$defaultEthernetWorkspaceRoot = Split-Path $defaultEthernetWorkspace -Parent
+if ([string]::IsNullOrWhiteSpace($VitisWorkspace)) {
+    if ($ApplicationMode -cne 'Ethernet') {
+        throw 'VitisWorkspace is required unless ApplicationMode is Ethernet.'
+    }
+    $VitisWorkspace = $defaultEthernetWorkspace
+}
+if ([string]::IsNullOrWhiteSpace($AllowedVitisWorkspaceRoot)) {
+    if ($ApplicationMode -cne 'Ethernet') {
+        throw 'AllowedVitisWorkspaceRoot is required unless ApplicationMode is Ethernet.'
+    }
+    $AllowedVitisWorkspaceRoot = $defaultEthernetWorkspaceRoot
+}
 $SourceXsa = (Resolve-Path -LiteralPath $SourceXsa).Path
 $CandidateRoot = [IO.Path]::GetFullPath($CandidateRoot)
 $VitisWorkspace = [IO.Path]::GetFullPath($VitisWorkspace)
 $AllowedVitisWorkspaceRoot = [IO.Path]::GetFullPath($AllowedVitisWorkspaceRoot)
+$defaultEthernetWorkspace = [IO.Path]::GetFullPath($defaultEthernetWorkspace)
+$usesDefaultEthernetWorkspace = (
+    $ApplicationMode -ceq 'Ethernet' -and
+    $VitisWorkspace.Equals(
+        $defaultEthernetWorkspace,
+        [StringComparison]::OrdinalIgnoreCase)
+)
+if ($usesDefaultEthernetWorkspace -and
+    -not (Test-Path -LiteralPath $AllowedVitisWorkspaceRoot -PathType Container)) {
+    New-Item -ItemType Directory -Path $AllowedVitisWorkspaceRoot -Force | Out-Null
+}
 
 $goldenBase = Join-Path $WorkspaceRoot 'PROJECT\releases\axu4ev-ad9364'
 $candidateBase = Join-Path $WorkspaceRoot 'PROJECT\candidates\axu4ev-ad9364'
@@ -42,13 +65,19 @@ $compilerSymbol = switch ($ApplicationMode) {
     'SingleShot' { 'PL_FFT_SINGLE_SHOT' }
     'PeriodicMonitor' { 'PL_FFT_PERIODIC_MONITOR' }
     'LabUart' { 'PL_FFT_LAB_UART' }
+    'Ethernet' { 'PL_FFT_ETHERNET' }
 }
 $uartMarkers = switch ($ApplicationMode) {
     'SingleShot' { @('PL_FFT: PASS') }
     'PeriodicMonitor' { @('PL_FFT_MONITOR: PASS') }
     'LabUart' { @('PL_FFT_LAB: READY') }
+    'Ethernet' { @('PL_FFT_ETH: READY') }
 }
-$usesTrustedSingleShotReference = $ApplicationMode -in @('PeriodicMonitor', 'LabUart')
+$usesTrustedSingleShotReference = $ApplicationMode -in @(
+    'PeriodicMonitor',
+    'LabUart',
+    'Ethernet'
+)
 
 function Assert-NoReparsePointForWrite {
     param(
@@ -292,7 +321,11 @@ if ([IO.Path]::GetPathRoot($AllowedVitisWorkspaceRoot).TrimEnd('\').Equals(
     -not $VitisWorkspace.StartsWith($allowedWorkspacePrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw "VitisWorkspace must be a child of the approved root '$AllowedVitisWorkspaceRoot': $VitisWorkspace"
 }
-foreach ($protectedPath in @($WorkspaceRoot, $CandidateRoot, $goldenBase, (Split-Path $SourceXsa -Parent))) {
+$protectedPaths = @($CandidateRoot, $goldenBase, (Split-Path $SourceXsa -Parent))
+if (-not $usesDefaultEthernetWorkspace) {
+    $protectedPaths = @($WorkspaceRoot) + $protectedPaths
+}
+foreach ($protectedPath in $protectedPaths) {
     $protectedPrefix = [IO.Path]::GetFullPath($protectedPath).TrimEnd('\') + '\'
     if ($VitisWorkspace.Equals(
             [IO.Path]::GetFullPath($protectedPath),
@@ -361,6 +394,7 @@ try {
         pl_fft_single_shot = ($ApplicationMode -eq 'SingleShot')
         pl_fft_periodic_monitor = ($ApplicationMode -eq 'PeriodicMonitor')
         pl_fft_lab_uart = ($ApplicationMode -eq 'LabUart')
+        pl_fft_ethernet = ($ApplicationMode -eq 'Ethernet')
         tracked_source_cleanliness_checked = $true
     }
     if ($DryRun) {

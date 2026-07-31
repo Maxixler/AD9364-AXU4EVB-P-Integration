@@ -4,6 +4,7 @@
 
 # Local IDE/build products are reproducible and can be very large.
 /vitis2/
+/vitis_ethernet/workspace/
 /Vitis/workspace/ad9364app/Release/
 /PROJECT/logs/build/
 
