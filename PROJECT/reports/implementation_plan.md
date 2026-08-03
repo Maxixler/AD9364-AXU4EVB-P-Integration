@@ -1,5 +1,16 @@
 # AXU4EVB-P + AD9364 SDR Uygulama Planı
 
+## 29. 3 Ağustos 2026 — nihai teslim ve devir paketi
+
+- [x] Kök README'yi proje haritası ve hızlı başlangıç rehberi olarak düzenle.
+- [x] Teslim notlarına kabul edilen sonuçları, açık işleri ve immutable artefaktları yaz.
+- [x] Nihai Word raporuna Ethernet ve teslim kapanışı ekleyip 41 sayfayı render kontrolünden geçir.
+- [x] Ethernet 38, monopulse/FFT/UART 61 ve lab-console 39 test regresyonlarını çalıştır.
+- [x] Golden release, live-lab ve periodic-monitor paket bütünlüğünü doğrula.
+- [x] Temiz Git snapshotı + tam Git bundle + SHA-256 manifestli RAR üretimini otomatikleştir.
+- [ ] USB-Ethernet adaptörüyle fiziksel UDP/soak ve kablosuz CW kabulünü gelecekte tamamla.
+- [ ] ZX80/HMC936 S0-S3 elektriksel ve FPGA kontrol entegrasyonunu gelecekte tamamla.
+
 ## 28. 31 Temmuz 2026 — sürekli bare-metal UDP FFT aktarımı
 
 PetaLinux, disk ve teslim kapsamı nedeniyle zorunlu yol olmaktan çıkarıldı. Kartta

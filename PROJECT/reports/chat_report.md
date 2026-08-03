@@ -1,5 +1,24 @@
 # Çalışma Günlüğü — AXU4EVB-P + AD9364 Doğrulama ve Teslim Zinciri
 
+## 35. Nihai staj teslim paketi — 3 Ağustos 2026
+
+Stajın son gününde depo teslim için sadeleştirildi ve kök README bir proje
+haritasına dönüştürüldü. `TESLIM_NOTLARI_2026-08-03.md` ile kabul edilmiş
+sonuçlar, açık işler, değiştirilmeyecek artefaktlar ve devralacak kişinin ilk gün
+sırası tek yerde toplandı. Nihai Word raporuna Ethernet geliştirmesi ve proje
+teslim kapanışı eklendi; 41 sayfanın tamamı render edilerek görsel olarak
+kontrol edildi.
+
+Monopulse test çalıştırıcısının yeni pytest tabanlı Ethernet testlerini yanlış
+test çatısıyla toplaması engellendi; kendi modülleri açıkça listelendi. Son
+koşuda Ethernet 38/38, monopulse/FFT/UART 61/61 ve lab-console 39/39 test geçti.
+Release, live-lab Candidate ve periyodik monitor paket bütünlüğü PASS oldu.
+
+Teslim aracı temiz Git snapshotı, tam Git bundle, dosya bazlı SHA-256 listesi,
+kaynak branch/commit manifesti ve dış RAR SHA-256 dosyası üretip WinRAR bütünlük
+testini çalıştıracak şekilde eklendi. Geçici IDE/build/cache/log klasörleri
+arşive alınmaz.
+
 ## 34. Sürekli Ethernet FFT geliştirmesi — 31 Temmuz 2026
 
 Kullanıcıyla yapılan kapsam değerlendirmesinde PetaLinux yerine mevcut bare-metal

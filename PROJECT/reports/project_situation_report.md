@@ -1,8 +1,27 @@
 # Proje Durum Raporu — AXU4EVB-P + AD9364
 
-**Son güncelleme:** 31 Temmuz 2026
+**Son güncelleme:** 3 Ağustos 2026
 
 **Ana hedef:** ALINX AXU4EVB-P üzerinde AD9364/FMCOMMS ailesi ile doğrulanmış FPGA donanım platformu ve bare-metal yazılım zinciri oluşturmak.
+
+## 24. Staj teslim kapanışı — 3 Ağustos 2026
+
+Proje kök README, nihai Word raporu, sunum, teslim/devir notu, doğrulanmış
+Golden/Candidate paketleri ve tam Git geçmişi içeren tek bir teslim RAR'ı için
+düzenlendi. Yerel cache, sanal ortam, geçici build ürünleri ve günlük logları
+teslim snapshotından çıkarıldı; kaynak commit, dosya hash'leri ve RAR SHA-256
+değeri manifestlerle bağlandı.
+
+Son host doğrulamasında Ethernet paketi 38 test, monopulse/FFT/UART paketi 61
+test ve lab-console paketi 39 test geçti. Golden release, live-lab Candidate ve
+periyodik monitor paket bütünlüğü de ayrı testlerle PASS oldu. Eski Workspace
+launcher'ın 14/20 Temmuz Vivado/Vitis kopyaları arasında birebir hash eşitliği
+arayan kapısı güncel Candidate tesliminin parçası değildir ve devir notunda
+bilinen sınır olarak kaydedilmiştir.
+
+Fiziksel UDP soak, kablosuz CW Ethernet kabulü ve ZX80/HMC936 S0-S3 kontrolü
+tamamlanmadığı için açık bırakılmış; fiziksel PASS veya nihai Ethernet Candidate
+iddiası yapılmamıştır.
 
 ## 23. Güncel durum — bare-metal Ethernet FFT hazır, fiziksel kabul bekliyor
 

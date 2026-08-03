@@ -1,4 +1,4 @@
-"""Add the 31 July bare-metal Ethernet FFT handoff chapter to the report.
+"""Add the Ethernet FFT and final delivery chapters to the internship report.
 
 Run with the bundled workspace Python so python-docx and its dependencies are
 reproducible. The update is idempotent: an older copy of the chapter is removed
@@ -16,6 +16,7 @@ from docx.oxml.ns import qn
 ROOT = Path(__file__).resolve().parents[2]
 REPORT = ROOT / "PROJECT" / "reports" / "profen_staj_raporu.docx"
 CHAPTER = "26. Sürekli Bare-Metal UDP FFT Aktarımı — 31 Temmuz 2026"
+DELIVERY_CHAPTER = "27. Proje Teslim Kapanışı — 3 Ağustos 2026"
 
 
 def remove_existing_chapter(document: Document) -> None:
@@ -44,6 +45,12 @@ def add_before(marker, text: str, style: str | None = None):
     return paragraph
 
 
+def remove_matching_paragraphs(document: Document, prefixes: tuple[str, ...]) -> None:
+    for paragraph in list(document.paragraphs):
+        if paragraph.text.strip().startswith(prefixes):
+            paragraph._p.getparent().remove(paragraph._p)
+
+
 def enable_field_updates(document: Document) -> None:
     settings = document.settings._element
     update = settings.find(qn("w:updateFields"))
@@ -56,6 +63,15 @@ def enable_field_updates(document: Document) -> None:
 def main() -> None:
     document = Document(REPORT)
     remove_existing_chapter(document)
+    remove_matching_paragraphs(document, ("26. Sürekli Bare-Metal UDP FFT", "27. Proje Teslim Kapanışı"))
+
+    toc_marker = next(
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph.text.strip().startswith("Ekler A")
+    )
+    add_before(toc_marker, "26. Sürekli Bare-Metal UDP FFT Aktarımı", "TOC Entry")
+    add_before(toc_marker, "27. Proje Teslim Kapanışı", "TOC Entry")
 
     marker = next(
         paragraph
@@ -119,6 +135,38 @@ def main() -> None:
         start=1,
     ):
         add_before(marker, f"{index}. {item}")
+
+    add_before(marker, DELIVERY_CHAPTER, "Heading 1")
+    add_before(
+        marker,
+        "Staj kapanışında kaynak kodu, doğrulanmış Golden/Candidate paketleri, "
+        "otomatik testler, sunum ve teknik raporlar tek bir teslim düzeninde "
+        "toplanmıştır. Kök README proje haritasını; "
+        "PROJECT/reports/TESLIM_NOTLARI_2026-08-03.md ise devralacak kişinin "
+        "ilk gün sırasını, değişmez artefaktları ve açık kabul kapılarını tanımlar.",
+    )
+
+    add_before(marker, "27.1 Son yazılım doğrulaması", "Heading 2")
+    for item in (
+        "Ethernet decoder/reassembly/viewer regresyonu: 38 test PASS.",
+        "Monopulse, FFT C-model ve UART model regresyonu: 61 test PASS.",
+        "Bare-metal FFT lab-console regresyonu: 39 test PASS.",
+        "Golden release, live-lab Candidate ve periyodik monitor paket bütünlüğü: PASS.",
+        "Teslim RAR'ı temiz Git snapshotı, tam Git bundle ve SHA-256 manifestiyle üretilir.",
+    ):
+        add_before(marker, item, "List Bullet")
+
+    add_before(marker, "27.2 Teslimde açık bırakılan işler", "Heading 2")
+    add_before(
+        marker,
+        "USB-Ethernet adaptörü bulunmadığından fiziksel UDP kabulü ve kablosuz CW "
+        "Ethernet testi tamamlanmamıştır. ZX80-DR230-S+ ile EV1HMC936ALP6 S0-S3 "
+        "kontrol entegrasyonu da gelecekteki çalışmadır. Eski Workspace launcher, "
+        "farklı tarihlerden kalan Vivado/Vitis kopyalarının birebir hash eşitliğini "
+        "aradığı için teslim yolu değildir; günlük kullanımda immutable Golden ve "
+        "Candidate launcher'ları esas alınır. Bu sınırlar ürün kabulü yapılmış gibi "
+        "yorumlanmamalıdır.",
+    )
 
     enable_field_updates(document)
     document.core_properties.modified = datetime.now()
