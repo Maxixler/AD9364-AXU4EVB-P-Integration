@@ -6,11 +6,13 @@ geliştirilen bare-metal FPGA FFT, monopulse ölçüm ve host görüntüleme
 
 ## İlk okunacak belgeler
 
-1. `PROJECT/reports/profen_staj_raporu.docx` — profesyonel nihai teknik rapor.
-2. `PROJECT/reports/project_situation_report.md` — tamamlanan ve açık işler.
-3. `PROJECT/reports/implementation_plan.md` — kronolojik uygulama planı.
-4. `PROJECT/reports/axu4ev_ad9364_fft_rf_switch_nihai_plan.md` — nihai RF/FFT yol haritası.
-5. `PROJECT/reports/TESLIM_NOTLARI_2026-08-03.md` — devir özeti ve teslim kontrol listesi.
+1. `PROJECT/reports/profen_staj_raporu.docx` — genel staj ve proje raporu.
+2. `PROJECT/reports/profen_teknik_detay_raporu.docx` — yalnız teknik tasarım,
+   uygulama, doğrulama ve devir adımları.
+3. `PROJECT/reports/project_situation_report.md` — tamamlanan ve açık işler.
+4. `PROJECT/reports/implementation_plan.md` — kronolojik uygulama planı.
+5. `PROJECT/reports/axu4ev_ad9364_fft_rf_switch_nihai_plan.md` — nihai RF/FFT yol haritası.
+6. `PROJECT/reports/TESLIM_NOTLARI_2026-08-03.md` — devir özeti ve teslim kontrol listesi.
 
 Sunum dosyaları `PROJECT/reports/profen_staj_sunumu.pptx` ve
 `PROJECT/reports/profen_staj_sunumu.pdf` altındadır.

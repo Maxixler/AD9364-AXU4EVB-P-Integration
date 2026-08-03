@@ -2,6 +2,15 @@
 
 ## 35. Nihai staj teslim paketi — 3 Ağustos 2026
 
+Teslim kapanışında genel staj raporundan ayrı, yalnız teknik mimari ve uygulama
+adımlarını içeren `profen_teknik_detay_raporu.docx` üretildi. 16 sayfalık belge;
+Vivado/XDC, Vitis/bare-metal, dokuz adımlı JTAG bring-up, PL FFT sayısal
+sözleşmesi, UART/Python, sürekli UDP, RF switch/phase-shifter sınırı, test
+matrisi ve devralma prosedürlerini içerir. LibreOffice PDF dönüşümü ve bütün
+sayfaların görsel kontrolü tamamlandı; boş sayfa ve prosedür numaralandırması
+düzeltildi. Yeniden üretim aracı `PROJECT/tools/Build-Axu4evTechnicalDetailReport.py`
+olarak depoya eklendi.
+
 Stajın son gününde depo teslim için sadeleştirildi ve kök README bir proje
 haritasına dönüştürüldü. `TESLIM_NOTLARI_2026-08-03.md` ile kabul edilmiş
 sonuçlar, açık işler, değiştirilmeyecek artefaktlar ve devralacak kişinin ilk gün

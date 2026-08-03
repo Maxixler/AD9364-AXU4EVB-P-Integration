@@ -12,6 +12,14 @@ düzenlendi. Yerel cache, sanal ortam, geçici build ürünleri ve günlük logl
 teslim snapshotından çıkarıldı; kaynak commit, dosya hash'leri ve RAR SHA-256
 değeri manifestlerle bağlandı.
 
+Genel `profen_staj_raporu.docx` dosyasına ek olarak yalnız teknik ayrıntıları
+ve uygulanan adımları içeren `profen_teknik_detay_raporu.docx` oluşturuldu.
+Yeni 16 sayfalık devir raporu; donanım sınırlarını, Vivado/Vitis düzeltmelerini,
+2048 noktalı FFT sözleşmesini, JTAG sırasını, UART/UDP protokollerini,
+ZX80/HMC936 entegrasyon kapılarını, doğrulama matrisini ve devralma prosedürünü
+tek belgede toplar. Kaynak üretim aracı
+`PROJECT/tools/Build-Axu4evTechnicalDetailReport.py` altında tutulur.
+
 Son host doğrulamasında Ethernet paketi 38 test, monopulse/FFT/UART paketi 61
 test ve lab-console paketi 39 test geçti. Golden release, live-lab Candidate ve
 periyodik monitor paket bütünlüğü de ayrı testlerle PASS oldu. Eski Workspace

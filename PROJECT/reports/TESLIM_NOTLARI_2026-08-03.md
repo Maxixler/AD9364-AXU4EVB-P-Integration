@@ -10,6 +10,14 @@ Bu teslim; doğrulanmış Golden bring-up paketini, PL FFT/monopulse RTL ve
 bare-metal kaynaklarını, UART tabanlı Python laboratuvar konsolunu, sürekli UDP
 FFT geliştirmesini, otomatik testleri, teknik raporları ve sunumu içerir.
 
+Raporlar iki ayrı amaçla düzenlenmiştir:
+
+- `profen_staj_raporu.docx`: staj süreci, araştırma, planlama ve sonuçların
+  genel/profesyonel anlatımı.
+- `profen_teknik_detay_raporu.docx`: Vivado/Vitis, JTAG, PL FFT, protokoller,
+  testler, arıza teşhisi ve devir prosedürlerini içeren 16 sayfalık teknik
+  uygulama raporu.
+
 Teslim paketi kaynak snapshotı ile birlikte tam Git geçmişini taşıyan bir
 `git bundle` içerir. Yerel `.Xil`, `.pytest_cache`, Python sanal ortamı, geçici
 Vitis/Vivado build klasörleri ve çalışma logları RAR'a alınmaz.
@@ -31,7 +39,8 @@ Vitis/Vivado build klasörleri ve çalışma logları RAR'a alınmaz.
 
 ## 3. Devralacak kişi için ilk gün sırası
 
-1. Nihai raporu ve `project_situation_report.md` dosyasını okuyun.
+1. Genel staj raporunu, teknik detay raporunu ve `project_situation_report.md`
+   dosyasını okuyun.
 2. Vivado/Vitis 2020.1, JTAG ve PS_UART bağlantısını doğrulayın.
 3. Golden launcher ile temel kart/DDR/AD9364 regresyonunu çalıştırın.
 4. Güncel live-lab Candidate ile UART FFT yolunu tekrar doğrulayın.
