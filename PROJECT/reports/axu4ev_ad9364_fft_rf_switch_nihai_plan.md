@@ -1,6 +1,17 @@
 # Nihai Geliştirme Planı
 ## AXU4EVB-P + AD9364 + RF Switch + FPGA FFT ve Aritmetik IP
 
+> **2026-07-31 Ethernet teslim güncellemesi:** Mevcut 2048-bin PL FFT sonucu,
+> PetaLinux eklenmeden ayrı `PL_FFT_ETHERNET` bare-metal uygulamasından GEM3/lwIP
+> RAW UDP ile sürekli yayımlanacak şekilde uygulandı. Kart/PC/port sözleşmesi
+> `192.168.1.10`, `192.168.1.100/24`, UDP `5005`; hız 4 frame/s ve varsayılan
+> süre sınırsızdır. Her frame 12 datagram, 64-bayt başlık ve 2048 uint64 bin
+> içerir. Python decoder, reassembly, canlı viewer ve headless/soak doğrulamaları
+> hazır; 38 host testi ve temiz gerçek Vitis Ethernet build'i PASS'tir.
+> USB-Ethernet adaptörü bulunmadığından fiziksel ping/UDP/soak/CW kapıları henüz
+> geçilmedi. `monopulse-live-ethernet-v1` bu kapılardan önce oluşturulmayacaktır;
+> Golden, `vitis2` ve mevcut Candidate paketleri değişmeden kalır.
+
 > **Uygulayıcı notu:** Bu plan paket paket yürütülmelidir; her paket için test-first çalışma, bağımsız doğrulama ve commit zorunludur.
 
 > **Uygulama sözleşmesi:** Bu belge karar kapıları tamamlandıkça uygulanacaktır. Golden sürüm değiştirilmeyecek; her faz ayrı Candidate çıktısı, otomatik doğrulama ve kart kabul kaydı üretmeden sonraki faza geçmeyecektir.
@@ -1125,3 +1136,139 @@ Tek-kare Candidate veri yolu tamamlandı: geri basınçsız AD9364 I0/Q0 shadow 
 Kabul yalnız nominal spektruma dayanmaz. Abort ve soft-reset xFFT/replay/magnitude yolunu deterministik recovery state'ine alır; core en az üç ADC clock resetlenir ve `16'h0D57` yeniden handshaking yapılmadan yeni START kabul edilmez. Dolu single-shot bank yeni replay başlamadan reddedilir. FFT error, overflow, dropped sample, stale epoch, frame error ve bank overrun CPU'ya atomik result flags ile taşınır; STATUS W1C ve IRQ kalan sticky nedenleri korur.
 
 Altı deterministik vektörün tüm 2048 kompleks FFT bileşeni ve 2048 güç kelimesi gerçek Vivado xFFT modeliyle sıfır LSB farkla geçmiştir. BRAM kabulü `RAMB36=8`, `RAMB18=0`, `LUT_AS_MEMORY=0`'dır. Bu kapanış RTL/simülasyon ve paket sözleşmesidir; AXU4EV block-design bağlantısı, timing/DRC, DMA ile aynı-frame CRC korelasyonu ve fiziksel RF kabulü sonraki paketlerde açık kalır.
+
+## 25. Bare-metal Python laboratuvar görünümü — 27 Temmuz 2026
+
+Periyodik Candidate'ın 100-frame kart kabulünden sonra tam spectrumun kullanıcı
+tarafından görülebilir ve kaydedilebilir olması yeni ara teslim olarak
+seçilmiştir. Ürün mimarisi değiştirilmemiştir: AXU4EVB-P + AD9364, tek 2048
+noktalı FFT ve sonraki S0-S3 monopulse zinciri korunur.
+
+Yeni `monopulse-live-lab-v1` Candidate:
+
+- `PL_FFT_LAB_UART` compile-time modu kullanır.
+- `GET_INFO` ve `CAPTURE_ONCE` komutlarını kabul eder.
+- `INFO`, `SPECTRUM` veya `ERROR` yanıtı üretir.
+- Tam 2048 adet `uint64` güç binini frame/peak/RF metadata ile taşır.
+- Mesajı CRC-32/ISO-HDLC ve protocol sequence ile korur.
+- UART'ta `115200-8-N-1` kullanır.
+- Python tarafında spectrum, waterfall, peak ve sağlık görünümü üretir.
+- Tam frame'i NPZ, özetini CSV olarak saklar.
+
+İlk kontrollü CW kabulü, en az 10 ardışık CRC-valid frame, exact 2048 bin,
+`±1` peak-bin kararlılığı ve sıfır fatal donanım bayrağı ister. Bu kabul
+monopulse açı kabulü değildir.
+
+M4 güncel alt ayrımı:
+
+- [x] Tek-frame exact peak ve tam spectrum altyapısı.
+- [x] 100 kez host-tetiklemeli periodic monitor transport/control kart kabulü.
+- [x] CRC korumalı UART lab protocol, bare-metal `GET_INFO`/`CAPTURE_ONCE`
+  servisi ve Python spectrum/waterfall görünümü.
+- [x] NPZ tam-frame ve CSV özet kayıt yolu.
+- [x] Değişmez `monopulse-live-lab-v1` Candidate paketi ve ayrı JTAG
+  başlatıcısı.
+- [ ] Kontrollü CW peak/power kart kabulü.
+- [ ] Dört gerçek RF state üzerinde ortak `P_REF` ve CW/band-power çevrimi.
+
+M5-M8 değişmez:
+
+- M5 fiziksel ZX80/HMC936 elektriksel/pin sözleşmesi.
+- M6 S0-S3 FSM, state-tag, dört güç ve Q1.31 AZ/EL.
+- M7 SMW200A/yankısız oda kalibrasyonu.
+- M8 Candidate release kapanışı.
+
+Bağlayıcı ayrıntılar:
+
+- `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-monopulse-lab-design.md`
+- `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-lab-implementation-plan.md`
+
+### 25.1 27 Temmuz yazılım teslim durumu
+
+M4 laboratuvar yazılımı ve paketleme adımları tamamlanmıştır. Candidate
+uygulaması 2048 adet `uint64` güç binini frame/peak/RF metadata ile birlikte
+CRC-32/ISO-HDLC korumalı mesajda taşır. Python istemcisi wire sözleşmesini
+byte-exact doğrular; spectrum, waterfall ve sağlık görünümünü üretir; geçerli
+frame'i NPZ/CSV olarak saklar. Windows/Vitis 2020.1 üretimi kısa workspace,
+kaynak temizliği ve tek sınırlı platform-generate retry kapılarıyla
+sertleştirilmiştir.
+
+Değişmez Candidate:
+
+- Release: `monopulse-live-lab-v1`
+- Uygulama SHA-256:
+  `9DFC2355F5A4262AFFD1455EA3D0972A80F279E8804BD371DBCFDF38452FDC14`
+- Bitstream SHA-256:
+  `ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC`
+- `board_verified=false`
+
+`board_verified=false` bilinçlidir. Bu alan ancak SMW200A ile DC dışı kontrollü
+CW testinde en az 10 ardışık CRC-valid, exact 2048-bin, sıfır fatal bayraklı ve
+beklenen peak'in ±1 bin içinde kaldığı fiziksel kanıt üretildikten sonra yeni
+bir release manifestinde `true` yapılacaktır.
+
+ZX80-DR230-S+ ile EV1HMC936ALP6 bu yazılım Candidate'ına fiziksel olarak
+entegre edilmiş sayılmaz. M5'te BDC IF, RF1/RF2 eşlemesi, ZX80 besleme/kontrol
+seviyesi, HMC936 için 5 V level-shifter ve güvenli OE, sekiz FPGA pini/XDC ile
+ölçülmüş settle/discard değerleri kapanmadan S0-S3 sürülmeyecektir.
+
+M4 kontrollü CW kapısının yazılım önkoşulu hazırdır: `--frames 10` bounded
+capture tek bir 10-frame NPZ/CSV serisi üretir; kanıt validator'u Candidate
+hash'i, jeneratör/RF/AD9364 çalışma noktası, 2048-bin/CRC/flag/peak ve
+NPZ-CSV kimliğini birlikte zorunlu tutar. Bu araçların fixture regresyonu
+PASS'tir; gerçek SMW200A verisi bulunmadığı için M4 fiziksel checkbox'ı açık
+kalmaya devam eder.
+
+Yazılım handoff'u `3f0bcec`, CW kanıt preflight aracı `c920edc` commit'inde
+kayıtlıdır.
+
+## 26. Gain-lock v2 ve sunum öncesi bağlayıcı durum — 28 Temmuz 2026
+
+M4 laboratuvar tesliminin güncel Candidate'ı `monopulse-live-lab-v2`'dir.
+Tarihsel v1 değiştirilmemiştir.
+
+### 26.1 Güncel RF/FFT sözleşmesi
+
+| Alan | Değer |
+|---|---|
+| RF cihazı | AD9364 |
+| Aktif fiziksel giriş | RXA / RX channel 0 / `A_BALANCED` |
+| LO | `2.400000 GHz` |
+| Sample rate | `30.72 MSPS` |
+| RX bandwidth | `10 MHz` |
+| Gain control | manual |
+| RX gain | `50 dB` |
+| FFT | 2048 nokta, natural order |
+| Bin aralığı | `15 kHz` |
+| Protokol | v2, CRC-32/ISO-HDLC |
+| Candidate durumu | `board_verified=false` |
+
+Firmware başlangıçta ve her frame öncesinde gain modunu/değerini geri okur.
+Python, NPZ/CSV ve evidence validator aynı frame serisinde gain değişimini
+reddeder.
+
+### 26.2 M4'ün açık fiziksel kapısı
+
+- [x] Protocol v2 ve gain telemetrisi.
+- [x] Vitis 2020.1 A53 Release ELF.
+- [x] Immutable Candidate ve SHA-256 paket kapısı.
+- [x] RXA laboratuvar bağlantı sözleşmesi.
+- [ ] Kartta protocol-v2 READY satırı.
+- [ ] SMW200A ile bin-hizalı kontrollü CW.
+- [ ] 100 ardışık frame evidence kabulü.
+- [ ] Yalnız yeni fiziksel kanıtlı release için `board_verified=true`.
+
+İlk test noktası `2.400300 GHz` (`LO + 300 kHz`, bin 20), alternatif test
+noktası `2.401500 GHz` (`LO + 1.5 MHz`, bin 100)'dür. Fiziksel yol onaylı
+attenuator ve 50 ohm kablo üzerinden RXA'ya bağlanır. Ölçülen güç kalibre
+edilene kadar bağıl FFT gücüdür.
+
+### 26.3 M5-M8 sınırı
+
+ZX80-DR230-S+ ve EV1HMC936ALP6 nihai mimaride kalır; ancak güncel v2
+Candidate tarafından sürülmez. BDC IF, besleme/kontrol seviyeleri, 5 V
+level-shifter/OE, sekiz FPGA pini/XDC, RF1/RF2 kablo eşlemesi ve ölçülmüş
+settle/discard değerleri kapanmadan S0-S3 fiziksel kontrolü başlatılmaz.
+
+Sunumda M1-M4'ün tamamlanan dijital/bring-up bölümü ile M4'ün açık CW kapısı ve
+M5-M8'in gelecek işleri ayrı renk/durum etiketiyle gösterilecektir.

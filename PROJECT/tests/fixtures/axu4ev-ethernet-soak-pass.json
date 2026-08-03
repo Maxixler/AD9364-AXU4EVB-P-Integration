@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "captured_at_utc": "2026-07-31T12:00:00Z",
+  "requested_frames": 0,
+  "duration_seconds": 600,
+  "elapsed_seconds": 600.125,
+  "stop_reason": "duration",
+  "completed_frames": 2201,
+  "first_frame_id": 10,
+  "last_frame_id": 2211,
+  "frame_id_span": 2201,
+  "packets_received": 26412,
+  "lost_frames": 2,
+  "invalid_datagrams": 0,
+  "duplicate_chunks": 0,
+  "out_of_order_chunks": 0
+}

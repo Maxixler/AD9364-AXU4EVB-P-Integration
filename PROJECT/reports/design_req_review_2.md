@@ -574,3 +574,26 @@ Herhangi bir dosya oluşturuldu mu?	Hayır. Hiçbir yeni dosya oluşturulmadı.
 Herhangi bir build veya generation çalıştırıldı mı?	Hayır. Vivado, Vitis, XSCT veya başka bir build aracı çalıştırılmadı.
 İnceleme sırasında repository durumu değişti mi?	Kontrol edilecek.
 Başlangıç ve bitiş commit hash'leri aynı mı?	Kontrol edilecek.
+
+16. 28 Temmuz 2026 Uygulama Sonrası Durum
+
+Bu ek, salt-okunur denetimin tarihsel sonucunu değiştirmez; denetimden sonra
+uygulanan işlerin bağlayıcı durumunu gösterir.
+
+| Denetim kapısı | Güncel durum |
+|---|---|
+| Temiz Vivado/timing/DRC | Tamamlandı; setup WNS `+0.144 ns`, TNS `0`, DRC error `0` |
+| Python bit-true model | Tamamlandı |
+| 2048 noktalı PL FFT | RTL, paketleme, block design ve kart tek-frame kabulü tamamlandı |
+| Tekrarlı frame yolu | 100-frame periodic transport/control kabulü tamamlandı |
+| Bare-metal + Python spektrum | Protocol v2, CRC, tam 2048 bin, spectrum/waterfall ve NPZ/CSV hazır |
+| Kontrollü ölçüm gain'i | RX0 manual `50 dB`, başlangıçta/her frame readback |
+| Kontrollü-CW RF girişi | Güncel Candidate için RXA |
+| Kontrollü-CW fiziksel kabul | Açık; `board_verified=false` |
+| ZX80/HMC936 kontrolü | Açık; elektriksel/pin/level-shifter/settle kapıları bekleniyor |
+| S0-S3 monopulse ve açı kalibrasyonu | Gelecek faz |
+
+Denetimin temel kapsam kararı korunmuştur: dijital FFT/laboratuvar teslimi,
+harici monopulse RF donanımından bağımsız kapatılmıştır. ZX80/HMC936 ve açı
+kalibrasyonu ayrı fiziksel fazdır; mevcut FFT başarısı fiziksel monopulse ürün
+kabulü olarak yorumlanmaz.

@@ -1,8 +1,102 @@
 # Çalışma Günlüğü — AXU4EVB-P + AD9364 Doğrulama ve Teslim Zinciri
 
+## 35. Nihai staj teslim paketi — 3 Ağustos 2026
+
+Teslim kapanışında genel staj raporundan ayrı, yalnız teknik mimari ve uygulama
+adımlarını içeren `profen_teknik_detay_raporu.docx` üretildi. 16 sayfalık belge;
+Vivado/XDC, Vitis/bare-metal, dokuz adımlı JTAG bring-up, PL FFT sayısal
+sözleşmesi, UART/Python, sürekli UDP, RF switch/phase-shifter sınırı, test
+matrisi ve devralma prosedürlerini içerir. LibreOffice PDF dönüşümü ve bütün
+sayfaların görsel kontrolü tamamlandı; boş sayfa ve prosedür numaralandırması
+düzeltildi. Yeniden üretim aracı `PROJECT/tools/Build-Axu4evTechnicalDetailReport.py`
+olarak depoya eklendi.
+
+Stajın son gününde depo teslim için sadeleştirildi ve kök README bir proje
+haritasına dönüştürüldü. `TESLIM_NOTLARI_2026-08-03.md` ile kabul edilmiş
+sonuçlar, açık işler, değiştirilmeyecek artefaktlar ve devralacak kişinin ilk gün
+sırası tek yerde toplandı. Nihai Word raporuna Ethernet geliştirmesi ve proje
+teslim kapanışı eklendi; 41 sayfanın tamamı render edilerek görsel olarak
+kontrol edildi.
+
+Monopulse test çalıştırıcısının yeni pytest tabanlı Ethernet testlerini yanlış
+test çatısıyla toplaması engellendi; kendi modülleri açıkça listelendi. Son
+koşuda Ethernet 38/38, monopulse/FFT/UART 61/61 ve lab-console 39/39 test geçti.
+Release, live-lab Candidate ve periyodik monitor paket bütünlüğü PASS oldu.
+
+Teslim aracı temiz Git snapshotı, tam Git bundle, dosya bazlı SHA-256 listesi,
+kaynak branch/commit manifesti ve dış RAR SHA-256 dosyası üretip WinRAR bütünlük
+testini çalıştıracak şekilde eklendi. Geçici IDE/build/cache/log klasörleri
+arşive alınmaz.
+
+## 34. Sürekli Ethernet FFT geliştirmesi — 31 Temmuz 2026
+
+Kullanıcıyla yapılan kapsam değerlendirmesinde PetaLinux yerine mevcut bare-metal
+zincirin korunmasına ve FFT verisinin doğrudan Ethernet/UDP ile aktarılmasına
+karar verildi. Kartın Ethernet hedefi `192.168.1.10`, PC hedefi
+`192.168.1.100`, UDP portu `5005` olarak sabitlendi.
+
+Bu oturumda sürümlü 64-bayt başlık, 2048 adet uint64 spektrum binini 12 UDP
+datagramına bölen protokol, kesintisiz 4 frame/s servis, GEM3/lwIP211 taşıyıcısı,
+ayrı Vitis Ethernet build'i, Python decoder/reassembler ve canlı Matplotlib
+viewer tamamlandı. Sınırlı kayıt için `--frames N`, gerçek sürekli gözlem için
+varsayılan sınırsız mod korundu. Headless kabul aracı sıralı frame kimliği,
+parça/bütünlük, CRC ve zaman sınırlarını denetleyecek şekilde sertleştirildi.
+
+Temiz `vitis_ethernet` çalışma alanında Vitis 2020.1 Release ELF üretimi başarılı
+oldu; host regresyonunda 38 test geçti. Mevcut Golden, `vitis2` ve önceki
+Candidate dosyalarına dokunulmadı.
+
+Fiziksel kart testi bu oturumda tamamlanmadı: bilgisayarda dahili Ethernet portu
+yok ve USB-Ethernet adaptörü henüz mevcut değil. Bu yüzden ping, gerçek UDP
+capture, 150-frame acceptance, 600-saniye soak ve kablosuz CW PASS olarak
+yazılmadı. Adaptör geldikten sonra `Start-Axu4evAd9364EthernetDev.cmd`, UART
+`PL_FFT_ETH: READY`, ping, acceptance, soak ve son olarak güvenli SMW200A CW
+sırasıyla uygulanacak; ardından yeni Candidate değerlendirmesi yapılacak.
+
 **Tarih:** 14 Temmuz 2026
 
 **Kapsam:** `fmcomms2/axu4ev` Vivado projesinin şemalara göre doğrulanması, bitstream/XSA üretimi, Vitis platformu, FSBL ve AD9364 bare-metal uygulamasının tamamlanması.
+
+## 29. Bare-metal Python FFT laboratuvar ekranı kararı — 27 Temmuz 2026
+
+Projenin kalan isterleri kart kanıtları ve güncel kaynakla yeniden
+karşılaştırıldı. PL FFT transport/control temelinin tamamlandığı; gerçek
+ZX80/HMC936 S0-S3 kontrolü, kontrollü CW RF kabulü ve açı kalibrasyonunun açık
+kaldığı doğrulandı.
+
+Stajın kalan süresinde gereksiz platform yükü oluşturmamak için kullanıcıyla
+birlikte şu karar alındı:
+
+- PetaLinux ve `pyadi-iio` şimdilik kullanılmayacak.
+- Kart mevcut bare-metal/JTAG başlatma zincirinde kalacak.
+- Tam 2048-bin spectrum UART üzerinden CRC'li binary paketle taşınacak.
+- Python tarafı PySerial + NumPy + Matplotlib kullanacak.
+- Ekran spectrum, 32-frame waterfall, peak/frekans ve sağlık bilgilerini
+  gösterecek.
+- Tam ölçüm NPZ, özet CSV olarak kaydedilecek.
+- Ethernet yalnız geleceğe açık taşıma adaptörü olacak; şimdi uygulanmayacak.
+
+UART 115200 baud'da yaklaşık 16 KiB spectrum paketinin 1,5-2 saniyede
+aktarılması kabul edildi. Host her geçerli yanıt sonrasında yeni frame
+isteyecektir; kart kendiliğinden sınırsız stream üretmeyecektir.
+
+ZX80-DR230-S+ ile EV1HMC936ALP6 nihai plana dahildir. İlk grafik tesliminden
+sonra BDC IF, RF1/RF2 eşlemesi, ZX80 beslemesi, HMC 5 V level-shifter,
+sekiz FPGA pini ve settle/discard ölçümleri kapatılacak; ardından
+`Σ±ΔAZ/Σ±ΔEL` S0-S3 çevrimi ve Q1.31 AZ/EL hesabı canlı sisteme bağlanacaktır.
+
+Yeni çalışma dalı:
+
+`codex/axu4ev-monopulse-lab-console`
+
+Tasarım commit'i:
+
+`1ce8220 docs: define bare-metal monopulse lab console`
+
+Tasarım ve ayrıntılı test-first plan:
+
+- `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-monopulse-lab-design.md`
+- `PROJECT/reports/2026-07-27-axu4ev-ad9364-baremetal-python-lab-implementation-plan.md`
 
 ## 28. Periodic FFT monitor physical acceptance - 27 July 2026
 
@@ -568,3 +662,194 @@ Nominal altı-vektör testi ilk GREEN'i aldıktan sonra bağımsız review; hard
 Final gerçek-IP suite; abort recovery, stale epoch, soft-reset epoch adoption, dolu-bank rejection, farklı live/command RF etiketi, FFT_ERROR/OVERFLOW enjeksiyonu, partial W1C ve sticky IRQ ile birlikte altı vektörün 2048'er FFT/power sonucunu geçti. Taze root koşusu exit 0 ve `PASS: axi_ad9364_fft_capture single-shot` verdi. Pozitif paketleme gate'i ve bank sentezi de PASS; kaynak ağacına üretilmiş XCI/proje eklenmedi.
 
 Commitler: `8c03a0f`, `b743312`, `67d5524`. Final bağımsız kapanış incelemesi `Approved`. Sıradaki geliştirme adımı Task 8 block-design entegrasyonudur; henüz yeni bitstream üretilmedi veya kart programlanmadı.
+
+## 27. 24-27 Temmuz 2026 — kart FFT'den canlı laboratuvar ekranına
+
+Block-design entegrasyonu ve Candidate bitstream sonrasında kartta ilk
+tek-kare koşusu `PL_FFT: FAIL stage=CAPTURE error=-6` verdi. Kart/JTAG
+bağlantısı temizlenip yeniden başlatıldığında aynı tasarım
+`PL_FFT: PASS frame=1 bank=0 peak_bin=88 crc=aaa532ad` üretti. Ardından
+100-frame periyodik monitor kartta tamamlandı. Peak bin'in uyarımsız laboratuvar
+ortamında frame'den frame'e değişmesinin normal olduğu, asıl deterministik
+kabulün kontrollü CW ile yapılacağı netleştirildi.
+
+Kullanıcı bare-metal + Python yaklaşımını, 2048-bin tam spektrum ve iki çalışma
+modunu seçti. Bunun üzerine:
+
+1. Sürümlü request/response protokolü, CRC-32/ISO-HDLC ve sequence koruması C
+   ve Python'da byte-exact uygulandı.
+2. Bare-metal `GET_INFO`/`CAPTURE_ONCE` servisi PL control/status ve iki
+   spectrum bankından atomik frame okudu.
+3. Python istemcisi paket uzunluğu, CRC, sıra numarası, metadata, exact 2048
+   bin ve fatal donanım bayraklarını doğruladı.
+4. Matplotlib canlı spectrum, 32-frame waterfall, peak ve sağlık ekranı
+   eklendi.
+5. `s` tuşuyla veya `--single` moduyla tam NPZ ve özet CSV kayıt yolu eklendi.
+6. `LabUart` Vitis modu, `Start-Axu4evAd9364LabConsole.cmd` başlatıcısı ve
+   `monopulse-live-lab-v1` değişmez Candidate'ı oluşturuldu.
+
+Gerçek Vitis 2020.1 build sırasında iki çevresel sorun ayrıştırıldı. Uzun
+Windows temp yolu BSP hedefini 260 karakter sınırının ötesine taşıyordu; build
+kısa workspace'e alındı ve erken yol kapısı eklendi. Eclipse/platform üretimi
+bazen geçici dosya kilidiyle ilk denemede düşüyordu; yalnız bu aşama için bir
+kez ve 3 saniye sonra sınırlı retry eklendi. Ardından gerçek Release build ve
+paketleme PASS verdi.
+
+Candidate:
+
+```text
+release_id: monopulse-live-lab-v1
+application: 865360 bytes
+application_sha256:
+  9DFC2355F5A4262AFFD1455EA3D0972A80F279E8804BD371DBCFDF38452FDC14
+bitstream_sha256:
+  ECDD9378FF9EBB3D0BD6BAD1C8C3FA6DD3E88C578087C51F219D78EAD13C6CCC
+board_verified: false
+```
+
+Protokol, bare-metal servis, 31 Python testi, Candidate build/package,
+periyodik monitor paketi ve Golden release regresyonları PASS verdi. Eski
+Workspace launcher testi, ignored Vivado implementation bitstream'i ile
+tracked Vitis handoff bitstream'inin farklı olduğunu raporladı. Bu uyuşmazlık
+Lab Candidate'tan bağımsız olduğundan kullanıcı üretimi ignored çıktıların
+üzerine yazılmadı; immutable Candidate akışı doğrulandı.
+
+Sıradaki gerçek kabul SMW200A ile DC dışı kontrollü CW'de en az 10 ardışık
+frame'dir. Exact 2048 bin, CRC-valid mesaj, sıfır fatal flag ve beklenen
+peak'in ±1 bin içinde kalması gerekir. Bu kanıt alınana kadar
+`board_verified=false` ve güç değerleri “kalibre edilmemiş bağıl güç” olarak
+korunur.
+
+ZX80-DR230-S+ ve EV1HMC936ALP6 planda vardır fakat bu Candidate'a fiziksel
+olarak entegre edilmiş sayılmaz. BDC IF, RF1/RF2 kablo eşlemesi, ZX80 VDD ve
+kontrol gerilimleri, HMC936 5 V level-shifter/OE, sekiz FPGA pini/XDC ile
+settle/discard ölçümleri kapanmadan S0-S3 kontrolü etkinleştirilmeyecektir.
+
+Rapor kapanışından sonra Task 9'un fiziksel test öncesi araçları da eklendi.
+`--frames 10` modu GUI açmadan on ardışık geçerli frame'i
+`axu4ev-ad9364-live-lab-cw-capture.npz` ve
+`axu4ev-ad9364-live-lab-cw-summary.csv` olarak atomik kaydeder.
+`Test-Axu4evLabCaptureEvidence.ps1`; immutable Candidate hash bağını, SMW200A
+frekans/seviye ve RF yolunu, AD9364 LO/Fs/BW değerlerini, ardışık frame
+kimliğini, exact 2048 bin, CRC, peak ±1 ve sıfır fatal flag şartlarını birlikte
+denetler. Sentetik pozitif/negatif testler PASS, gerçek kanıt eksikliği ise
+tasarlandığı gibi RED'dir.
+
+Kapanış commitleri `3f0bcec` ve `c920edc`'dir.
+
+## 28 Temmuz 2026 — bare-metal gain-lock v2
+
+AD9361 tabanlı harici Python örneği projeye alınmadı ve PetaLinux/IIO kapsamı
+ertelendi. Kendi AXU4EVB-P + AD9364 bare-metal test zinciri incelendi.
+
+Kontrollü ölçümlerde slow-attack AGC'nin SUM/ERROR genlik oranlarını
+değiştirebileceği tespit edildi. RX0 manual moda alınıp 50 dB'e kilitlendi;
+mod/gain readback başlangıçta ve her frame öncesinde zorunlu yapıldı. Protokol
+v2'ye gain telemetrisi eklendi. Python history, NPZ, CSV ve evidence validator
+gain değişimini reddedecek şekilde güncellendi. 2048-bin FFT ve tek RX kanalı
+korundu.
+
+Sonraki fiziksel adım `monopulse-live-lab-v2` Candidate'ını JTAG ile başlatıp
+UART READY satırını ve bin-hizalı kontrollü CW peak kararlılığını doğrulamaktır.
+
+V2 kaynak commit'i `3f88ccc7e85eaab34f197dd9dda4a3e136285c32` olarak
+kilitlendi. Vitis 2020.1 `platform generate`, iki temiz kısa workspace denemesinde
+kendi BSP kaynaklarını silmeye çalışırken Windows file-lock hatası verdi. Aynı
+işlemi tekrar etmek yerine, mevcut doğrulanmış AXU4EV standalone BSP ile Vitis
+2020.1 AArch64 compiler/linker kullanılarak uygulama ayrı klasörde derlendi.
+Derlemede Candidate XSA'nın gerçek FFT adresleri (`0x9C440000`,
+`0x9D000000`, `0x9D010000`) kullanıldı.
+
+ELF `865952` bayt ve SHA-256 değeri
+`E05CA5EB83CC3E94BC05F55E52C1A076979FD2A66D8E19EBBE822DAF4FE7C01F`
+olarak üretildi. Protocol-v2/gain formatı, release kimliği ve gerekli laboratuvar
+servis sembolleri binary içinde doğrulandı. ELF; board-verified single-shot
+bitstream, PMUFW, `psu_init.tcl` ve XSA ile `monopulse-live-lab-v2` immutable
+Candidate paketine bağlandı. Manifest/hash doğrulaması PASS; fiziksel test
+yapılmadığı için `board_verified=false` korundu.
+
+## 29. 28 Temmuz 2026 — laboratuvar bağlantısı ve sunum hazırlığı
+
+Perşembe günü yapılacak ayrıntılı staj sunumu için mevcut proje durumu yeniden
+denetlendi. Güncel `monopulse-live-lab-v2` kaynağında
+`rx_rf_port_input_select=0` olduğu ve bunun `A_BALANCED / RXA` girişine karşılık
+geldiği doğrulandı. Eski Wi-Fi aktivite Candidate'ındaki `B_BALANCED / RXB`
+seçimi yalnız tarihsel o teste aittir.
+
+Kontrollü-CW ilk kabul bağlantısı:
+
+```text
+SMW200A RF OUT A
+-> 20-30 dB onaylı sabit attenuator
+-> 50 ohm SMA kablo
+-> AD9364 RXA
+```
+
+Başlangıç kaynağı `2.400300 GHz` seçildiğinde 30.72 MSPS ve 2048 FFT için
+beklenen natural-order peak `bin 20`'dir. Alternatif `2.401500 GHz` kaynağı
+`bin 100` üretir. RF bağlantıları RF OFF durumunda yapılacak; TXA/TXB ve
+REF_CLK giriş olarak kullanılmayacaktır.
+
+Sunum; araştırma ve gereksinim teyidi, planlama, Vivado, Vitis/JTAG bring-up,
+RF aktivite testi, PL FFT, bare-metal/Python ekranı, gain-lock v2, açık CW
+kapısı ve gelecekteki ZX80/HMC936 monopulse kalibrasyonu sırasıyla 40 slaytlık
+kronolojik bir mühendislik hikâyesi olarak tasarlandı. Sonraki teslim olarak
+aynı doğrulanmış Markdown kaynaklarından genel Word proje raporu
+oluşturulacaktır.
+
+## 30. 28 Temmuz 2026 — lab olmadan Python zinciri çalıştırması
+
+Laboratuvarın kullanımda olması nedeniyle gerçek kart/COM/RF testi yerine
+host tarafındaki yazılım preflight çalıştırıldı. Sistem Python'ında eksik olan
+PySerial, repository içindeki izole `.venv-monopulse-lab` ortamına kuruldu;
+sistem Python kurulumu değiştirilmedi.
+
+Kurulan çalışma noktası:
+
+```text
+Python 3.12.3
+NumPy 2.5.1
+Matplotlib 3.11.1
+PySerial 3.5
+```
+
+Protocol, model, storage, serial client, CLI/app ve controlled-CW evidence
+modüllerindeki toplam 39 test 0 failure ile geçti. CLI `--help` girişi de
+başarıyla doğrulandı.
+
+Gerçek evidence validator ayrıca doğrudan çalıştırıldı ve fiziksel CW evidence
+dosyası olmadığı için beklenen RED sonucunu verdi. Sentetik geçerli fixture'ın
+PASS, peak toleransı/gain değişimi/fiziksel kanıt eksikliği fixture'larının
+reject olması 39 test içinde doğrulandı. Dolayısıyla Python yazılım zinciri
+lab testine hazırdır; fiziksel CW kapısı hâlâ açık ve
+`board_verified=false` doğrudur.
+
+## 31. 28 Temmuz 2026 — gerçek kartta sinyalsiz Python preflight
+
+Kart JTAG ve PS_UART ile bağlıyken `monopulse-live-lab-v2` Candidate doğrudan
+başlatıldı. PMUFW, FPGA, PS/DDR/PS-PL, DDR ve uygulama yükleme kapıları PASS
+verdi. PuTTY COM5'i bıraktıktan sonra Python istemcisi gerçek karttan protocol
+v2 INFO aldı:
+
+```text
+release=monopulse-live-lab-v2
+fft=2048
+Fs=30720000
+BW=10000000
+LO=2400000000
+gain=manual/50 dB
+```
+
+İlk capture bir kez `error=-6 stage=4` verdi. Sonraki ham isteklerde on
+ardışık frame, exact 2048 sample, sıfır hardware flag, geçerli CRC ve sabit
+50 dB gain ile döndü.
+
+Sinyal uygulanmadığı için bütün magnitude-square spectrum kelimeleri sıfır
+oldu. Donanım DC bin 0'ı dışlayıp ilk uygun bin 1'i peak seçerken Python
+varsayılan argmax bin 0'ı seçti. Bu nedenle bounded uygulama temiz frame'i
+peak-mismatch olarak reddetti. Kod değiştirilmeden `--search-start 1` ile
+frame 19-28 arasındaki on frame NPZ/CSV olarak kaydedildi.
+
+Bu çalışma gerçek karttaki JTAG, UART, protokol, CRC, gain-lock ve health
+yolunu doğrular; RF/CW kabulü değildir. Python/donanım DC-guard tie semantiği
+ayrı düzeltme ve regresyon maddesi olarak açıldı.

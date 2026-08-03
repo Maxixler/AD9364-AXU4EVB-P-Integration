@@ -2,25 +2,312 @@
 param(
     [string]$WorkspaceRoot,
 
-    [Parameter(Mandatory)]
     [string]$SourceXsa,
 
-    [Parameter(Mandatory)]
     [string]$CandidateRoot,
 
-    [Parameter(Mandatory)]
     [string]$VitisWorkspace,
 
-    [Parameter(Mandatory)]
     [string]$AllowedVitisWorkspaceRoot,
 
-    [ValidateSet('SingleShot', 'PeriodicMonitor')]
+    [ValidateSet('SingleShot', 'PeriodicMonitor', 'LabUart', 'Ethernet')]
     [string]$ApplicationMode = 'SingleShot',
+
+    [switch]$BuildOnly,
 
     [switch]$DryRun
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Test-SubstMappingPresent {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SubstDrive,
+
+        [Parameter(Mandatory)]
+        [string]$SubstExecutable
+    )
+
+    $mappingLines = @(& $SubstExecutable 2>&1)
+    $inspectionExitCode = $LASTEXITCODE
+    if ($inspectionExitCode -ne 0) {
+        throw "Cannot inspect SUBST mappings; exit code $inspectionExitCode."
+    }
+    $mappingPrefix = "$($SubstDrive.TrimEnd('\'))\:"
+    return [bool]@($mappingLines | Where-Object {
+            $_.ToString().TrimStart().StartsWith(
+                $mappingPrefix,
+                [StringComparison]::OrdinalIgnoreCase)
+        }).Count
+}
+
+function Invoke-WithVerifiedSubstMapping {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SubstDrive,
+
+        [Parameter(Mandatory)]
+        [string]$TargetRoot,
+
+        [Parameter(Mandatory)]
+        [scriptblock]$Operation,
+
+        [string]$SubstExecutable = 'subst.exe'
+    )
+
+    $createOutput = @(& $SubstExecutable $SubstDrive $TargetRoot 2>&1)
+    $createExitCode = $LASTEXITCODE
+    if ($createExitCode -ne 0) {
+        throw "Cannot map $SubstDrive to '$TargetRoot'; exit code $createExitCode.`r`n$($createOutput -join "`r`n")"
+    }
+
+    $operationError = $null
+    $cleanupError = $null
+    try {
+        & $Operation "$SubstDrive\"
+    }
+    catch {
+        $operationError = $_
+    }
+    finally {
+        try {
+            $deleteOutput = @(& $SubstExecutable $SubstDrive /D 2>&1)
+            $deleteExitCode = $LASTEXITCODE
+            $cleanupFailures = New-Object System.Collections.Generic.List[string]
+            if ($deleteExitCode -ne 0) {
+                $cleanupFailures.Add(
+                    "SUBST deletion for $SubstDrive failed with exit code $deleteExitCode" +
+                    $(if ($deleteOutput.Count -ne 0) {
+                            ": $($deleteOutput -join [Environment]::NewLine)"
+                        }
+                        else {
+                            '.'
+                        }))
+            }
+
+            try {
+                $mappingRemains = Test-SubstMappingPresent `
+                    -SubstDrive $SubstDrive `
+                    -SubstExecutable $SubstExecutable
+                if ($mappingRemains) {
+                    $cleanupFailures.Add("SUBST drive $SubstDrive remains mapped.")
+                }
+            }
+            catch {
+                $cleanupFailures.Add($_.Exception.Message)
+            }
+            if ($cleanupFailures.Count -ne 0) {
+                throw ($cleanupFailures -join [Environment]::NewLine)
+            }
+        }
+        catch {
+            $cleanupError = $_
+        }
+    }
+
+    $failures = New-Object System.Collections.Generic.List[string]
+    if ($operationError) {
+        $failures.Add("Operation: $($operationError.Exception.Message)")
+    }
+    if ($cleanupError) {
+        $failures.Add("Cleanup: $($cleanupError.Exception.Message)")
+    }
+    if ($failures.Count -ne 0) {
+        throw ($failures -join [Environment]::NewLine)
+    }
+}
+
+if ($BuildOnly) {
+    if ($ApplicationMode -cne 'Ethernet') {
+        throw 'BuildOnly is reserved for the isolated Ethernet development workspace.'
+    }
+
+    $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
+    $defaultWorkspace = [IO.Path]::GetFullPath(
+        (Join-Path $projectRoot 'vitis_ethernet\workspace'))
+    $selectedWorkspace = if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
+        $defaultWorkspace
+    }
+    else {
+        [IO.Path]::GetFullPath($WorkspaceRoot)
+    }
+    if (-not $selectedWorkspace.Equals(
+            $defaultWorkspace,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Ethernet BuildOnly workspace must be '$defaultWorkspace': $selectedWorkspace"
+    }
+
+    $allowedRoot = Split-Path $defaultWorkspace -Parent
+    $existingAncestor = $allowedRoot
+    while (-not (Test-Path -LiteralPath $existingAncestor)) {
+        $existingAncestor = Split-Path $existingAncestor -Parent
+    }
+    $current = Get-Item -LiteralPath $existingAncestor
+    while ($current) {
+        if (($current.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Ethernet BuildOnly workspace contains a reparse point: $($current.FullName)"
+        }
+        if ($current.FullName.TrimEnd('\').Equals(
+                [IO.Path]::GetPathRoot($current.FullName).TrimEnd('\'),
+                [StringComparison]::OrdinalIgnoreCase)) {
+            break
+        }
+        $current = $current.Parent
+    }
+
+    $referenceRoot = Join-Path $projectRoot `
+        'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1'
+    $manifestPath = Join-Path $referenceRoot 'manifest.json'
+    $releaseModule = Join-Path $projectRoot 'PROJECT\tools\Axu4evRelease.psm1'
+    $buildTcl = Join-Path $projectRoot 'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
+    $xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'
+    foreach ($required in @($manifestPath, $releaseModule, $buildTcl, $xsct)) {
+        if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+            throw "Missing Ethernet BuildOnly dependency: $required"
+        }
+    }
+
+    $referenceRelative = 'PROJECT/candidates/axu4ev-ad9364/fft-single-shot-v1'
+    $referenceStatus = @(
+        & git -C $projectRoot status --porcelain=v1 --untracked-files=all -- $referenceRelative
+    )
+    if ($LASTEXITCODE -ne 0 -or $referenceStatus.Count -ne 0) {
+        throw "Ethernet BuildOnly requires a clean board-verified reference.`r`n$($referenceStatus -join "`r`n")"
+    }
+
+    Import-Module $releaseModule -Force
+    $referenceManifest = Read-Axu4evReleaseManifest -ReleaseRoot $referenceRoot
+    if (-not $referenceManifest.board_verified) {
+        throw 'Ethernet BuildOnly requires the board-verified fft-single-shot-v1 reference.'
+    }
+    $referenceArtifacts = @(
+        Test-Axu4evReleaseArtifacts `
+            -ReleaseRoot $referenceRoot `
+            -Manifest $referenceManifest
+    )
+    $referenceByName = @{}
+    foreach ($artifact in $referenceArtifacts) {
+        $referenceByName[$artifact.Name] = $artifact
+    }
+    foreach ($requiredArtifact in @('bitstream', 'pmufw', 'psu_init', 'xsa')) {
+        if (-not $referenceByName.ContainsKey($requiredArtifact)) {
+            throw "Ethernet BuildOnly reference is missing '$requiredArtifact'."
+        }
+    }
+    $trustedXsa = $referenceByName['xsa'].Path
+    if (-not [string]::IsNullOrWhiteSpace($SourceXsa) -and
+        -not [IO.Path]::GetFullPath($SourceXsa).Equals(
+            [IO.Path]::GetFullPath($trustedXsa),
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Ethernet BuildOnly cannot override the board-verified reference XSA.'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($CandidateRoot)) {
+        throw 'Ethernet BuildOnly does not create or modify a Candidate bundle.'
+    }
+
+    $untrackedInputs = @(
+        & git -C $projectRoot ls-files --others --exclude-standard -- `
+            'Vitis/workspace/ad9364app/src'
+    )
+    if ($LASTEXITCODE -ne 0 -or $untrackedInputs.Count -ne 0) {
+        throw "Ethernet BuildOnly rejects untracked application sources.`r`n$($untrackedInputs -join "`r`n")"
+    }
+
+    $description = [ordered]@{
+        source_xsa = $trustedXsa
+        source_xsa_sha256 = $referenceByName['xsa'].Sha256
+        candidate_root = $null
+        vitis_workspace = $selectedWorkspace
+        application_mode = $ApplicationMode
+        compiler_symbol = 'PL_FFT_ETHERNET'
+        pl_fft_single_shot = $false
+        pl_fft_periodic_monitor = $false
+        pl_fft_lab_uart = $false
+        pl_fft_ethernet = $true
+        build_only = [bool]$BuildOnly
+        trusted_reference = $referenceRoot
+    }
+    if ($DryRun) {
+        $description | ConvertTo-Json -Depth 4
+        return
+    }
+
+    $free = (Get-PSDrive -Name C).Free
+    if ($free -lt 5GB) {
+        throw 'At least 5 GiB free space is required for the Ethernet Vitis workspace.'
+    }
+    New-Item -ItemType Directory -Path $allowedRoot -Force | Out-Null
+    $referenceHashes = @{}
+    foreach ($artifact in $referenceArtifacts) {
+        $referenceHashes[$artifact.Name] = (Get-FileHash `
+                -LiteralPath $artifact.Path `
+                -Algorithm SHA256).Hash
+    }
+
+    $usedDriveLetters = @(
+        [IO.DriveInfo]::GetDrives() |
+            ForEach-Object { $_.Name.Substring(0, 1).ToUpperInvariant() }
+    )
+    $substLetter = @('V', 'W', 'X', 'Y', 'Z') |
+        Where-Object { $_ -notin $usedDriveLetters } |
+        Select-Object -First 1
+    if (-not $substLetter) {
+        throw 'Ethernet BuildOnly requires one free drive letter from V: through Z: for Vitis 2020.1 path shortening.'
+    }
+    $substDrive = "$substLetter`:"
+    Invoke-WithVerifiedSubstMapping `
+        -SubstDrive $substDrive `
+        -TargetRoot $projectRoot `
+        -Operation {
+            param($mappedProjectRoot)
+
+            $mappedBuildTcl = Join-Path $mappedProjectRoot `
+                'PROJECT\tools\Build-Axu4evPlFftCandidate.tcl'
+            $mappedTrustedXsa = Join-Path $mappedProjectRoot `
+                'PROJECT\candidates\axu4ev-ad9364\fft-single-shot-v1\hardware\system_top.xsa'
+            $mappedAllowedRoot = Join-Path $mappedProjectRoot 'vitis_ethernet'
+            $mappedWorkspace = Join-Path $mappedAllowedRoot 'workspace'
+            & $xsct $mappedBuildTcl $mappedProjectRoot $mappedTrustedXsa `
+                $mappedWorkspace $mappedAllowedRoot PL_FFT_ETHERNET
+            $buildExitCode = $LASTEXITCODE
+            if ($buildExitCode -ne 0) {
+                throw "Ethernet BuildOnly Vitis build failed with exit code $buildExitCode."
+            }
+        }
+
+    $elf = Join-Path $selectedWorkspace 'ad9364app\Release\ad9364app.elf'
+    if (-not (Test-Path -LiteralPath $elf -PathType Leaf) -or
+        (Get-Item -LiteralPath $elf).Length -le 0) {
+        throw "Ethernet BuildOnly did not produce a non-empty ELF: $elf"
+    }
+    $lwipManifests = @(
+        Get-ChildItem -LiteralPath $selectedWorkspace -Recurse -Filter *.mss -File |
+            Where-Object { Select-String -LiteralPath $_.FullName -Pattern 'lwip211' -Quiet }
+    )
+    if ($lwipManifests.Count -eq 0) {
+        throw 'Ethernet BuildOnly BSP manifest does not contain lwip211.'
+    }
+    foreach ($artifact in $referenceArtifacts) {
+        $actualHash = (Get-FileHash -LiteralPath $artifact.Path -Algorithm SHA256).Hash
+        if ($actualHash -cne $referenceHashes[$artifact.Name]) {
+            throw "Ethernet BuildOnly modified trusted Candidate artifact '$($artifact.Name)'."
+        }
+    }
+
+    Write-Output "PASS: Ethernet development ELF built at $elf"
+    $description | ConvertTo-Json -Depth 4
+    return
+}
+
+foreach ($requiredValue in @{
+        SourceXsa = $SourceXsa
+        CandidateRoot = $CandidateRoot
+    }.GetEnumerator()) {
+    if ([string]::IsNullOrWhiteSpace([string]$requiredValue.Value)) {
+        throw "$($requiredValue.Key) is required unless BuildOnly is selected."
+    }
+}
 
 if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
     $WorkspaceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
@@ -28,10 +315,35 @@ if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
 else {
     $WorkspaceRoot = (Resolve-Path -LiteralPath $WorkspaceRoot).Path
 }
+$defaultEthernetWorkspace = Join-Path $WorkspaceRoot 'vitis_ethernet\workspace'
+$defaultEthernetWorkspaceRoot = Split-Path $defaultEthernetWorkspace -Parent
+if ([string]::IsNullOrWhiteSpace($VitisWorkspace)) {
+    if ($ApplicationMode -cne 'Ethernet') {
+        throw 'VitisWorkspace is required unless ApplicationMode is Ethernet.'
+    }
+    $VitisWorkspace = $defaultEthernetWorkspace
+}
+if ([string]::IsNullOrWhiteSpace($AllowedVitisWorkspaceRoot)) {
+    if ($ApplicationMode -cne 'Ethernet') {
+        throw 'AllowedVitisWorkspaceRoot is required unless ApplicationMode is Ethernet.'
+    }
+    $AllowedVitisWorkspaceRoot = $defaultEthernetWorkspaceRoot
+}
 $SourceXsa = (Resolve-Path -LiteralPath $SourceXsa).Path
 $CandidateRoot = [IO.Path]::GetFullPath($CandidateRoot)
 $VitisWorkspace = [IO.Path]::GetFullPath($VitisWorkspace)
 $AllowedVitisWorkspaceRoot = [IO.Path]::GetFullPath($AllowedVitisWorkspaceRoot)
+$defaultEthernetWorkspace = [IO.Path]::GetFullPath($defaultEthernetWorkspace)
+$usesDefaultEthernetWorkspace = (
+    $ApplicationMode -ceq 'Ethernet' -and
+    $VitisWorkspace.Equals(
+        $defaultEthernetWorkspace,
+        [StringComparison]::OrdinalIgnoreCase)
+)
+if ($usesDefaultEthernetWorkspace -and
+    -not (Test-Path -LiteralPath $AllowedVitisWorkspaceRoot -PathType Container)) {
+    New-Item -ItemType Directory -Path $AllowedVitisWorkspaceRoot -Force | Out-Null
+}
 
 $goldenBase = Join-Path $WorkspaceRoot 'PROJECT\releases\axu4ev-ad9364'
 $candidateBase = Join-Path $WorkspaceRoot 'PROJECT\candidates\axu4ev-ad9364'
@@ -41,11 +353,20 @@ $xsct = 'C:\Xilinx\Vitis\2020.1\bin\xsct.bat'
 $compilerSymbol = switch ($ApplicationMode) {
     'SingleShot' { 'PL_FFT_SINGLE_SHOT' }
     'PeriodicMonitor' { 'PL_FFT_PERIODIC_MONITOR' }
+    'LabUart' { 'PL_FFT_LAB_UART' }
+    'Ethernet' { 'PL_FFT_ETHERNET' }
 }
 $uartMarkers = switch ($ApplicationMode) {
     'SingleShot' { @('PL_FFT: PASS') }
     'PeriodicMonitor' { @('PL_FFT_MONITOR: PASS') }
+    'LabUart' { @('PL_FFT_LAB: READY') }
+    'Ethernet' { @('PL_FFT_ETH: READY') }
 }
+$usesTrustedSingleShotReference = $ApplicationMode -in @(
+    'PeriodicMonitor',
+    'LabUart',
+    'Ethernet'
+)
 
 function Assert-NoReparsePointForWrite {
     param(
@@ -197,11 +518,29 @@ if (-not $CandidateRoot.StartsWith($candidatePrefix, [StringComparison]::Ordinal
     throw "CandidateRoot must be inside the project Candidate tree: $CandidateRoot"
 }
 Assert-NoReparsePointForWrite -Path $CandidateRoot -Boundary $candidateBase
+$protectedCandidateRoots = @(
+    (Join-Path $candidateBase 'fft-single-shot-v1'),
+    (Join-Path $candidateBase 'fft-periodic-monitor-v1')
+)
+foreach ($protectedCandidateRoot in $protectedCandidateRoots) {
+    $protectedRoot = [IO.Path]::GetFullPath($protectedCandidateRoot).TrimEnd('\')
+    $protectedPrefix = $protectedRoot + '\'
+    $selectedRoot = $CandidateRoot.TrimEnd('\')
+    $selectedPrefix = $selectedRoot + '\'
+    if ($selectedRoot.Equals($protectedRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        $selectedRoot.StartsWith($protectedPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        $protectedRoot.StartsWith($selectedPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "CandidateRoot cannot overlap an accepted Candidate bundle: $protectedRoot"
+    }
+}
+if (-not $DryRun -and (Test-Path -LiteralPath (Join-Path $CandidateRoot 'manifest.json') -PathType Leaf)) {
+    throw "CandidateRoot already contains an immutable manifest: $CandidateRoot"
+}
 Assert-CandidateTrackedSourceCleanliness -SelectedCandidateRoot $CandidateRoot
 
 Import-Module $releaseModule -Force
 $singleShotReferenceArtifacts = @{}
-$hardwareContractReferenceXsa = if ($ApplicationMode -eq 'PeriodicMonitor') {
+$hardwareContractReferenceXsa = if ($usesTrustedSingleShotReference) {
     $singleShotReference = (Resolve-Path -LiteralPath (Join-Path $candidateBase 'fft-single-shot-v1')).Path
     Assert-TrustedPeriodicReferenceProvenance -ReferenceRoot $singleShotReference
     $singleShotManifest = Read-Axu4evReleaseManifest -ReleaseRoot $singleShotReference
@@ -250,7 +589,7 @@ else {
     $referenceXsa[0]
 }
 
-if ($ApplicationMode -eq 'PeriodicMonitor') {
+if ($usesTrustedSingleShotReference) {
     $singleShotReferenceRoot = [IO.Path]::GetFullPath($singleShotReference).TrimEnd('\')
     $singleShotReferencePrefix = $singleShotReferenceRoot + '\'
     $candidateRootPrefix = $CandidateRoot.TrimEnd('\') + '\'
@@ -259,7 +598,7 @@ if ($ApplicationMode -eq 'PeriodicMonitor') {
             [StringComparison]::OrdinalIgnoreCase) -or
         $CandidateRoot.StartsWith($singleShotReferencePrefix, [StringComparison]::OrdinalIgnoreCase) -or
         $singleShotReferenceRoot.StartsWith($candidateRootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Periodic CandidateRoot cannot overlap the board-verified fft-single-shot-v1 reference: $CandidateRoot"
+        throw "$ApplicationMode CandidateRoot cannot overlap the board-verified fft-single-shot-v1 reference: $CandidateRoot"
     }
 }
 $allowedWorkspacePrefix = $AllowedVitisWorkspaceRoot.TrimEnd('\') + '\'
@@ -271,7 +610,11 @@ if ([IO.Path]::GetPathRoot($AllowedVitisWorkspaceRoot).TrimEnd('\').Equals(
     -not $VitisWorkspace.StartsWith($allowedWorkspacePrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw "VitisWorkspace must be a child of the approved root '$AllowedVitisWorkspaceRoot': $VitisWorkspace"
 }
-foreach ($protectedPath in @($WorkspaceRoot, $CandidateRoot, $goldenBase, (Split-Path $SourceXsa -Parent))) {
+$protectedPaths = @($CandidateRoot, $goldenBase, (Split-Path $SourceXsa -Parent))
+if (-not $usesDefaultEthernetWorkspace) {
+    $protectedPaths = @($WorkspaceRoot) + $protectedPaths
+}
+foreach ($protectedPath in $protectedPaths) {
     $protectedPrefix = [IO.Path]::GetFullPath($protectedPath).TrimEnd('\') + '\'
     if ($VitisWorkspace.Equals(
             [IO.Path]::GetFullPath($protectedPath),
@@ -339,6 +682,8 @@ try {
         compiler_symbol = $compilerSymbol
         pl_fft_single_shot = ($ApplicationMode -eq 'SingleShot')
         pl_fft_periodic_monitor = ($ApplicationMode -eq 'PeriodicMonitor')
+        pl_fft_lab_uart = ($ApplicationMode -eq 'LabUart')
+        pl_fft_ethernet = ($ApplicationMode -eq 'Ethernet')
         tracked_source_cleanliness_checked = $true
     }
     if ($DryRun) {
@@ -354,6 +699,11 @@ try {
     }
     if ($untrackedInputs.Count -ne 0) {
         throw "Candidate builds reject untracked application source inputs.`r`n$($untrackedInputs -join "`r`n")"
+    }
+    $legacyVitisDeepSuffix = '\fmcomms2_axu4ev_fft_hw\psu_cortexa53_0\standalone_domain\bsp\psu_cortexa53_0\libsrc\standalone_v7_2\src\arm\ARMv8\64bit\platform\versal\armclang\translation_table.S'
+    $legacyVitisDeepPath = $VitisWorkspace.TrimEnd('\') + $legacyVitisDeepSuffix
+    if ($legacyVitisDeepPath.Length -ge 260) {
+        throw "VitisWorkspace path is too long for Vitis 2020.1 BSP generation ($($legacyVitisDeepPath.Length) characters at the deepest known output): $VitisWorkspace"
     }
     $sourceCommit = (& git -C $WorkspaceRoot rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0) {
@@ -389,7 +739,7 @@ $platformName = 'fmcomms2_axu4ev_fft_hw'
 $generated = [ordered]@{
     application = Join-Path $VitisWorkspace 'ad9364app\Release\ad9364app.elf'
     bitstream = Join-Path $VitisWorkspace 'ad9364app\_ide\bitstream\system_top.bit'
-    pmufw = if ($ApplicationMode -eq 'PeriodicMonitor') {
+    pmufw = if ($usesTrustedSingleShotReference) {
         $singleShotReferenceArtifacts['pmufw'].Path
     }
     else {
@@ -407,12 +757,12 @@ if ((Get-FileHash -LiteralPath $generated.bitstream -Algorithm SHA256).Hash -ne
     (Get-FileHash -LiteralPath $candidateBitstream -Algorithm SHA256).Hash) {
     throw 'Candidate Vitis bitstream does not match the bitstream embedded in the Candidate XSA.'
 }
-if ($ApplicationMode -eq 'PeriodicMonitor') {
+if ($usesTrustedSingleShotReference) {
     foreach ($artifactName in @('bitstream', 'pmufw', 'psu_init', 'xsa')) {
         $generatedHash = (Get-FileHash -LiteralPath $generated[$artifactName] -Algorithm SHA256).Hash
         $referenceHash = $singleShotReferenceArtifacts[$artifactName].Sha256
         if ($generatedHash -ne $referenceHash) {
-            throw "Periodic Candidate $artifactName must be byte-identical to the board-verified fft-single-shot-v1 reference."
+            throw "$ApplicationMode Candidate $artifactName must be byte-identical to the board-verified fft-single-shot-v1 reference."
         }
     }
 }

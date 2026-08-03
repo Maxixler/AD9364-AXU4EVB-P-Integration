@@ -32,6 +32,12 @@
 #define STATUS_ERROR_MASK      (0x7f8u)
 #define STATUS_FATAL_MASK      (STATUS_ERROR_MASK & ~STATUS_DROPPED_SAMPLES)
 
+#define STATUS_CDC_FAULT    (1u << 3)
+#define STATUS_FRAME_ERROR  (1u << 5)
+#define STATUS_FFT_ERROR    (1u << 6)
+#define STATUS_FFT_OVERFLOW (1u << 7)
+#define STATUS_BANK_OVERRUN (1u << 9)
+
 static uint32_t reg_read(const struct pl_fft_device *dev, uint32_t offset)
 {
 	return dev->read32(dev->context, dev->control_base + offset);
@@ -54,6 +60,7 @@ static int device_valid(const struct pl_fft_device *dev)
 static void read_result_fields(const struct pl_fft_device *dev,
 			       uint32_t frame_id,
 			       uint32_t result_tag,
+			       uint32_t status,
 			       struct pl_fft_result *result)
 {
 	uint32_t peak_re_im = reg_read(dev, REG_PEAK_RE_IM);
@@ -73,6 +80,13 @@ static void read_result_fields(const struct pl_fft_device *dev,
 	result->first_sample = reg_read(dev, REG_FIRST_SAMPLE);
 	result->frame_crc32 = reg_read(dev, REG_FRAME_CRC32);
 	result->dropped_count = reg_read(dev, REG_DROPPED_COUNT);
+	result->hardware_flags =
+		(uint16_t)(((status & STATUS_FRAME_ERROR) != 0u ? 1u : 0u) |
+		((status & STATUS_FFT_ERROR) != 0u ? 1u << 1 : 0u) |
+		((status & STATUS_FFT_OVERFLOW) != 0u ? 1u << 2 : 0u) |
+		((status & STATUS_CDC_FAULT) != 0u ? 1u << 3 : 0u) |
+		((status & STATUS_BANK_OVERRUN) != 0u ? 1u << 4 : 0u) |
+		((status & STATUS_DROPPED_SAMPLES) != 0u ? 1u << 5 : 0u));
 }
 
 int pl_fft_init(struct pl_fft_device *dev)
@@ -159,7 +173,8 @@ int pl_fft_capture_once(struct pl_fft_device *dev,
 		if ((bank_valid & (1u << active_bank)) == 0u)
 			return PL_FFT_ERR_BANK;
 
-		read_result_fields(dev, frame_before, tag_before, &snapshot);
+		read_result_fields(dev, frame_before, tag_before, status,
+				   &snapshot);
 		for (index = 0u; index < PL_FFT_SPECTRUM_WORDS; index++) {
 			spectrum[index] = dev->read64(
 				dev->context,

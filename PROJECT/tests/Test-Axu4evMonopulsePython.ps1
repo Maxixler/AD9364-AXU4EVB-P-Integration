@@ -26,12 +26,24 @@ if ($InstallDependencies) {
 Push-Location $root
 try {
     $expectedCrosscheck = 'CROSSCHECK powers=300,100,100,300 q31=1073741824,-1073741824'
+    $modules = @(
+        'PROJECT.tests.test_fft_vectors',
+        'PROJECT.tests.test_lab_console_protocol',
+        'PROJECT.tests.test_lab_console_model',
+        'PROJECT.tests.test_lab_console_storage',
+        'PROJECT.tests.test_lab_console_serial_client',
+        'PROJECT.tests.test_lab_console_app',
+        'PROJECT.tests.test_lab_console_evidence',
+        'PROJECT.tests.test_monopulse_reference',
+        'PROJECT.tests.test_xilinx_fft_cmodel'
+    )
     $pythonStdout = [System.IO.Path]::GetTempFileName()
     $pythonStderr = [System.IO.Path]::GetTempFileName()
     try {
-        $pythonProcess = Start-Process -FilePath $pythonExe -ArgumentList @(
-            '-B', '-m', 'unittest', 'discover', '-s', 'PROJECT/tests', '-p', 'test_*.py', '-v'
-        ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $pythonStdout -RedirectStandardError $pythonStderr
+        $pythonArguments = @('-B', '-m', 'unittest') + $modules + @('-v')
+        $pythonProcess = Start-Process -FilePath $pythonExe -ArgumentList $pythonArguments `
+            -Wait -PassThru -NoNewWindow -RedirectStandardOutput $pythonStdout `
+            -RedirectStandardError $pythonStderr
         $pythonExitCode = $pythonProcess.ExitCode
         $pythonOutput = (Get-Content -LiteralPath $pythonStderr -Raw) + (Get-Content -LiteralPath $pythonStdout -Raw)
     } finally {

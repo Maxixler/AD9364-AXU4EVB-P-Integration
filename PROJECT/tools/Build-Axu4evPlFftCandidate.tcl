@@ -13,11 +13,23 @@ if {$argc == 5} {
 set allowed_symbols {
     PL_FFT_SINGLE_SHOT
     PL_FFT_PERIODIC_MONITOR
+    PL_FFT_LAB_UART
+    PL_FFT_ETHERNET
 }
 if {[lsearch -exact $allowed_symbols $compiler_symbol] == -1} {
     error "Invalid Candidate compiler symbol: $compiler_symbol"
 }
 set source_root [file join $project_root Vitis workspace ad9364app src]
+
+proc generate_platform_with_single_retry {} {
+    if {[catch {platform generate} first_error]} {
+        puts "WARN: Vitis platform generation hit a transient file lock; retrying once after 3000 ms."
+        after 3000
+        if {[catch {platform generate} second_error]} {
+            error "Candidate platform generation failed after one retry.\nFirst attempt: $first_error\nSecond attempt: $second_error"
+        }
+    }
+}
 
 if {![file exists $xsa_path]} {
     error "Missing Candidate XSA: $xsa_path"
@@ -27,11 +39,14 @@ if {![file isdirectory $source_root]} {
 }
 set allowed_prefix "${allowed_workspace_root}/"
 set workspace_prefix "${workspace_path}/"
+set default_ethernet_workspace [file normalize [file join $project_root vitis_ethernet workspace]]
+set is_default_ethernet_workspace [string equal -nocase $workspace_path $default_ethernet_workspace]
 if {$workspace_path eq $allowed_workspace_root ||
     ![string match -nocase "${allowed_prefix}*" $workspace_prefix] ||
     $workspace_path eq $project_root ||
-    [string match -nocase "${workspace_prefix}*" "${project_root}/"] ||
-    [string match -nocase "${project_root}/*" $workspace_prefix]} {
+    (!$is_default_ethernet_workspace &&
+        ([string match -nocase "${workspace_prefix}*" "${project_root}/"] ||
+            [string match -nocase "${project_root}/*" $workspace_prefix]))} {
     error "Unsafe Candidate Vitis workspace path: $workspace_path"
 }
 
@@ -50,7 +65,16 @@ platform create \
     -arch 64-bit \
     -no-boot-bsp
 bsp setlib -name xilffs
-platform generate
+if {$compiler_symbol eq "PL_FFT_ETHERNET"} {
+    bsp setlib -name lwip211
+    bsp config api_mode RAW_API
+    bsp config no_sys_no_timers true
+    bsp config lwip_dhcp false
+    bsp config mem_size 524288
+    bsp config pbuf_pool_size 256
+    bsp regenerate
+}
+generate_platform_with_single_retry
 
 set app_name "ad9364app"
 app create \
